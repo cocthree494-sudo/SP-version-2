@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from asgi_correlation_id import CorrelationIdMiddleware
 from fastapi import FastAPI
 
-from app.api import auth, bots, health
+from app.api import auth, bots, health, usage
 from app.core.config import settings
 from app.core.logger import setup_logging
 from app.db.session import dispose_engine
@@ -36,6 +36,7 @@ app.add_middleware(CorrelationIdMiddleware)
 app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(bots.router)
+app.include_router(usage.router)
 
 
 @app.get("/", include_in_schema=False)

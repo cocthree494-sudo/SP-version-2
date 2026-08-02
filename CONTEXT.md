@@ -3,7 +3,7 @@
 > Read this first. This is the compact handoff document for Claude, Codex, or another coding agent. Detailed architecture is in [PLAN.md](PLAN.md); executable order is in [TASKS.md](TASKS.md).
 
 **Last updated:** 2026-08-03, Codex session
-**Status:** tenancy, authentication, and bot/widget credentials are implemented; usage events are next.
+**Status:** foundation through append-only usage accounting is implemented; ingestion abstractions are next.
 
 ## 1. Project
 
@@ -153,6 +153,15 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 - Added migration `0004_bots` with forced RLS on `bots` and `bot_keys` plus a composite tenant/bot foreign key, API/security/isolation tests, and `docs/bots.md`.
 - Verified the full repository quality gate with 25 API tests and inspected all nine bot/key OpenAPI operations.
 
+### Session 9 — Codex
+
+- Pushed T-023 after the user authorized completing and pushing the batch through T-030; its GitHub Actions run completed successfully.
+- Implemented T-024 immutable, tenant-scoped usage events with normalized generation/embedding operation, configured provider/model IDs, token/cache counts, integer latency milliseconds, and integer estimated micro-USD.
+- Added a transaction-composable internal recorder that validates bot ownership and flushes without forcing a commit, leaving future message plus usage persistence atomic.
+- Added `GET /v1/usage/summary` with optional bot and timezone-aware half-open UTC range filters, exact totals, and provider/model/operation breakdowns. No quotas or billing enforcement were added.
+- Enforced append-only behavior through repository shape, ORM mutation hooks, and a PostgreSQL update/delete trigger in migration `0005_usage`; added forced RLS and cross-tenant tests.
+- Added `docs/usage.md`; the full repository quality gate passes with 30 API tests.
+
 ## 7. Open items
 
 | ID | Item | Handling now |
@@ -164,9 +173,9 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 
 ## HANDOFF STATE
 
-**Last completed:** T-023 — implement bots and public widget credentials
-**Next task:** T-024 — implement append-only usage events
+**Last completed:** T-024 — implement append-only usage events
+**Next task:** T-030 — add storage and ingestion job abstractions
 **Blocked on:** None
-**Uncommitted work:** None after the T-023 commit.
-**Verification:** `npm.cmd run check` passes; 25 API tests pass; OpenAPI exposes nine bot/key operations; Alembic offline SQL renders both bot tables, their composite tenant foreign key, and forced RLS policies. GitHub Actions run for CI fix `4cf6077` completed successfully.
-**Gotchas:** Docker is unavailable in the current shell, so migrations have not been applied to a live PostgreSQL instance. SQLite tests cover application tenant predicates, API behavior, and credential resolution but not live PostgreSQL RLS execution. Existing local `.env` files created before T-022 should add a stable `AUTH_JWT_SECRET`; otherwise development uses a process-local ephemeral key. The T-023 commit is local until another push is explicitly authorized.
+**Uncommitted work:** None after the T-024 commit.
+**Verification:** `npm.cmd run check` passes; 30 API tests pass; Alembic offline SQL renders immutable `usage_events`, forced RLS, and the mutation-blocking trigger. GitHub Actions through T-023 are successful.
+**Gotchas:** Docker is unavailable in the current shell, so migrations have not been applied to a live PostgreSQL instance. SQLite tests cover application tenant predicates, API behavior, aggregation, and ORM immutability but not live PostgreSQL RLS/trigger execution. Existing local `.env` files created before T-022 should add a stable `AUTH_JWT_SECRET`; otherwise development uses a process-local ephemeral key.

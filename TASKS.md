@@ -45,7 +45,7 @@ Completion means implementation, proportionate tests/checks, documentation/hando
   Depends on: T-021  
   Bot CRUD, revocable publishable keys, allowed origins, status, and tenant-scoped tests.
 
-- [ ] **T-024 — Implement append-only usage events**  
+- [x] **T-024 — Implement append-only usage events**
   Depends on: T-021  
   Normalized token/latency/cost records and a basic tenant summary endpoint; no billing enforcement.
 

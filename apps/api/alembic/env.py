@@ -24,6 +24,7 @@ from app.db.base import Base  # noqa: E402
 from app.domains.auth import models as auth_models  # noqa: E402,F401
 from app.domains.bots import models as bot_models  # noqa: E402,F401
 from app.domains.tenancy import models as tenancy_models  # noqa: E402,F401
+from app.domains.usage import models as usage_models  # noqa: E402,F401
 
 config = context.config
 

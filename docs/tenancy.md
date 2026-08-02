@@ -39,3 +39,8 @@ tables have forced RLS. Widget publishable keys include a non-secret tenant
 address so an unauthenticated request can establish scope before exact lookup.
 A composite `(tenant_id, bot_id)` foreign key prevents a credential from being
 attached to a bot in another tenant.
+
+`usage_events` also repeats tenant predicates and forced RLS. Events are
+append-only: ORM hooks protect local/test code and a PostgreSQL trigger rejects
+updates and deletes. Optional bot IDs are historical labels rather than foreign
+keys, so removing bot configuration does not erase tenant usage history.

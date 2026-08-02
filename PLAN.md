@@ -114,7 +114,7 @@ All tenant-owned tables carry `tenant_id`. Global identity tables are the only j
 | `document_chunks` | tenant_id, document_id, ordinal, content, token count, embedding vector, metadata |
 | `conversations` | tenant_id, bot_id, channel, external/session identity, summary, status |
 | `messages` | tenant_id, conversation_id, role, content, citations, model metadata |
-| `usage_events` | tenant_id, bot_id, conversation_id, provider/model, input/output/cache tokens, latency, cost estimate |
+| `usage_events` | append-only tenant_id, historical bot/conversation IDs, operation, provider/model, input/output/cache tokens, latency_ms, estimated_cost_microusd |
 | `ingestion_jobs` | tenant_id, source_id, job type, state, attempts, progress, error |
 
 Likely later tables: `subscriptions`, `invoices`, `tickets`, `agent_assignments`, `audit_logs`, and channel-specific installations. Do not add them to Phase 1 without a task or a direct user request.
