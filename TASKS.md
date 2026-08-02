@@ -15,7 +15,7 @@ Completion means implementation, proportionate tests/checks, documentation/hando
 
 ## Phase 1A — Repository foundation
 
-- [ ] **T-010 — Scaffold monorepo and local development stack**  
+- [x] **T-010 — Scaffold monorepo and local development stack**  
   Depends on: T-001  
   Create `apps/api`, `apps/web`, `packages/widget`, shared configuration, `.env.example`, and Docker Compose for PostgreSQL/pgvector and Redis. Add one-command development instructions. No product UI yet.
 

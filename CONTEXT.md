@@ -2,8 +2,8 @@
 
 > Read this first. This is the compact handoff document for Claude, Codex, or another coding agent. Detailed architecture is in [PLAN.md](PLAN.md); executable order is in [TASKS.md](TASKS.md).
 
-**Last updated:** 2026-08-02, Codex handoff session
-**Status:** planning and repository handoff complete; application code has not started.
+**Last updated:** 2026-08-03, Antigravity session
+**Status:** monorepo scaffold committed; application code has not started.
 
 ## 1. Project
 
@@ -93,6 +93,24 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 - Selected D8 as a reversible implementation default.
 - Initialized `main`, connected the HTTPS GitHub remote, committed `[T-001]`, and pushed successfully.
 
+### Session 3b — Codex
+
+- Scaffolded the full monorepo structure: `apps/api`, `apps/web`, `packages/widget`, `packages/api-client`, `infra/`, `scripts/`, and `docs/`.
+- Created Docker Compose for PostgreSQL/pgvector and Redis with health checks.
+- Set up `npm run dev` one-command startup with `setup.mjs` and `dev.mjs`.
+- Configured npm workspaces, `.env.example`, `.editorconfig`, `.gitignore`, `tsconfig.base.json`.
+- Created FastAPI scaffold (`app/main.py`), Next.js App Router scaffold, Preact/Vite widget scaffold, and shared `@support-agent/api-client` package.
+- Did not commit the work before session ended.
+
+### Session 4 — Antigravity
+
+- Verified the existing uncommitted scaffold satisfied T-010 requirements.
+- Added planned API subdirectory structure: `app/api/`, `app/core/`, `app/db/`, `app/domains/`, `app/providers/`, `app/workers/` as Python packages.
+- Added `alembic/` placeholder and `tests/__init__.py`.
+- Added `docs/README.md` placeholder.
+- Verified all Python packages import correctly and both TypeScript projects compile clean.
+- Committed all scaffold work as `[T-010]`.
+
 ## 7. Open items
 
 | ID | Item | Handling now |
@@ -104,9 +122,9 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 
 ## HANDOFF STATE
 
-**Last completed:** T-001 — planning, handoff documents, and Git repository setup  
-**Next task:** T-010 — scaffold the monorepo and local development stack  
-**Blocked on:** none; provider credentials are not required for scaffold work  
+**Last completed:** T-010 — scaffold monorepo and local development stack  
+**Next task:** T-011 — add quality gates and CI baseline  
+**Blocked on:** none  
 **Uncommitted work:** none  
-**Verification:** docs/task links checked; local `main` was clean and matched pushed `origin/main` after the initial handoff commit  
-**Gotchas:** the GitHub screenshot showed an SSH URL, but this PC had not trusted GitHub's SSH host key; HTTPS is the safe initial remote. Do not commit `git.png` or `.claude/settings.local.json`.
+**Verification:** Python packages import OK; TypeScript compiles clean for both widget and web; 40 files committed in `[T-010]`  
+**Gotchas:** PowerShell execution policy blocks `npx` directly; use `cmd /c "npx ..."` as workaround. CRLF warnings on Windows are cosmetic. Do not commit `git.png`, `.claude/settings.local.json`, `.env`, `.venv`, or `node_modules`.
