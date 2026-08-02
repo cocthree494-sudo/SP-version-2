@@ -113,6 +113,10 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 - Implemented T-011: Configured backend tools (Ruff, mypy, pytest) with a smoke test.
 - Configured frontend tools (ESLint, Prettier equivalents) for Next.js web app and Preact widget.
 - Added a unified `npm run check` script to package.json and a GitHub Actions workflow (`ci.yml`).
+- Implemented T-012: Added typed configuration using `pydantic-settings`.
+- Added structured JSON logging using `structlog` and correlation IDs.
+- Added `/health/live` and `/health/ready` endpoints with basic PostgreSQL and Redis connectivity checks.
+- Added unit tests for health endpoints.
 
 ## 7. Open items
 
@@ -125,9 +129,9 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 
 ## HANDOFF STATE
 
-**Last completed:** T-011 — add quality gates and CI baseline  
-**Next task:** T-012 — add configuration, logging, and health endpoints  
-**Blocked on:** none  
-**Uncommitted work:** none  
-**Verification:** Ran `npm run check` which successfully executed Ruff, mypy, pytest, ESLint (web and widget), and tsc (web and widget) across the codebase without errors.  
-**Gotchas:** PowerShell execution policy blocks `npx` directly; use `cmd /c "npm ..."` as workaround. Next.js ESLint flat config can be finicky.
+**Last completed:** T-012 — add configuration, logging, and health endpoints  
+**Next task:** T-013 — Database Base (alembic, base model, tenant mixing prevention)  
+**Blocked on:** User approval of T-013 Implementation Plan  
+**Uncommitted work:** None  
+**Verification:** Health endpoints checked manually via tests; full check suite passed.  
+**Gotchas:** `pydantic-settings` requires careful mypy config or type ignores if defaults aren't provided for strictly required fields.

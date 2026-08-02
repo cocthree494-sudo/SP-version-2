@@ -1,11 +1,35 @@
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+
+from asgi_correlation_id import CorrelationIdMiddleware
 from fastapi import FastAPI
+
+from app.api import health
+from app.core.config import settings
+from app.core.logger import setup_logging
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    # Setup structured logging on startup
+    setup_logging()
+    yield
+    # Teardown (e.g. closing db connections) will go here later
+
 
 app = FastAPI(
     title="Support Agent API",
     version="0.1.0",
     docs_url="/docs",
     redoc_url=None,
+    lifespan=lifespan,
 )
+
+# Add correlation ID middleware for request tracing
+app.add_middleware(CorrelationIdMiddleware)
+
+# Include routers
+app.include_router(health.router)
 
 
 @app.get("/", include_in_schema=False)
@@ -13,4 +37,6 @@ async def service_info() -> dict[str, str]:
     return {
         "service": "support-agent-api",
         "status": "scaffold-ready",
+        "env": settings.APP_ENV,
     }
+

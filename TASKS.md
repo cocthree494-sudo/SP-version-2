@@ -23,7 +23,7 @@ Completion means implementation, proportionate tests/checks, documentation/hando
   Depends on: T-010  
   Backend lint/type/test commands, frontend lint/type/test commands, pre-commit or equivalent, and GitHub Actions that run the same commands.
 
-- [ ] **T-012 — Add configuration, logging, and health endpoints**  
+- [x] **T-012 — Add configuration, logging, and health endpoints**  
   Depends on: T-010  
   Typed environment settings, secret-safe structured logging, request IDs, `/health/live`, `/health/ready`, and DB/Redis readiness checks.
 
