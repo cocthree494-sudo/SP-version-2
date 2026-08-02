@@ -33,7 +33,7 @@ Completion means implementation, proportionate tests/checks, documentation/hando
   Depends on: T-010  
   Async SQLAlchemy session, Alembic, UUID/time conventions, pgvector extension, and shared model mixins.
 
-- [ ] **T-021 — Implement tenants, users, memberships, and isolation**  
+- [x] **T-021 — Implement tenants, users, memberships, and isolation**
   Depends on: T-020  
   Tables/repositories for users, tenants, memberships/roles; explicit tenant context and row-level-security strategy. Include cross-tenant isolation tests.
 

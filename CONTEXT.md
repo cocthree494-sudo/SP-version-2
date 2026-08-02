@@ -126,6 +126,14 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 - Reused the shared engine in database readiness checks and added root migration commands.
 - Added migration, model-convention, and session-factory tests. Full backend/frontend/widget checks pass.
 
+### Session 6 — Codex
+
+- Implemented T-021 with global `users` and `tenants` tables plus tenant-scoped `tenant_memberships`, stable status/role enums, and normalized email/slug repositories.
+- Added explicit `tenant_scope`/`tenant_session_scope` context helpers, transaction-local PostgreSQL `app.tenant_id` configuration, and a forced RLS policy for memberships.
+- Added fail-closed membership repository predicates, active-context conflict detection, migration coverage, and SQLite cross-tenant isolation tests.
+- Added `docs/tenancy.md` describing the application-predicate plus PostgreSQL-RLS defense-in-depth strategy.
+- Verified the full repository quality gate with `npm.cmd run check`.
+
 ## 7. Open items
 
 | ID | Item | Handling now |
@@ -137,9 +145,9 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 
 ## HANDOFF STATE
 
-**Last completed:** T-020 — create database base and first migration
-**Next task:** T-021 — implement tenants, users, memberships, and isolation
+**Last completed:** T-021 — implement tenants, users, memberships, and isolation
+**Next task:** T-022 — implement minimal authentication
 **Blocked on:** None
-**Uncommitted work:** None after the T-020 commit
-**Verification:** `npm.cmd run check` passes; 8 API tests pass; Alembic offline upgrade SQL renders the pgvector revision successfully.
-**Gotchas:** Docker is unavailable in the current shell, so the migration was not applied to a live PostgreSQL instance. The online migration requires the pgvector-enabled PostgreSQL image from Compose.
+**Uncommitted work:** None after the T-021 commit.
+**Verification:** `npm.cmd run check` passes; 13 API tests pass; Alembic offline upgrade SQL renders the pgvector and tenancy revisions, including the membership RLS policy.
+**Gotchas:** Docker is unavailable in the current shell, so the migration was not applied to a live PostgreSQL instance. The online migration requires the pgvector-enabled PostgreSQL image from Compose; SQLite tests cover repository predicates but not live PostgreSQL RLS execution.
