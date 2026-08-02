@@ -91,6 +91,7 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 - Expanded the technical plan and created the task/handoff system.
 - Created the extra-feature inbox requested by the user.
 - Selected D8 as a reversible implementation default.
+- Initialized `main`, connected the HTTPS GitHub remote, committed `[T-001]`, and pushed successfully.
 
 ## 7. Open items
 
@@ -106,6 +107,6 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 **Last completed:** T-001 — planning, handoff documents, and Git repository setup  
 **Next task:** T-010 — scaffold the monorepo and local development stack  
 **Blocked on:** none; provider credentials are not required for scaffold work  
-**Uncommitted work:** none expected after the handoff commit  
-**Verification:** documentation cross-links checked; Git status/remote/push must be confirmed at session end  
+**Uncommitted work:** none  
+**Verification:** docs/task links checked; local `main` was clean and matched pushed `origin/main` after the initial handoff commit  
 **Gotchas:** the GitHub screenshot showed an SSH URL, but this PC had not trusted GitHub's SSH host key; HTTPS is the safe initial remote. Do not commit `git.png` or `.claude/settings.local.json`.
