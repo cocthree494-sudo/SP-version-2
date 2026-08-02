@@ -63,6 +63,24 @@ async def set_database_tenant(session: AsyncSession, tenant_id: UUID) -> None:
     )
 
 
+async def set_database_user(session: AsyncSession, user_id: UUID) -> None:
+    """Set the authenticated user for the login-only membership RLS policy.
+
+    This scope is used only after password verification, before a tenant has
+    been selected. It permits reading that user's own membership rows and does
+    not permit tenant-owned writes.
+    """
+
+    bind = session.get_bind()
+    if bind.dialect.name != "postgresql":
+        return
+
+    await session.execute(
+        text("SELECT set_config('app.user_id', :user_id, true)"),
+        {"user_id": str(user_id)},
+    )
+
+
 async def clear_database_tenant(session: AsyncSession) -> None:
     """Clear the transaction-local tenant GUC when a scope exits."""
 
@@ -98,6 +116,7 @@ __all__ = [
     "get_current_tenant_id",
     "maybe_current_tenant_id",
     "set_database_tenant",
+    "set_database_user",
     "tenant_scope",
     "tenant_session_scope",
 ]

@@ -37,7 +37,7 @@ Completion means implementation, proportionate tests/checks, documentation/hando
   Depends on: T-020  
   Tables/repositories for users, tenants, memberships/roles; explicit tenant context and row-level-security strategy. Include cross-tenant isolation tests.
 
-- [ ] **T-022 — Implement minimal authentication**  
+- [x] **T-022 — Implement minimal authentication**
   Depends on: T-021  
   Register/login/refresh/me, Argon2id password hashing, rotated refresh tokens, and bootstrap organization creation. No password reset/email verification UI unless separately tasked.
 

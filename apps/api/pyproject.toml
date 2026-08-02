@@ -5,10 +5,13 @@ description = "FastAPI backend for the Support Agent SaaS"
 requires-python = ">=3.12,<3.15"
 dependencies = [
   "alembic>=1.16,<2.0",
+  "argon2-cffi>=23.1,<26.0",
   "asgi-correlation-id>=5.0.1",
   "asyncpg>=0.31.0",
+  "email-validator>=2.2,<3.0",
   "fastapi>=0.116,<1.0",
   "pgvector>=0.4,<1.0",
+  "pyjwt>=2.10,<3.0",
   "pydantic-settings>=2.14.2",
   "redis>=8.1.0",
   "sqlalchemy>=2.0.51",

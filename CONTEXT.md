@@ -2,8 +2,8 @@
 
 > Read this first. This is the compact handoff document for Claude, Codex, or another coding agent. Detailed architecture is in [PLAN.md](PLAN.md); executable order is in [TASKS.md](TASKS.md).
 
-**Last updated:** 2026-08-03, Antigravity session
-**Status:** monorepo scaffold committed; application code has not started.
+**Last updated:** 2026-08-03, Codex session
+**Status:** tenancy and minimal authentication are implemented; bot domain is next.
 
 ## 1. Project
 
@@ -134,6 +134,15 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 - Added `docs/tenancy.md` describing the application-predicate plus PostgreSQL-RLS defense-in-depth strategy.
 - Verified the full repository quality gate with `npm.cmd run check`.
 
+### Session 7 — Codex
+
+- Implemented T-022 JSON endpoints for register, login, refresh, and the tenant-bound current-user response at `/v1/me`.
+- Registration now atomically bootstraps a user, organization, owner membership, and first login session; optional slugs are validated and omitted slugs are generated.
+- Added Argon2id password hashing and rehash support, tenant-bound short-lived JWT access tokens, and high-entropy opaque refresh tokens stored only as hashes.
+- Added fixed-lifetime refresh-token families with row-locked rotation and whole-family revocation when a rotated token is replayed.
+- Tenant-scoped `refresh_tokens` use fail-closed repository predicates and forced RLS. Login has a narrow SELECT-only RLS policy that resolves only the password-verified user's memberships before tenant selection.
+- Added migration `0003_auth`, auth/API/isolation tests, and `docs/authentication.md`. The full repository quality gate passes with 20 API tests.
+
 ## 7. Open items
 
 | ID | Item | Handling now |
@@ -145,9 +154,9 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 
 ## HANDOFF STATE
 
-**Last completed:** T-021 — implement tenants, users, memberships, and isolation
-**Next task:** T-022 — implement minimal authentication
+**Last completed:** T-022 — implement minimal authentication
+**Next task:** T-023 — implement bots and public widget credentials
 **Blocked on:** None
-**Uncommitted work:** None after the T-021 commit.
-**Verification:** `npm.cmd run check` passes; 13 API tests pass; Alembic offline upgrade SQL renders the pgvector and tenancy revisions, including the membership RLS policy.
-**Gotchas:** Docker is unavailable in the current shell, so the migration was not applied to a live PostgreSQL instance. The online migration requires the pgvector-enabled PostgreSQL image from Compose; SQLite tests cover repository predicates but not live PostgreSQL RLS execution.
+**Uncommitted work:** None after the T-022 commit.
+**Verification:** `npm.cmd run check` passes; 20 API tests pass; OpenAPI exposes all four T-022 routes; Alembic offline upgrade SQL renders `refresh_tokens` and both new RLS policies.
+**Gotchas:** Docker is unavailable in the current shell, so migrations have not been applied to a live PostgreSQL instance. SQLite tests cover repository predicates and auth behavior but not live PostgreSQL row locks or RLS execution. Existing local `.env` files created before T-022 should add a stable `AUTH_JWT_SECRET`; otherwise development uses a process-local ephemeral key.
