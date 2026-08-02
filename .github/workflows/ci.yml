@@ -8,6 +8,11 @@ on:
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
+    env:
+      APP_ENV: test
+      DATABASE_URL: postgresql+asyncpg://support_agent:ci_only@127.0.0.1:5432/support_agent_test
+      REDIS_URL: redis://127.0.0.1:6379/15
+      AUTH_JWT_SECRET: ci-only-auth-secret-not-used-outside-tests
     
     steps:
       - uses: actions/checkout@v4
