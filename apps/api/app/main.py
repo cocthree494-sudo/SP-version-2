@@ -7,14 +7,18 @@ from fastapi import FastAPI
 from app.api import health
 from app.core.config import settings
 from app.core.logger import setup_logging
+from app.db.session import dispose_engine
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Setup structured logging on startup
     setup_logging()
-    yield
-    # Teardown (e.g. closing db connections) will go here later
+    try:
+        yield
+    finally:
+        await dispose_engine()
+        await health.redis_client.aclose()
 
 
 app = FastAPI(
@@ -39,4 +43,3 @@ async def service_info() -> dict[str, str]:
         "status": "scaffold-ready",
         "env": settings.APP_ENV,
     }
-

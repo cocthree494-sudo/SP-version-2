@@ -118,6 +118,14 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 - Added `/health/live` and `/health/ready` endpoints with basic PostgreSQL and Redis connectivity checks.
 - Added unit tests for health endpoints.
 
+### Session 5 — Codex
+
+- Implemented T-020 with an async SQLAlchemy engine, session factory, FastAPI session dependency, and application-shutdown disposal.
+- Added shared UUID primary-key, UTC timestamp, constraint-naming, and tenant-scoped model mixins.
+- Initialized async Alembic and added revision `0001_enable_pgvector`, which enables the PostgreSQL `vector` extension.
+- Reused the shared engine in database readiness checks and added root migration commands.
+- Added migration, model-convention, and session-factory tests. Full backend/frontend/widget checks pass.
+
 ## 7. Open items
 
 | ID | Item | Handling now |
@@ -129,9 +137,9 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 
 ## HANDOFF STATE
 
-**Last completed:** T-012 — add configuration, logging, and health endpoints  
-**Next task:** T-013 — Database Base (alembic, base model, tenant mixing prevention)  
-**Blocked on:** User approval of T-013 Implementation Plan  
-**Uncommitted work:** None  
-**Verification:** Health endpoints checked manually via tests; full check suite passed.  
-**Gotchas:** `pydantic-settings` requires careful mypy config or type ignores if defaults aren't provided for strictly required fields.
+**Last completed:** T-020 — create database base and first migration
+**Next task:** T-021 — implement tenants, users, memberships, and isolation
+**Blocked on:** None
+**Uncommitted work:** None after the T-020 commit
+**Verification:** `npm.cmd run check` passes; 8 API tests pass; Alembic offline upgrade SQL renders the pgvector revision successfully.
+**Gotchas:** Docker is unavailable in the current shell, so the migration was not applied to a live PostgreSQL instance. The online migration requires the pgvector-enabled PostgreSQL image from Compose.

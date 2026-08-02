@@ -20,6 +20,8 @@
     "dev:widget": "npm run dev --workspace @support-agent/widget",
     "infra:up": "docker compose --env-file .env -f infra/compose.yaml up -d --wait",
     "infra:down": "docker compose --env-file .env -f infra/compose.yaml down",
+    "db:upgrade": "uv run --project apps/api alembic -c apps/api/alembic.ini upgrade head",
+    "db:current": "uv run --project apps/api alembic -c apps/api/alembic.ini current",
     "build": "npm run build --workspaces --if-present",
     "check": "npm run check:api && npm run check:web && npm run check:widget",
     "check:api": "uv run --project apps/api ruff check apps/api/app apps/api/tests && uv run --project apps/api mypy apps/api/app apps/api/tests && uv run --project apps/api pytest apps/api/tests",

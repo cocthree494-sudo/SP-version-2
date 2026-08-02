@@ -34,6 +34,8 @@ Useful commands:
 ```powershell
 npm run setup       # install dependencies without starting services
 npm run infra:up    # start PostgreSQL and Redis
+npm run db:upgrade  # apply pending PostgreSQL migrations
+npm run db:current  # show the current Alembic revision
 npm run dev:apps    # run API, dashboard, and widget after setup
 npm run infra:down  # stop local infrastructure
 npm run build       # build JavaScript workspaces

@@ -3,18 +3,16 @@ from typing import Any
 import structlog
 from fastapi import APIRouter, Response
 from redis.asyncio import Redis
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy import text
 
 from app.core.config import settings
+from app.db.session import engine
 
 # Setup logging here if needed early, but better done in main
 logger = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/health", tags=["health"])
 
-# We create small temporary clients for health check since full DB connection
-# lifecycle will be implemented in T-020 (database base).
-async_engine = create_async_engine(settings.DATABASE_URL, echo=False)
 redis_client = Redis.from_url(settings.REDIS_URL, decode_responses=True)
 
 
@@ -33,8 +31,7 @@ async def ready(response: Response) -> dict[str, Any]:
 
     # Check Database
     try:
-        async with async_engine.connect() as conn:
-            from sqlalchemy import text
+        async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
         db_ok = True
         details["database"] = "ok"

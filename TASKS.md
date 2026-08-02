@@ -29,7 +29,7 @@ Completion means implementation, proportionate tests/checks, documentation/hando
 
 ## Phase 1B — Tenancy, auth, and usage
 
-- [ ] **T-020 — Create database base and first migration**  
+- [x] **T-020 — Create database base and first migration**
   Depends on: T-010  
   Async SQLAlchemy session, Alembic, UUID/time conventions, pgvector extension, and shared model mixins.
 
