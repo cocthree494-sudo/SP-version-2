@@ -3,7 +3,7 @@
 > Read this first. This is the compact handoff document for Claude, Codex, or another coding agent. Detailed architecture is in [PLAN.md](PLAN.md); executable order is in [TASKS.md](TASKS.md).
 
 **Last updated:** 2026-08-03, Codex session
-**Status:** tenancy and minimal authentication are implemented; bot domain is next.
+**Status:** tenancy, authentication, and bot/widget credentials are implemented; usage events are next.
 
 ## 1. Project
 
@@ -143,6 +143,16 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 - Tenant-scoped `refresh_tokens` use fail-closed repository predicates and forced RLS. Login has a narrow SELECT-only RLS policy that resolves only the password-verified user's memberships before tenant selection.
 - Added migration `0003_auth`, auth/API/isolation tests, and `docs/authentication.md`. The full repository quality gate passes with 20 API tests.
 
+### Session 8 — Codex
+
+- Pushed the seven pending T-010 through T-022 commits to GitHub after the user explicitly authorized the external action.
+- Diagnosed the resulting GitHub Actions failure: CI had no local `.env`, so pytest collection lacked required database and Redis URLs. Added explicit test-only workflow environment values in commit `4cf6077`, pushed it, and verified the replacement Actions run completed successfully.
+- Implemented T-023 bot create/list/get/update/delete APIs with normalized default language, active/disabled status, owner/admin mutation permissions, and member read access.
+- Added public widget-key create/list/update/revoke APIs, exact HTTP(S) origin canonicalization, safe multi-key rotation, and idempotent irreversible revocation.
+- Added a reusable public credential resolver that checks tenant-addressed key format, forced tenant scope, bot status, key revocation, and exact allowed origin.
+- Added migration `0004_bots` with forced RLS on `bots` and `bot_keys` plus a composite tenant/bot foreign key, API/security/isolation tests, and `docs/bots.md`.
+- Verified the full repository quality gate with 25 API tests and inspected all nine bot/key OpenAPI operations.
+
 ## 7. Open items
 
 | ID | Item | Handling now |
@@ -154,9 +164,9 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 
 ## HANDOFF STATE
 
-**Last completed:** T-022 — implement minimal authentication
-**Next task:** T-023 — implement bots and public widget credentials
+**Last completed:** T-023 — implement bots and public widget credentials
+**Next task:** T-024 — implement append-only usage events
 **Blocked on:** None
-**Uncommitted work:** None after the T-022 commit.
-**Verification:** `npm.cmd run check` passes; 20 API tests pass; OpenAPI exposes all four T-022 routes; Alembic offline upgrade SQL renders `refresh_tokens` and both new RLS policies.
-**Gotchas:** Docker is unavailable in the current shell, so migrations have not been applied to a live PostgreSQL instance. SQLite tests cover repository predicates and auth behavior but not live PostgreSQL row locks or RLS execution. Existing local `.env` files created before T-022 should add a stable `AUTH_JWT_SECRET`; otherwise development uses a process-local ephemeral key.
+**Uncommitted work:** None after the T-023 commit.
+**Verification:** `npm.cmd run check` passes; 25 API tests pass; OpenAPI exposes nine bot/key operations; Alembic offline SQL renders both bot tables, their composite tenant foreign key, and forced RLS policies. GitHub Actions run for CI fix `4cf6077` completed successfully.
+**Gotchas:** Docker is unavailable in the current shell, so migrations have not been applied to a live PostgreSQL instance. SQLite tests cover application tenant predicates, API behavior, and credential resolution but not live PostgreSQL RLS execution. Existing local `.env` files created before T-022 should add a stable `AUTH_JWT_SECRET`; otherwise development uses a process-local ephemeral key. The T-023 commit is local until another push is explicitly authorized.

@@ -108,7 +108,7 @@ All tenant-owned tables carry `tenant_id`. Global identity tables are the only j
 | `tenants` | name, slug, status, settings |
 | `tenant_memberships` | tenant_id, user_id, role (`owner/admin/member`) |
 | `bots` | tenant_id, name, system policy, default language, status |
-| `bot_keys` | tenant_id, bot_id, hashed publishable/secret key, allowed origins, revoked_at |
+| `bot_keys` | tenant_id, bot_id, public publishable-key identifier, allowed origins, revoked_at; future secret credentials must be hashed |
 | `knowledge_sources` | tenant_id, bot_id, type, name, source URL/file reference, status, error |
 | `documents` | tenant_id, source_id, checksum, title, canonical URL, metadata, version |
 | `document_chunks` | tenant_id, document_id, ordinal, content, token count, embedding vector, metadata |
@@ -208,6 +208,12 @@ POST   /v1/bots
 GET    /v1/bots
 GET    /v1/bots/{bot_id}
 PATCH  /v1/bots/{bot_id}
+DELETE /v1/bots/{bot_id}
+
+POST   /v1/bots/{bot_id}/keys
+GET    /v1/bots/{bot_id}/keys
+PATCH  /v1/bots/{bot_id}/keys/{key_id}
+DELETE /v1/bots/{bot_id}/keys/{key_id}
 
 POST   /v1/bots/{bot_id}/sources/files
 POST   /v1/bots/{bot_id}/sources/websites

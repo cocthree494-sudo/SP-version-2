@@ -41,7 +41,7 @@ Completion means implementation, proportionate tests/checks, documentation/hando
   Depends on: T-021  
   Register/login/refresh/me, Argon2id password hashing, rotated refresh tokens, and bootstrap organization creation. No password reset/email verification UI unless separately tasked.
 
-- [ ] **T-023 — Implement bots and public widget credentials**  
+- [x] **T-023 — Implement bots and public widget credentials**
   Depends on: T-021  
   Bot CRUD, revocable publishable keys, allowed origins, status, and tenant-scoped tests.
 

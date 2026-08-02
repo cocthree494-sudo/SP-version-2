@@ -32,3 +32,10 @@ policy permits that user to resolve their own memberships; it does not allow
 cross-user reads or any membership write. Once one membership is selected,
 the resulting access token is tenant-bound and protected endpoints verify that
 membership again under normal tenant scope.
+
+`bots` and `bot_keys` follow the normal tenant model: every repository method
+requires tenant context and repeats the `tenant_id` predicate, while both
+tables have forced RLS. Widget publishable keys include a non-secret tenant
+address so an unauthenticated request can establish scope before exact lookup.
+A composite `(tenant_id, bot_id)` foreign key prevents a credential from being
+attached to a bot in another tenant.

@@ -6,3 +6,4 @@ Additional documentation beyond the root `CONTEXT.md`, `PLAN.md`, `TASKS.md`, an
 
 - [Tenancy and isolation](tenancy.md)
 - [Authentication](authentication.md)
+- [Bots and widget credentials](bots.md)
