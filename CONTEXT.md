@@ -110,6 +110,9 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 - Added `docs/README.md` placeholder.
 - Verified all Python packages import correctly and both TypeScript projects compile clean.
 - Committed all scaffold work as `[T-010]`.
+- Implemented T-011: Configured backend tools (Ruff, mypy, pytest) with a smoke test.
+- Configured frontend tools (ESLint, Prettier equivalents) for Next.js web app and Preact widget.
+- Added a unified `npm run check` script to package.json and a GitHub Actions workflow (`ci.yml`).
 
 ## 7. Open items
 
@@ -122,9 +125,9 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 
 ## HANDOFF STATE
 
-**Last completed:** T-010 — scaffold monorepo and local development stack  
-**Next task:** T-011 — add quality gates and CI baseline  
+**Last completed:** T-011 — add quality gates and CI baseline  
+**Next task:** T-012 — add configuration, logging, and health endpoints  
 **Blocked on:** none  
 **Uncommitted work:** none  
-**Verification:** Python packages import OK; TypeScript compiles clean for both widget and web; 40 files committed in `[T-010]`  
-**Gotchas:** PowerShell execution policy blocks `npx` directly; use `cmd /c "npx ..."` as workaround. CRLF warnings on Windows are cosmetic. Do not commit `git.png`, `.claude/settings.local.json`, `.env`, `.venv`, or `node_modules`.
+**Verification:** Ran `npm run check` which successfully executed Ruff, mypy, pytest, ESLint (web and widget), and tsc (web and widget) across the codebase without errors.  
+**Gotchas:** PowerShell execution policy blocks `npx` directly; use `cmd /c "npm ..."` as workaround. Next.js ESLint flat config can be finicky.

@@ -19,7 +19,7 @@ Completion means implementation, proportionate tests/checks, documentation/hando
   Depends on: T-001  
   Create `apps/api`, `apps/web`, `packages/widget`, shared configuration, `.env.example`, and Docker Compose for PostgreSQL/pgvector and Redis. Add one-command development instructions. No product UI yet.
 
-- [ ] **T-011 — Add quality gates and CI baseline**  
+- [x] **T-011 — Add quality gates and CI baseline**  
   Depends on: T-010  
   Backend lint/type/test commands, frontend lint/type/test commands, pre-commit or equivalent, and GitHub Actions that run the same commands.
 
