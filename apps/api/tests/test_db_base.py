@@ -22,6 +22,12 @@ class TenantRecord(TenantScopedModel):
     __tablename__ = "test_tenant_records"
 
 
+# These mapped classes exercise the production mixins but are not application
+# schema. Keep them out of Base.metadata so Alembic parity checks are order-safe.
+Base.metadata.remove(GlobalRecord.__table__)
+Base.metadata.remove(TenantRecord.__table__)
+
+
 def test_base_has_stable_constraint_naming_convention() -> None:
     assert Base.metadata.naming_convention == NAMING_CONVENTION
     assert NAMING_CONVENTION["pk"] == "pk_%(table_name)s"

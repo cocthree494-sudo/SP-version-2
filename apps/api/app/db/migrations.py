@@ -14,7 +14,10 @@ def _normalize_json_default(value: str) -> str:
     normalized = value.strip()
     while normalized.startswith("(") and normalized.endswith(")"):
         normalized = normalized[1:-1].strip()
-    return _POSTGRES_JSON_CAST.sub("", normalized).strip()
+    normalized = _POSTGRES_JSON_CAST.sub("", normalized).strip()
+    if len(normalized) >= 2 and normalized.startswith("'") and normalized.endswith("'"):
+        normalized = normalized[1:-1].replace("''", "'")
+    return normalized
 
 
 def compare_server_default(

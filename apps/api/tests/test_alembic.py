@@ -13,13 +13,11 @@ def test_json_server_defaults_compare_without_database_equality() -> None:
     json_column = Column("payload", JSON())
 
     assert (
-        compare_server_default(
-            None, None, json_column, "('[]'::json)", None, "'[]'"
-        )
+        compare_server_default(None, None, json_column, "('[]'::json)", None, "[]")
         is False
     )
     assert (
-        compare_server_default(None, None, json_column, "'{}'::json", None, "'[]'")
+        compare_server_default(None, None, json_column, "'{}'::json", None, "[]")
         is True
     )
     assert (
