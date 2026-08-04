@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from app.core.config import settings
 from app.db.base import Base
-from app.db.migrations import include_object
+from app.db.migrations import compare_server_default, include_object
 from app.domains.auth import models as _auth_models  # noqa: F401
 from app.domains.bots import models as _bot_models  # noqa: F401
 from app.domains.chat import models as _chat_models  # noqa: F401
@@ -48,7 +48,7 @@ def _migration_diff(connection: Connection) -> list[Any]:
         connection,
         opts={
             "compare_type": True,
-            "compare_server_default": True,
+            "compare_server_default": compare_server_default,
             "include_object": include_object,
         },
     )

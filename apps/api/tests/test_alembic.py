@@ -4,6 +4,30 @@ from pathlib import Path
 
 from alembic.config import Config
 from alembic.script import ScriptDirectory
+from sqlalchemy import JSON, Column, String
+
+from app.db.migrations import compare_server_default
+
+
+def test_json_server_defaults_compare_without_database_equality() -> None:
+    json_column = Column("payload", JSON())
+
+    assert (
+        compare_server_default(
+            None, None, json_column, "('[]'::json)", None, "'[]'"
+        )
+        is False
+    )
+    assert (
+        compare_server_default(None, None, json_column, "'{}'::json", None, "'[]'")
+        is True
+    )
+    assert (
+        compare_server_default(
+            None, None, Column("name", String()), "'same'", None, "'same'"
+        )
+        is None
+    )
 
 
 def test_alembic_has_conversation_revision_after_knowledge() -> None:
