@@ -26,19 +26,20 @@ from app.domains.tenancy import models as _tenancy_models  # noqa: F401
 from app.domains.usage import models as _usage_models  # noqa: F401
 
 
-def _alembic_command(api_root: Path, revision: str) -> None:
+def _alembic_command(api_root: Path, *arguments: str) -> None:
     environment = os.environ.copy()
     environment["DATABASE_URL"] = settings.DATABASE_URL
     result = subprocess.run(  # noqa: S603 - command and revision are fixed by this test
-        [sys.executable, "-m", "alembic", "-c", "alembic.ini", revision],
+        [sys.executable, "-m", "alembic", "-c", "alembic.ini", *arguments],
         cwd=api_root,
         env=environment,
         capture_output=True,
         text=True,
         check=False,
     )
+    command = " ".join(arguments)
     assert result.returncode == 0, (
-        f"alembic {revision} failed\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        f"alembic {command} failed\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
     )
 
 
@@ -62,9 +63,9 @@ async def test_postgres_migrations_round_trip_and_match_models(
 ) -> None:
     del postgres_engine
     api_root = Path(__file__).resolve().parents[1]
-    await asyncio.to_thread(_alembic_command, api_root, "upgrade head")
-    await asyncio.to_thread(_alembic_command, api_root, "downgrade base")
-    await asyncio.to_thread(_alembic_command, api_root, "upgrade head")
+    await asyncio.to_thread(_alembic_command, api_root, "upgrade", "head")
+    await asyncio.to_thread(_alembic_command, api_root, "downgrade", "base")
+    await asyncio.to_thread(_alembic_command, api_root, "upgrade", "head")
 
     async with admin_postgres_engine.connect() as connection:
         differences = await connection.run_sync(_migration_diff)
