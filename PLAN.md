@@ -21,8 +21,9 @@ The first usable slice must let a tenant:
 3. add knowledge from a file, website, or manual Q&A;
 4. wait for ingestion and see its status;
 5. test the bot in a playground;
-6. embed a fast web widget;
-7. view basic usage.
+6. optionally connect its own approved model-generation provider credential and choose an explicit routing/fallback policy;
+7. embed a fast web widget;
+8. view basic usage.
 
 Billing, a live-agent inbox, and non-web channels are intentionally not required for this slice.
 
@@ -41,8 +42,10 @@ Billing, a live-agent inbox, and non-web channels are intentionally not required
 | Streaming | HTTP Server-Sent Events over `fetch` | Simple infrastructure, proxy-friendly, adequate for one-way token streaming |
 | API contract | Versioned REST under `/v1`; OpenAPI generates frontend types | Keeps Python and TypeScript contracts synchronized |
 | Deployment | Docker-first and environment-configured | Can move between VPS and managed cloud without code changes |
+| Provider ownership | Platform-managed model targets are the default; a tenant may optionally bring its own generation-provider credentials (BYOK) through approved adapters | Keeps onboarding simple while allowing customer-controlled spend, limits, and provider access without accepting arbitrary secret-exfiltration endpoints |
+| BYOK secret custody | Provider-neutral envelope-encryption/KMS or Vault adapter; plaintext exists only briefly at submission and provider-call boundaries | Tenant API keys must never become ordinary database, browser, log, prompt, or support-visible data |
 
-Model names and provider credentials must be configuration, not hard-coded business logic. The initial policy can use a low-cost model for normal turns and promote difficult turns to a stronger model.
+Model names and provider credentials must be configuration, not hard-coded business logic. The initial policy can use a low-cost model for normal turns and promote difficult turns to a stronger model. BYOK extends the same provider-neutral interfaces; it must not fork the agent into tenant-specific processes or deployments.
 
 ## 3. Repository shape
 
@@ -82,6 +85,7 @@ Channel adapter
   -> enforce allowed origin, auth, quota, and rate limit
   -> load conversation summary and recent turns
   -> retrieve tenant-scoped knowledge
+  -> resolve tenant provider policy and eligible targets
   -> select model tier/provider
   -> generate grounded answer with citations
   -> validate/fallback
@@ -96,7 +100,7 @@ Channel adapter
 - Prefer a clear “I do not know based on the available information” over fabrication.
 - Expose source citations in the playground and where a channel supports them.
 - Keep provider-specific payloads inside provider adapters.
-- Never send secrets, unrelated tenant data, or the entire knowledge base to a model.
+- Never send secrets, unrelated tenant data, or the entire knowledge base to a model. A provider adapter may place the selected credential only in that provider's authenticated transport header, never in prompt content.
 
 ## 5. Multi-tenant data model draft
 
@@ -116,6 +120,8 @@ All tenant-owned tables carry `tenant_id`. Global identity tables are the only j
 | `messages` | tenant_id, conversation_id, role, content, citations, model metadata |
 | `usage_events` | append-only tenant_id, historical bot/conversation IDs, operation, provider/model, input/output/cache tokens, latency_ms, estimated_cost_microusd |
 | `ingestion_jobs` | tenant_id, source_id, job type, state, attempts, progress, error |
+| `provider_credentials` | tenant_id, approved generation-provider type, encrypted secret envelope/reference, safe label, fingerprint/masked suffix, status, verification/rotation/revocation timestamps; raw secrets are never readable through the API |
+| `provider_policies` | tenant_id, routing mode (`platform_only`, `tenant_first_with_platform_fallback`, `tenant_only`), ordered tenant target references, and explicit platform-fallback setting |
 
 Likely later tables: `subscriptions`, `invoices`, `tickets`, `agent_assignments`, `audit_logs`, and channel-specific installations. Do not add them to Phase 1 without a task or a direct user request.
 
@@ -125,6 +131,7 @@ Likely later tables: `subscriptions`, `invoices`, `tickets`, `agent_assignments`
 - Every tenant query must include tenant scope; repository helpers make unscoped access difficult.
 - PostgreSQL row-level security is defense in depth, not a substitute for application checks.
 - Cache keys, job payloads, storage paths, logs, and vector queries include `tenant_id`.
+- Provider credential and policy lookup is tenant-scoped and fail-closed; decrypted secrets are never cached in shared application caches or placed on queues.
 - Cross-tenant isolation tests are release-blocking.
 
 ## 6. Knowledge ingestion
@@ -188,6 +195,17 @@ The orchestrator depends on an internal interface such as `generate`, `stream`, 
 
 Provider-level Claude redundancy through direct API, Bedrock, or Vertex is a later reliability milestone. The interface is built in Phase 1 so adding it does not rewrite the agent.
 
+### Tenant BYOK policy
+
+- Platform-managed configured targets remain the default, so a tenant can use the product without supplying a secret.
+- A tenant may configure multiple provider targets. The router may fail over among that tenant's healthy targets before considering a platform target.
+- Routing modes are explicit: `platform_only`, `tenant_first_with_platform_fallback`, or `tenant_only`. Platform fallback for a BYOK tenant is never silently enabled.
+- `tenant_only` must fail safely when its targets are unavailable or revoked; it must not spend platform credentials behind the tenant's back.
+- Credential resolution occurs after authenticated tenant scope is established and immediately before adapter execution. Router traces contain credential IDs/status and routing reasons, never raw keys.
+- Revocation invalidates in-process credential/target caches immediately; a revoked target cannot wait for a general cache TTL to expire.
+- Phase 1 BYOK covers answer-generation providers only and uses approved provider adapters/endpoints. Arbitrary tenant-supplied base URLs create SSRF/key-exfiltration risk, while embedding BYOK additionally requires vector-model/dimension compatibility and re-indexing rules; both require separate tasks.
+- Credentials for later external integrations require separate scopes, storage rules, and tasks.
+
 ## 9. API surface draft
 
 Exact payloads are defined task-by-task and documented in OpenAPI.
@@ -227,6 +245,15 @@ POST   /v1/conversations/{conversation_id}/messages   # optional SSE stream
 GET    /v1/conversations/{conversation_id}/messages
 
 GET    /v1/usage/summary
+
+POST   /v1/providers/credentials
+GET    /v1/providers/credentials
+POST   /v1/providers/credentials/{credential_id}/verify
+PUT    /v1/providers/credentials/{credential_id}/secret   # rotate; secret is write-only
+DELETE /v1/providers/credentials/{credential_id}          # revoke
+GET    /v1/providers/policy
+PATCH  /v1/providers/policy
+
 GET    /v1/widget/{public_bot_key}/config
 ```
 
@@ -236,6 +263,9 @@ Public widget requests use a revocable publishable bot key, allowed-origin check
 
 - Password hashing with Argon2id; short-lived access tokens and rotated refresh tokens.
 - Secrets only through environment/secret managers; never committed or logged.
+- Tenant provider secrets use envelope encryption through a replaceable KMS/Vault-style adapter. Store ciphertext plus key/reference metadata, not plaintext or a reversibly obfuscated application field.
+- Credential create/rotate accepts a secret once over TLS; every response returns only masked metadata. Raw keys are never re-displayed, written to browser storage, sent to an LLM, included in job payloads, or exposed in logs, traces, analytics, exceptions, support tools, or API validation bodies.
+- Decrypt only just in time inside the provider-call boundary; support rotation and immediate revocation, and redact known provider-key formats as defense in depth.
 - File size/type validation and sanitized filenames.
 - Website crawler blocks loopback, link-local, private networks, unsafe schemes, and redirect escapes.
 - HTML/Markdown rendered in the dashboard/widget is sanitized.
@@ -260,6 +290,7 @@ Targets are budgets to measure, not guarantees before load testing:
 - Frontend/widget: component tests and a small set of Playwright critical-path tests.
 - Contract: generated TypeScript types checked against FastAPI OpenAPI.
 - Mandatory isolation tests attempt cross-tenant reads/writes for every tenant-owned domain.
+- BYOK tests cover cross-tenant credential/policy isolation, API masking, ciphertext-at-rest behavior, log/error redaction, verify/rotate/revoke, tenant-only failure, tenant-target failover, and opt-in platform fallback.
 - Structured JSON logs include request/trace ID, tenant ID, bot ID, latency, route, and normalized error class.
 - Metrics include request latency/errors, queue depth, ingestion duration, retrieval scores, provider/model health, token usage, and estimated cost.
 
@@ -267,7 +298,7 @@ Targets are budgets to measure, not guarantees before load testing:
 
 ### Phase 1 — working web MVP
 
-Foundation, tenant/auth, three knowledge sources, ingestion/retrieval, provider-neutral agent, memory compaction, playground, web widget, usage tracking, and deployment/runbook.
+Foundation, tenant/auth, three knowledge sources, ingestion/retrieval, provider-neutral agent, optional secure tenant BYOK for answer generation, memory compaction, playground, web widget, usage tracking, and deployment/runbook.
 
 ### Phase 2 — channels and reliability
 
@@ -284,7 +315,7 @@ Deflection/CSAT/cost analytics, voice, approved auto-learning from resolved tick
 ## 14. Explicitly open
 
 - Production hosting/vendor and budget.
-- Exact model and embedding provider IDs/credentials.
+- Exact platform-managed model and embedding provider IDs/credentials; tenant BYOK support is scheduled separately and remains optional.
 - Brand/design direction.
 - The additional feature ideas the user intended to share; capture them in [FEATURES.md](FEATURES.md).
 

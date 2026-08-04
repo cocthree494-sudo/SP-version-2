@@ -114,6 +114,10 @@ Completion means implementation, proportionate tests/checks, documentation/hando
   Depends on: T-043  
   Grounding, refusal/fallback, multilingual, citation, prompt-injection, and cross-tenant scenarios with repeatable pass/fail reporting.
 
+- [ ] **T-046 — Add secure tenant-owned generation-provider credentials and routing**
+  Depends on: T-013, T-021, T-040, T-041
+  Add optional tenant-scoped generation-provider credentials with envelope-encrypted storage and owner/admin APIs to create, list masked metadata, verify, rotate, and revoke them. Resolve approved provider-adapter targets per tenant with explicit `platform_only`, `tenant_first_with_platform_fallback`, or `tenant_only` policy; never return or log raw secrets, and invalidate revoked targets immediately. Include RLS, cross-tenant/role, redaction, revocation, and routing/fallback tests. Keep this provider-neutral and separate from generic external-integration credentials; arbitrary provider base URLs and embedding BYOK are out of scope until separately designed.
+
 ## Phase 1E — Dashboard and widget
 
 - [x] **T-050 — Build dashboard shell and auth flow**  
@@ -136,11 +140,15 @@ Completion means implementation, proportionate tests/checks, documentation/hando
   Depends on: T-051, T-053  
   Basic theme/welcome text, allowed origins, generated snippet, preview, and copyable installation instructions.
 
+- [ ] **T-055 — Build BYOK provider settings UI**
+  Depends on: T-046, T-050
+  Add, test, rotate, and revoke tenant provider credentials; show only masked metadata and verification/status details; and let an owner/admin choose platform-only, tenant-first with explicit platform fallback, or tenant-only routing. Never persist a raw key in browser storage or re-display it after submission.
+
 ## Phase 1F — MVP verification and handoff
 
 - [ ] **T-060 — Add critical-path end-to-end tests**  
-  Depends on: T-045, T-051, T-052, T-054  
-  Register → create bot → ingest each source type → ask grounded question → embed/widget chat. Include a cross-tenant negative path.
+  Depends on: T-045, T-051, T-052, T-054, T-055
+  Register → create bot → ingest each source type → ask grounded question → embed/widget chat. Include a cross-tenant negative path and a deterministic BYOK path covering add, masking, tenant routing, revocation, and the configured fallback behavior.
 
 - [ ] **T-061 — Add production Docker build and operations runbook**  
   Depends on: T-060  

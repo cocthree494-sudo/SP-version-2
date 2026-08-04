@@ -2,8 +2,8 @@
 
 > Read this first. This is the compact handoff document for Claude, Codex, or another coding agent. Detailed architecture is in [PLAN.md](PLAN.md); executable order is in [TASKS.md](TASKS.md).
 
-**Last updated:** 2026-08-04, Codex session
-**Status:** the channel-neutral agent, quality/safety gate, and responsive dashboard authentication shell through T-050 are implemented; bot and knowledge management T-051 is next.
+**Last updated:** 2026-08-05, Codex session
+**Status:** implementation through T-050 is locally protected, and T-051 code exists but remains unchecked. The T-013 PostgreSQL isolation gate is implemented but cannot be completed until it runs against live PostgreSQL/pgvector. Optional tenant BYOK is scheduled in T-046/T-055, not implemented.
 
 ## 1. Project
 
@@ -33,6 +33,7 @@ User priorities:
 | D8 | Frontend default: Next.js dashboard + lightweight Preact/Vite widget | Best current fit for dynamic dashboard plus a small customer-site bundle; can change before scaffold if user requests |
 | D9 | Docker/env-configured, hosting-agnostic code | Hosting and budget are not decided |
 | D10 | Provider/model IDs stay configurable | Enables tiering/failover and avoids vendor logic in the domain layer |
+| D11 | Platform-managed generation providers remain the default; tenants may optionally bring their own keys | User accepted optional BYOK with explicit tenant routing/fallback. Keys require encrypted, tenant-isolated, write-only custody; Phase 1 excludes arbitrary base URLs and embedding BYOK |
 
 ## 3. Deferred scope
 
@@ -68,6 +69,7 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 3. Keep tasks small enough for one focused coding session.
 4. Use task IDs in commit messages, for example: `[T-021] add tenant schema`.
 5. The user intended to share more features but could not remember them. Keep [FEATURES.md](FEATURES.md) as the inbox.
+6. Tenant BYOK is optional, never a prerequisite for onboarding. Never store, return, log, or send a plaintext customer provider key to the model.
 
 ## 6. Session log
 
@@ -228,31 +230,36 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 - Wrote `CODEX-BRIEF.md`, added release-blocking task `T-013`, and moved the next task from
   `T-051` back to `T-013`. No implementation files were modified.
 
+### Session 14 — Codex
+
+- Protected the previously uncommitted T-030 through T-051 implementation in local commit `e07b120`; T-051 remains unchecked because its completion contract has not been fully verified.
+- Added the T-013 verification brief and local artifact ignores in `2b738e1`, then implemented the PostgreSQL/pgvector isolation gate in `35360f1`. None of these commits were pushed.
+- Local checks pass with 65 tests passed and 14 PostgreSQL integration tests skipped because this workstation has no Docker, PostgreSQL, or pgvector. Ruff, strict mypy, web/widget lint and typecheck pass; offline upgrade/downgrade SQL renders through migration `0009`; `CI=true` correctly turns a missing PostgreSQL service into a hard failure.
+- Kept T-013 unchecked and all later feature work blocked until the integration suite runs against a live non-superuser PostgreSQL role and passes.
+- Recorded the user's decision to support optional tenant-owned generation-provider keys. Scheduled the secure backend/routing work as T-046, settings UI as T-055, and lifecycle E2E coverage in T-060. Platform-managed providers stay the default; BYOK is scheduled only and is not implemented.
+
 ## 7. Open items
 
 | ID | Item | Handling now |
 |---|---|---|
 | O1 | Hosting and budget | Use Docker and environment configuration; decide before production deployment |
-| O2 | Model/embedding API keys and exact IDs | Use configuration and deterministic mocks if unavailable |
+| O2 | Platform model/embedding API keys and exact IDs | Use configuration and deterministic mocks if unavailable; optional tenant generation BYOK is scheduled in T-046/T-055 |
 | O3 | Extra feature ideas | Wait for user; capture in `FEATURES.md` |
 | O4 | Visual brand/design direction | Do not block backend/foundation work |
 
 ## HANDOFF STATE
 
-**Last completed:** T-050 — build dashboard shell and auth flow (implementation only; not committed)
-**Next task:** **T-013 — add integration verification for database isolation. Read [CODEX-BRIEF.md](CODEX-BRIEF.md) first and follow it completely.**
-**Blocked on:** Nothing external. T-051 and every later feature task are deliberately blocked behind T-013.
+**Last completed:** T-050 — dashboard shell and auth flow. T-051 implementation is protected in Git but remains unchecked pending its required verification.
+**Next task:** **Finish T-013 by running the integration gate against live PostgreSQL/pgvector as a non-superuser and fixing any exposed defect. Read [CODEX-BRIEF.md](CODEX-BRIEF.md) first.** Do not start T-046, T-051, T-052, or later feature work before T-013 passes.
+**Blocked on:** This workstation currently has no Docker, PostgreSQL, or pgvector service. A live PostgreSQL 16 + pgvector environment is required to complete T-013; pushing to CI is not authorized by the current request.
 
-**Why the next task moved backwards:** A full repository review (2026-08-04) found two
-release-blocking problems. First, roughly twenty tasks of implementation exist only in the
-working tree — `git log` still ends at `[T-024]`, so a single `git clean` would destroy all of
-it. Second, every test module builds its engine with `sqlite+aiosqlite:///:memory:`, and
-`app/core/tenancy.py` returns early for any non-PostgreSQL dialect, which means the row-level
-security policies in migrations `0002`–`0008`, the `usage_events` append-only trigger, the
-pgvector branch at `retrieval.py:172`, and every migration upgrade/downgrade path have never
-executed even once. CI declares `DATABASE_URL` and `REDIS_URL` but no service containers, so
-nothing listens on those ports. Building the dashboard UI on top of an unverified isolation
-layer would compound the risk, so T-013 was inserted ahead of T-051.
-**Uncommitted work:** All T-030 through T-050 implementation, tests, migrations, dependency lock, documentation, and Playwright inspection artifacts are present in the working tree and are not committed or pushed.
-**Verification:** Full `npm.cmd run check` passes with Ruff, strict mypy over 97 files, 64 API tests, and web/widget lint plus typecheck. The deterministic agent evaluation reports PASS (6/6), PostgreSQL offline migrations render through `0008_conversations`, OpenAPI exposes the widget session/message operations, and T-050 browser inspection covers public/auth/protected desktop and mobile layouts.
-**Gotchas:** Docker was unavailable during T-050 browser inspection, so the authenticated dashboard visual used a deterministic browser-only `/api/auth/session` mock; actual auth/tenant behavior remains covered by backend tests. The new migrations and ARQ worker have not yet run against live PostgreSQL/Redis. SQLite, deterministic providers, mocked HTTP crawls/providers, and PostgreSQL offline SQL cover behavior but not live RLS/vector/GIN or queue execution. Production infrastructure should enforce crawler outbound egress controls against DNS rebinding. Existing local `.env` files should add a stable `AUTH_JWT_SECRET`; production OpenAI-compatible mode additionally requires HTTPS `AI_BASE_URL`, `AI_API_KEY`, and configured model IDs.
+**Protected local commits:**
+
+- `e07b120` — `[T-030..T-051] add knowledge, agent, and dashboard implementation`
+- `2b738e1` — `[T-013] define database isolation verification gate`
+- `35360f1` — `[T-013] add PostgreSQL isolation integration gate`
+
+**Why T-013 remains open:** The integration fixtures, non-superuser runtime role, RLS/append-only/pgvector/migration tests, and CI services are implemented. On this machine the full local gate reports 65 passed and 14 PostgreSQL tests skipped; `CI=true` correctly hard-fails instead of silently skipping when PostgreSQL is unavailable. Therefore the live security claims are not yet proven and the checkbox must remain open.
+**Uncommitted work:** None intentionally after the BYOK planning documentation commit. No local commits in this handoff have been pushed.
+**Verification:** Ruff, strict mypy, web/widget lint and typecheck pass; the non-PostgreSQL test run has 65 passed and 14 integration skips; offline migration upgrade/downgrade SQL renders through `0009_app_runtime_role`; missing PostgreSQL is a hard failure under `CI=true`. The BYOK update changes documentation only and is verified with diff inspection and `git diff --check`.
+**Gotchas:** Do not mark T-013 complete from skipped tests. Do not mark T-051 complete merely because its files are in the range-labelled commit. T-046/T-055 schedule optional generation BYOK only—plaintext keys must never be stored/re-displayed, platform fallback must be explicit, arbitrary provider base URLs are excluded, and embedding BYOK needs separate vector compatibility/re-indexing design.

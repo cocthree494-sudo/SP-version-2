@@ -15,7 +15,7 @@ The user said they had additional feature ideas to share but could not remember 
 
 ## Accepted
 
-None yet.
+- [x] **Optional tenant BYOK for answer generation** — accepted 2026-08-05. Platform-managed providers remain the default. T-046 adds secure encrypted credentials and explicit tenant routing/fallback policy; T-055 adds the write-only settings UI; T-060 verifies the lifecycle and isolation. Phase 1 excludes arbitrary provider base URLs and embedding BYOK.
 
 ## Deferred
 
