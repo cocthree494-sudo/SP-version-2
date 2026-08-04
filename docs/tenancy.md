@@ -44,3 +44,12 @@ attached to a bot in another tenant.
 append-only: ORM hooks protect local/test code and a PostgreSQL trigger rejects
 updates and deletes. Optional bot IDs are historical labels rather than foreign
 keys, so removing bot configuration does not erase tenant usage history.
+
+`knowledge_sources`, `documents`, and `ingestion_jobs` apply the same forced RLS
+and fail-closed repository rules. Composite `(tenant_id, bot_id)` and
+`(tenant_id, source_id)` foreign keys prevent sources, document versions, or
+queued work from being attached across tenants. Redis payloads carry tenant and
+job IDs, and object storage always resolves beneath a tenant UUID directory.
+`document_chunks` repeats tenant/document composite foreign keys, repository
+predicates, and forced RLS. Hybrid retrieval constrains chunks, documents, and
+sources independently to the same tenant before vector or lexical ranking.

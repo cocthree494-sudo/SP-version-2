@@ -2,8 +2,8 @@
 
 > Read this first. This is the compact handoff document for Claude, Codex, or another coding agent. Detailed architecture is in [PLAN.md](PLAN.md); executable order is in [TASKS.md](TASKS.md).
 
-**Last updated:** 2026-08-03, Codex session
-**Status:** foundation through append-only usage accounting is implemented; ingestion abstractions are next.
+**Last updated:** 2026-08-04, Codex session
+**Status:** the channel-neutral agent, quality/safety gate, and responsive dashboard authentication shell through T-050 are implemented; bot and knowledge management T-051 is next.
 
 ## 1. Project
 
@@ -162,6 +162,72 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 - Enforced append-only behavior through repository shape, ORM mutation hooks, and a PostgreSQL update/delete trigger in migration `0005_usage`; added forced RLS and cross-tenant tests.
 - Added `docs/usage.md`; the full repository quality gate passes with 30 API tests.
 
+### Session 10 — Codex
+
+- Verified T-024 independently from its commit, migration/API/docs, and focused tests before continuing the user-requested batch through T-040.
+- Implemented T-030 local tenant-prefixed atomic object storage, an S3-compatible protocol, durable knowledge/document/job schema, forced RLS, idempotent ARQ dispatch, recovery dispatch, bounded retry state, and the standalone ingestion worker.
+- Implemented T-031/T-032 secure streaming PDF/DOCX/TXT/Markdown upload, size/MIME/signature validation, failed-write/source cleanup, deterministic parsers and metadata/title extraction, DOCX archive safety limits, normalized UTF-8 output, source status APIs, and safe parser errors.
+- Implemented T-033 staged document versions, structural token-bounded chunking with overlap, deterministic and provider-neutral embeddings, batched chunk persistence, retry classification, and activation only after all chunks succeed.
+- Implemented T-034 exact-host bounded website crawling with URL canonicalization, robots/rate controls, page/depth/response/redirect limits, DNS/IP SSRF checks on requests and redirects, useful-text extraction, content/URL deduplication, progress, and per-page versioned embeddings.
+- Implemented T-035 authoritative manual Q&A create/edit APIs; content changes enqueue a new embedded version while unchanged edits do not duplicate work.
+- Implemented T-036 tenant/bot/source/language-scoped hybrid retrieval using pgvector cosine candidates, PostgreSQL `tsvector`/GIN lexical candidates, reciprocal-rank fusion, exact deduplication, and traceable citation metadata, plus a portable SQLite evaluation path.
+- Implemented T-040 normalized LLM/embedding request, stream, usage, and error types; configurable deterministic and OpenAI-compatible adapters; strict timeouts; configuration-only model/provider IDs; and secret-safe errors.
+- Added migrations `0006_knowledge_ingestion` and `0007_document_chunks`, knowledge/provider documentation, source/parser/crawler/retrieval/provider/security tests, and inspected the source OpenAPI operations plus PostgreSQL offline SQL.
+- Full `npm.cmd run check` passes: Ruff, strict mypy across 79 files, 49 API tests, Next.js lint/typecheck, and widget lint/typecheck.
+
+### Session 11 — Codex
+
+- Implemented T-041 low-cost-first model tiering with configurable strong-model promotion for weak retrieval, complex queries, policy requirements, and validation retries.
+- Added bounded exponential retry, per-provider/model circuit state with in-memory and Redis stores, provider/model failover, total request budgets, and safe terminal errors.
+- Added observable routing reasons and attempt history for generation plus failover-safe streaming that never switches providers after text has been emitted.
+- Added configuration-only model costs/IDs, provider target construction, routing/failure simulation tests, and expanded provider documentation.
+- Focused router tests, Ruff, and mypy pass. The full repository gate remains deferred until the user-requested batch through T-050 is complete.
+- Implemented T-042 tenant-scoped conversations and ordered messages with forced RLS, composite tenant foreign keys, row-locked sequence allocation, configurable retention, and migration `0008_conversations`.
+- Added bounded recent-window loading, incremental rolling-summary interfaces/state, tenant-scoped retention purge hooks, cross-tenant tests, and conversation documentation.
+- Four focused conversation/migration tests, targeted Ruff/mypy, and PostgreSQL offline migration rendering pass.
+- Implemented T-043 grounded RAG orchestration: tenant/bot-scoped retrieval, bounded prompt assembly, same-language response policy, strong-tier citation-validation retry, localized uncertainty fallback, and traceable citations.
+- Kept retrieved chunks and rolling summaries in untrusted tool-data roles with explicit prompt-injection boundaries; tenant policy remains separate trusted system context.
+- User/assistant messages and all incurred generation usage (including invalid drafts) now commit atomically with routing metadata and calculated configured cost. Three focused orchestration/security/isolation tests plus targeted Ruff/mypy pass.
+- Implemented T-044 short-lived anonymous widget JWTs bound to tenant, bot, key, conversation, exact origin, token ID, and a distinct audience/type; key revocation and bot state are re-checked on every message.
+- Added exact-origin dynamic CORS/preflight, Redis Lua fixed-window limits with tenant/bot-scoped hashed identities, fail-closed deployed dependencies, SSE ready/delta/replace/citation/completion/error events, and disconnect stream cleanup.
+- Seven focused widget/orchestration tests cover the public flow, origin rejection, revocation, rate limiting, and cancellation without partial persistence; targeted Ruff/mypy pass and OpenAPI exposes both widget routes.
+- Implemented T-045 credential-free deterministic evaluation cases and a non-zero-on-failure CLI report covering grounding, fallback, Bengali response behavior, citation enforcement, prompt injection, and cross-tenant conversation rejection.
+- `npm.cmd run eval:agent` and its JSON form report PASS (6/6); two focused evaluation tests plus targeted Ruff/mypy pass.
+
+### Session 12 — Codex
+
+- Implemented T-050 with a responsive Next.js landing/auth/dashboard experience, accessible design tokens, loading/error states, and authenticated organization context.
+- Added a same-origin authentication BFF: access and rotated refresh tokens stay in `HttpOnly`, `SameSite=Lax` cookies and are never stored in browser storage. The session route validates `/v1/me`, refreshes expired sessions, and clears invalid cookies.
+- Protected dashboard rendering waits for session resolution and redirects anonymous users to login. Successful auth honors only safe same-origin `next` paths.
+- Added shared typed auth client contracts, `API_INTERNAL_URL`, dashboard/auth documentation, a code-native app icon, and ESLint ignores for generated Next.js output.
+- Inspected landing, login, registration, protected redirect, authenticated dashboard, and the mobile navigation drawer with Playwright on desktop and 390-pixel mobile layouts. The authenticated visual state used a browser-only session mock because Docker/PostgreSQL/Redis were unavailable locally.
+- Full `npm.cmd run check` passes: Ruff, strict mypy over 97 files, 64 API tests, web lint/typecheck, and widget lint/typecheck.
+
+### Session 13 — Claude (review only, no implementation)
+
+- Performed a full repository review at the user's request; wrote no product code.
+- Found that `git log` still ends at `[T-024]` while `TASKS.md` marks `T-030` through `T-050`
+  complete. Roughly twenty tasks of implementation, eleven test modules, three migrations, nine
+  documentation files, and the entire dashboard exist only as untracked or modified files.
+- Found that every test module builds its engine with `sqlite+aiosqlite:///:memory:`, while
+  `app/core/tenancy.py` returns early for any non-PostgreSQL dialect. The row-level security
+  policies in migrations `0002`–`0008`, the `usage_events` append-only trigger, the pgvector
+  branch at `retrieval.py:172`, and every migration upgrade/downgrade path have therefore never
+  executed. `app/evals/agent_quality.py:277` grades the SQLite path as well.
+- Found that `.github/workflows/ci.yml` sets `DATABASE_URL` and `REDIS_URL` but declares no
+  service containers, so nothing listens on those ports and the readiness test passes only
+  because it accepts `503`.
+- Noted that the `pgvector/pgvector` image creates `POSTGRES_USER` as a superuser, and
+  PostgreSQL superusers bypass row-level security even under `FORCE ROW LEVEL SECURITY`. RLS
+  tests written without a dedicated non-superuser role would pass while proving nothing.
+- Recorded four smaller findings for later tasks: the per-process JWT fallback secret breaks
+  multi-worker `uvicorn`; `app/api/health.py` creates a Redis client at import time and
+  `main.py` reaches into that global; `redis` was narrowed from `>=8.1.0` to `>=5.2,<6.0` to
+  satisfy ARQ without an explanatory note; and `packages/api-client` is still a stub rather than
+  OpenAPI-generated types.
+- Wrote `CODEX-BRIEF.md`, added release-blocking task `T-013`, and moved the next task from
+  `T-051` back to `T-013`. No implementation files were modified.
+
 ## 7. Open items
 
 | ID | Item | Handling now |
@@ -173,9 +239,20 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 
 ## HANDOFF STATE
 
-**Last completed:** T-024 — implement append-only usage events
-**Next task:** T-030 — add storage and ingestion job abstractions
-**Blocked on:** None
-**Uncommitted work:** None after the T-024 commit.
-**Verification:** `npm.cmd run check` passes; 30 API tests pass; Alembic offline SQL renders immutable `usage_events`, forced RLS, and the mutation-blocking trigger. GitHub Actions through T-023 are successful.
-**Gotchas:** Docker is unavailable in the current shell, so migrations have not been applied to a live PostgreSQL instance. SQLite tests cover application tenant predicates, API behavior, aggregation, and ORM immutability but not live PostgreSQL RLS/trigger execution. Existing local `.env` files created before T-022 should add a stable `AUTH_JWT_SECRET`; otherwise development uses a process-local ephemeral key.
+**Last completed:** T-050 — build dashboard shell and auth flow (implementation only; not committed)
+**Next task:** **T-013 — add integration verification for database isolation. Read [CODEX-BRIEF.md](CODEX-BRIEF.md) first and follow it completely.**
+**Blocked on:** Nothing external. T-051 and every later feature task are deliberately blocked behind T-013.
+
+**Why the next task moved backwards:** A full repository review (2026-08-04) found two
+release-blocking problems. First, roughly twenty tasks of implementation exist only in the
+working tree — `git log` still ends at `[T-024]`, so a single `git clean` would destroy all of
+it. Second, every test module builds its engine with `sqlite+aiosqlite:///:memory:`, and
+`app/core/tenancy.py` returns early for any non-PostgreSQL dialect, which means the row-level
+security policies in migrations `0002`–`0008`, the `usage_events` append-only trigger, the
+pgvector branch at `retrieval.py:172`, and every migration upgrade/downgrade path have never
+executed even once. CI declares `DATABASE_URL` and `REDIS_URL` but no service containers, so
+nothing listens on those ports. Building the dashboard UI on top of an unverified isolation
+layer would compound the risk, so T-013 was inserted ahead of T-051.
+**Uncommitted work:** All T-030 through T-050 implementation, tests, migrations, dependency lock, documentation, and Playwright inspection artifacts are present in the working tree and are not committed or pushed.
+**Verification:** Full `npm.cmd run check` passes with Ruff, strict mypy over 97 files, 64 API tests, and web/widget lint plus typecheck. The deterministic agent evaluation reports PASS (6/6), PostgreSQL offline migrations render through `0008_conversations`, OpenAPI exposes the widget session/message operations, and T-050 browser inspection covers public/auth/protected desktop and mobile layouts.
+**Gotchas:** Docker was unavailable during T-050 browser inspection, so the authenticated dashboard visual used a deterministic browser-only `/api/auth/session` mock; actual auth/tenant behavior remains covered by backend tests. The new migrations and ARQ worker have not yet run against live PostgreSQL/Redis. SQLite, deterministic providers, mocked HTTP crawls/providers, and PostgreSQL offline SQL cover behavior but not live RLS/vector/GIN or queue execution. Production infrastructure should enforce crawler outbound egress controls against DNS rebinding. Existing local `.env` files should add a stable `AUTH_JWT_SECRET`; production OpenAI-compatible mode additionally requires HTTPS `AI_BASE_URL`, `AI_API_KEY`, and configured model IDs.

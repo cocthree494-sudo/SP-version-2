@@ -6,12 +6,12 @@ from alembic.config import Config
 from alembic.script import ScriptDirectory
 
 
-def test_alembic_has_usage_revision_after_bots() -> None:
+def test_alembic_has_conversation_revision_after_knowledge() -> None:
     api_root = Path(__file__).resolve().parents[1]
     config = Config(str(api_root / "alembic.ini"))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_current_head() == "0005_usage"
+    assert scripts.get_current_head() == "0008_conversations"
     revision = scripts.get_revision("0002_tenancy")
     assert revision is not None
     assert revision.down_revision == "0001_enable_pgvector"
@@ -56,3 +56,38 @@ def test_alembic_has_usage_revision_after_bots() -> None:
     assert '"usage_events"' in usage_migration_text
     assert "usage_events_tenant_isolation" in usage_migration_text
     assert "usage_events_prevent_mutation" in usage_migration_text
+
+    knowledge_revision = scripts.get_revision("0006_knowledge_ingestion")
+    assert knowledge_revision is not None
+    assert knowledge_revision.down_revision == "0005_usage"
+    knowledge_migration = (
+        api_root / "alembic" / "versions" / "0006_knowledge_ingestion.py"
+    )
+    knowledge_migration_text = knowledge_migration.read_text(encoding="utf-8")
+    assert '"knowledge_sources"' in knowledge_migration_text
+    assert '"documents"' in knowledge_migration_text
+    assert '"ingestion_jobs"' in knowledge_migration_text
+    assert "knowledge_sources_tenant_isolation" in knowledge_migration_text
+    assert "documents_tenant_isolation" in knowledge_migration_text
+    assert "ingestion_jobs_tenant_isolation" in knowledge_migration_text
+
+    chunk_revision = scripts.get_revision("0007_document_chunks")
+    assert chunk_revision is not None
+    assert chunk_revision.down_revision == "0006_knowledge_ingestion"
+    chunk_migration = api_root / "alembic" / "versions" / "0007_document_chunks.py"
+    chunk_migration_text = chunk_migration.read_text(encoding="utf-8")
+    assert '"document_chunks"' in chunk_migration_text
+    assert "search_vector" in chunk_migration_text
+    assert "USING GIN" in chunk_migration_text
+    assert "document_chunks_tenant_isolation" in chunk_migration_text
+
+    conversation_revision = scripts.get_revision("0008_conversations")
+    assert conversation_revision is not None
+    assert conversation_revision.down_revision == "0007_document_chunks"
+    conversation_migration = api_root / "alembic" / "versions" / "0008_conversations.py"
+    conversation_migration_text = conversation_migration.read_text(encoding="utf-8")
+    assert '"conversations"' in conversation_migration_text
+    assert '"messages"' in conversation_migration_text
+    assert "fk_messages_tenant_conversation_conversations" in conversation_migration_text
+    assert "conversations_tenant_isolation" in conversation_migration_text
+    assert "messages_tenant_isolation" in conversation_migration_text

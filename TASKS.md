@@ -27,6 +27,15 @@ Completion means implementation, proportionate tests/checks, documentation/hando
   Depends on: T-010  
   Typed environment settings, secret-safe structured logging, request IDs, `/health/live`, `/health/ready`, and DB/Redis readiness checks.
 
+- [ ] **T-013 — Add integration verification for database isolation**  
+  Depends on: T-012, T-020  
+  **Release-blocking. Follow [CODEX-BRIEF.md](CODEX-BRIEF.md) for the full instructions.**  
+  Commit the outstanding implementation work with task IDs. Add PostgreSQL and Redis CI
+  services, a non-superuser application role, and integration tests that execute the RLS
+  policies, the `usage_events` append-only trigger, the pgvector retrieval path, and the full
+  migration upgrade/downgrade chain. Until this task passes, the isolation guarantees claimed
+  by every task below are verified at the application layer only.
+
 ## Phase 1B — Tenancy, auth, and usage
 
 - [x] **T-020 — Create database base and first migration**
@@ -51,63 +60,63 @@ Completion means implementation, proportionate tests/checks, documentation/hando
 
 ## Phase 1C — Knowledge ingestion and retrieval
 
-- [ ] **T-030 — Add storage and ingestion job abstractions**  
+- [x] **T-030 — Add storage and ingestion job abstractions**
   Depends on: T-020, T-021  
   Local storage adapter, S3-compatible interface, knowledge source/document/job tables, Redis worker, idempotency and retry conventions.
 
-- [ ] **T-031 — Add secure file upload source**  
+- [x] **T-031 — Add secure file upload source**
   Depends on: T-023, T-030  
   PDF/DOCX/TXT/MD upload, type/size validation, checksum, source status, and storage cleanup behavior.
 
-- [ ] **T-032 — Add text extraction and normalization**  
+- [x] **T-032 — Add text extraction and normalization**
   Depends on: T-031  
   Parsers for supported formats, metadata/title extraction, deterministic normalized output, error reporting, and parser fixtures.
 
-- [ ] **T-033 — Add chunking and embedding pipeline**  
+- [x] **T-033 — Add chunking and embedding pipeline**
   Depends on: T-032  
   Structural chunking, token limits/overlap, embedding provider interface plus deterministic test provider, batch persistence, version activation, and retry tests.
 
-- [ ] **T-034 — Add bounded website crawler source**  
+- [x] **T-034 — Add bounded website crawler source**
   Depends on: T-030, T-033  
   Same-domain bounded crawl, canonicalization, useful-text extraction, robots/rate controls, SSRF/redirect defense, deduplication, and progress status.
 
-- [ ] **T-035 — Add manual Q&A source**  
+- [x] **T-035 — Add manual Q&A source**
   Depends on: T-023, T-033  
   Create/edit/delete authoritative Q&A entries and re-embed changed entries.
 
-- [ ] **T-036 — Implement tenant-scoped hybrid retrieval**  
+- [x] **T-036 — Implement tenant-scoped hybrid retrieval**
   Depends on: T-033  
   Vector + lexical search, filters, score fusion, deduplication, citation metadata, and retrieval/isolation evaluation fixtures.
 
 ## Phase 1D — Core support agent
 
-- [ ] **T-040 — Create provider-neutral LLM and embedding adapters**  
+- [x] **T-040 — Create provider-neutral LLM and embedding adapters**
   Depends on: T-012  
   Normalized request/stream/usage/error types, configurable provider implementation, deterministic mock, timeouts, and secret-safe tests.
 
-- [ ] **T-041 — Add model tiering and failover router**  
+- [x] **T-041 — Add model tiering and failover router**  
   Depends on: T-040  
   Low-cost default, promotion rules, bounded retry, provider health/circuit state, routing reason, and failure simulations. A second paid provider is not required yet.
 
-- [ ] **T-042 — Implement conversations, messages, and compaction**  
+- [x] **T-042 — Implement conversations, messages, and compaction**  
   Depends on: T-021, T-023, T-040  
   Conversation/message schema, recent-window loading, rolling summary interface, retention hooks, and tenant isolation tests.
 
-- [ ] **T-043 — Implement grounded RAG answer orchestration**  
+- [x] **T-043 — Implement grounded RAG answer orchestration**  
   Depends on: T-024, T-036, T-041, T-042  
   Retrieval, prompt assembly, multilingual rule, citations, uncertainty fallback, prompt-injection boundaries, message persistence, and usage recording.
 
-- [ ] **T-044 — Add streaming chat API and anonymous widget sessions**  
+- [x] **T-044 — Add streaming chat API and anonymous widget sessions**  
   Depends on: T-043  
   SSE stream, cancellation/disconnect handling, publishable-key/origin validation, short-lived anonymous sessions, and rate limiting.
 
-- [ ] **T-045 — Add agent quality and safety evaluation set**  
+- [x] **T-045 — Add agent quality and safety evaluation set**  
   Depends on: T-043  
   Grounding, refusal/fallback, multilingual, citation, prompt-injection, and cross-tenant scenarios with repeatable pass/fail reporting.
 
 ## Phase 1E — Dashboard and widget
 
-- [ ] **T-050 — Build dashboard shell and auth flow**  
+- [x] **T-050 — Build dashboard shell and auth flow**  
   Depends on: T-022  
   Fast responsive Next.js shell, login/register, protected routes, organization context, error/loading states, and accessible design tokens.
 

@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@support-agent/api-client": "0.1.0",
     "next": "16.2.12",
     "react": "19.2.8",
     "react-dom": "19.2.8"

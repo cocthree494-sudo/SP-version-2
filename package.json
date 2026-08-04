@@ -14,8 +14,9 @@
   "scripts": {
     "setup": "node scripts/setup.mjs",
     "dev": "node scripts/dev.mjs",
-    "dev:apps": "concurrently --kill-others-on-fail --names api,web,widget --prefix-colors blue,green,magenta \"npm:dev:api\" \"npm:dev:web\" \"npm:dev:widget\"",
+    "dev:apps": "concurrently --kill-others-on-fail --names api,worker,web,widget --prefix-colors blue,cyan,green,magenta \"npm:dev:api\" \"npm:dev:worker\" \"npm:dev:web\" \"npm:dev:widget\"",
     "dev:api": "uv run --project apps/api uvicorn app.main:app --reload --host 127.0.0.1 --port 8000",
+    "dev:worker": "uv run --project apps/api arq app.workers.ingestion.WorkerSettings",
     "dev:web": "npm run dev --workspace @support-agent/web",
     "dev:widget": "npm run dev --workspace @support-agent/widget",
     "infra:up": "docker compose --env-file .env -f infra/compose.yaml up -d --wait",
@@ -26,7 +27,8 @@
     "check": "npm run check:api && npm run check:web && npm run check:widget",
     "check:api": "uv run --project apps/api ruff check apps/api/app apps/api/tests && uv run --project apps/api mypy apps/api/app apps/api/tests && uv run --project apps/api pytest apps/api/tests",
     "check:web": "npm run lint --workspace @support-agent/web && npm run typecheck --workspace @support-agent/web",
-    "check:widget": "npm run lint --workspace @support-agent/widget && npm run typecheck --workspace @support-agent/widget"
+    "check:widget": "npm run lint --workspace @support-agent/widget && npm run typecheck --workspace @support-agent/widget",
+    "eval:agent": "uv run --project apps/api python apps/api/run_agent_eval.py"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"
