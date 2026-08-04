@@ -1,9 +1,10 @@
 """Tests for shared SQLAlchemy model conventions."""
 
 from datetime import UTC
+from typing import cast
 from uuid import UUID
 
-from sqlalchemy import DateTime, inspect
+from sqlalchemy import DateTime, Table, inspect
 
 from app.db.base import (
     NAMING_CONVENTION,
@@ -24,8 +25,8 @@ class TenantRecord(TenantScopedModel):
 
 # These mapped classes exercise the production mixins but are not application
 # schema. Keep them out of Base.metadata so Alembic parity checks are order-safe.
-Base.metadata.remove(GlobalRecord.__table__)
-Base.metadata.remove(TenantRecord.__table__)
+Base.metadata.remove(cast(Table, GlobalRecord.__table__))
+Base.metadata.remove(cast(Table, TenantRecord.__table__))
 
 
 def test_base_has_stable_constraint_naming_convention() -> None:
