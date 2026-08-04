@@ -19,7 +19,6 @@ def test_agent_evaluation_set_covers_required_categories() -> None:
 
 @pytest.mark.asyncio
 async def test_agent_quality_evaluation_passes() -> None:
-    report = await run_evaluation()
+    report = await run_evaluation(sqlite=True)
     assert report.failed == 0, report.as_json()
     assert report.passed == report.total == 6
-

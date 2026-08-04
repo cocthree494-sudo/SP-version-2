@@ -148,11 +148,17 @@ class ConversationMessage(TenantScopedModel):
         nullable=False,
     )
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    citations: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list, nullable=False)
+    citations: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSON,
+        default=list,
+        server_default="[]",
+        nullable=False,
+    )
     message_metadata: Mapped[dict[str, Any]] = mapped_column(
         "metadata",
         JSON,
         default=dict,
+        server_default="{}",
         nullable=False,
     )
 
@@ -160,4 +166,3 @@ class ConversationMessage(TenantScopedModel):
 
 
 __all__ = ["Conversation", "ConversationMessage"]
-

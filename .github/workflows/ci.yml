@@ -11,9 +11,33 @@ jobs:
     env:
       APP_ENV: test
       DATABASE_URL: postgresql+asyncpg://support_agent:ci_only@127.0.0.1:5432/support_agent_test
+      TEST_DATABASE_URL: postgresql+asyncpg://support_agent_app:ci_only_app@127.0.0.1:5432/support_agent_test
       REDIS_URL: redis://127.0.0.1:6379/15
       AUTH_JWT_SECRET: ci-only-auth-secret-not-used-outside-tests
-    
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: support_agent_test
+          POSTGRES_USER: support_agent
+          POSTGRES_PASSWORD: ci_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U support_agent -d support_agent_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+      redis:
+        image: redis:7.4-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+
     steps:
       - uses: actions/checkout@v4
       
@@ -35,6 +59,15 @@ jobs:
 
       - name: Sync Python dependencies
         run: uv sync --project apps/api
-        
+
+      - name: Apply database migrations
+        run: npm run db:upgrade
+
+      - name: Configure restricted integration-test role
+        run: npm run db:configure-test-role
+
       - name: Check code (Lint, Typecheck, Test)
         run: npm run check
+
+      - name: Run PostgreSQL agent quality evaluation
+        run: npm run eval:agent

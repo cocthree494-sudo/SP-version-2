@@ -96,7 +96,12 @@ class BotKey(TenantScopedModel):
     bot_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
     publishable_key: Mapped[str] = mapped_column(String(128), nullable=False)
     label: Mapped[str] = mapped_column(String(100), nullable=False)
-    allowed_origins: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    allowed_origins: Mapped[list[str]] = mapped_column(
+        JSON,
+        default=list,
+        server_default="[]",
+        nullable=False,
+    )
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     bot: Mapped[Bot] = relationship(back_populates="keys")

@@ -11,7 +11,7 @@ def test_alembic_has_conversation_revision_after_knowledge() -> None:
     config = Config(str(api_root / "alembic.ini"))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_current_head() == "0008_conversations"
+    assert scripts.get_current_head() == "0009_app_runtime_role"
     revision = scripts.get_revision("0002_tenancy")
     assert revision is not None
     assert revision.down_revision == "0001_enable_pgvector"
@@ -91,3 +91,12 @@ def test_alembic_has_conversation_revision_after_knowledge() -> None:
     assert "fk_messages_tenant_conversation_conversations" in conversation_migration_text
     assert "conversations_tenant_isolation" in conversation_migration_text
     assert "messages_tenant_isolation" in conversation_migration_text
+
+    role_revision = scripts.get_revision("0009_app_runtime_role")
+    assert role_revision is not None
+    assert role_revision.down_revision == "0008_conversations"
+    role_migration = api_root / "alembic" / "versions" / "0009_app_runtime_role.py"
+    role_migration_text = role_migration.read_text(encoding="utf-8")
+    assert "support_agent_app" in role_migration_text
+    assert "NOBYPASSRLS" in role_migration_text
+    assert "GRANT SELECT, INSERT, UPDATE, DELETE" in role_migration_text

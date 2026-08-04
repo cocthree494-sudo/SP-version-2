@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = "support_agent_local"  # noqa: S105
     POSTGRES_PORT: int = 5432
     DATABASE_URL: str
+    # A deliberately weaker connection is required for meaningful RLS tests.
+    # The migration owner in DATABASE_URL can bypass row-level security.
+    TEST_DATABASE_URL: str | None = None
 
     # Redis
     REDIS_PORT: int = 6379

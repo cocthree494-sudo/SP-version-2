@@ -83,6 +83,9 @@ disallow_untyped_defs = false
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+markers = [
+  "integration: requires the migrated PostgreSQL/pgvector release database",
+]
 filterwarnings = [
   "error",
   "ignore::DeprecationWarning",

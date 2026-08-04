@@ -12,10 +12,12 @@ from pathlib import Path
 from typing import TypedDict, cast
 from uuid import UUID, uuid4
 
-from sqlalchemy import Table
+from sqlalchemy import Table, make_url
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
+from app.core.config import settings
+from app.core.tenancy import set_database_tenant
 from app.db.base import Base
 from app.domains.bots.models import Bot
 from app.domains.chat.conversation_service import ConversationNotFoundError, ConversationService
@@ -157,6 +159,7 @@ async def _seed_conversation(
     tenant = Tenant(name=slug, slug=slug)
     session.add(tenant)
     await session.flush()
+    await set_database_tenant(session, tenant.id)
     bot = Bot(tenant_id=tenant.id, name="Evaluation bot", default_language="auto")
     session.add(bot)
     await session.flush()
@@ -180,7 +183,7 @@ def _check(
 async def _run_case(session: AsyncSession, case: EvaluationCase) -> EvaluationResult:
     checks: list[str] = []
     failures: list[str] = []
-    safe_slug = f"eval-{case['id'].replace('_', '-')[:50]}"
+    safe_slug = f"eval-{case['id'].replace('_', '-')[:35]}-{uuid4().hex[:12]}"
     tenant, _bot, conversation = await _seed_conversation(session, safe_slug)
     low = _EvaluationProvider("low", case["response"])
     strong = _EvaluationProvider("strong", case["strong_response"])
@@ -271,21 +274,43 @@ async def _run_case(session: AsyncSession, case: EvaluationCase) -> EvaluationRe
     )
 
 
-async def run_evaluation(cases: list[EvaluationCase] | None = None) -> EvaluationReport:
+async def run_evaluation(
+    cases: list[EvaluationCase] | None = None,
+    *,
+    database_url: str | None = None,
+    sqlite: bool = False,
+) -> EvaluationReport:
+    """Run cases against PostgreSQL or an explicitly selected SQLite fixture.
+
+    ``TEST_DATABASE_URL`` is the default release path. SQLite is retained only
+    for fast local iteration and must be requested with ``sqlite=True``.
+    """
+
     selected = cases or load_cases()
+    if sqlite:
+        if database_url is not None:
+            raise ValueError("database_url and sqlite=True cannot be used together")
+        database_url = "sqlite+aiosqlite:///:memory:"
+    resolved_url = database_url or settings.TEST_DATABASE_URL
+    if resolved_url is None:
+        raise ValueError(
+            "A PostgreSQL TEST_DATABASE_URL is required for release evaluation; "
+            "pass sqlite=True for an explicit fast local run"
+        )
     engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
-        poolclass=StaticPool,
+        resolved_url,
+        poolclass=StaticPool if make_url(resolved_url).get_backend_name() == "sqlite" else None,
     )
-    tables = [
-        cast(Table, Tenant.__table__),
-        cast(Table, Bot.__table__),
-        cast(Table, Conversation.__table__),
-        cast(Table, ConversationMessage.__table__),
-        cast(Table, UsageEvent.__table__),
-    ]
-    async with engine.begin() as connection:
-        await connection.run_sync(Base.metadata.create_all, tables=tables)
+    if make_url(resolved_url).get_backend_name() == "sqlite":
+        tables = [
+            cast(Table, Tenant.__table__),
+            cast(Table, Bot.__table__),
+            cast(Table, Conversation.__table__),
+            cast(Table, ConversationMessage.__table__),
+            cast(Table, UsageEvent.__table__),
+        ]
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all, tables=tables)
     factory = async_sessionmaker(engine, expire_on_commit=False)
     try:
         async with factory() as session:
@@ -315,8 +340,28 @@ def _print_human(report: EvaluationReport) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--json", action="store_true", help="Print the report as JSON")
+    parser.add_argument(
+        "--database-url",
+        default=settings.TEST_DATABASE_URL,
+        help="Migrated PostgreSQL URL; defaults to TEST_DATABASE_URL",
+    )
+    parser.add_argument(
+        "--sqlite",
+        action="store_true",
+        help="Explicitly use the in-memory SQLite fixture for fast local iteration",
+    )
     args = parser.parse_args()
-    report = asyncio.run(run_evaluation())
+    if not args.sqlite and args.database_url is None:
+        parser.error(
+            "release evaluation needs TEST_DATABASE_URL or --database-url; "
+            "use --sqlite locally"
+        )
+    report = asyncio.run(
+        run_evaluation(
+            database_url=args.database_url,
+            sqlite=args.sqlite,
+        )
+    )
     if args.json:
         sys.stdout.write(json.dumps(report.as_json(), ensure_ascii=False, indent=2) + "\n")
     else:

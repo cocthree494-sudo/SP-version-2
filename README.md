@@ -36,6 +36,7 @@ npm run setup       # install dependencies without starting services
 npm run infra:up    # start PostgreSQL and Redis
 npm run db:upgrade  # apply pending PostgreSQL migrations
 npm run db:current  # show the current Alembic revision
+npm run db:configure-test-role # set the restricted PostgreSQL integration-test password
 npm run dev:apps    # run API, dashboard, and widget after setup
 npm run dev:worker  # run only the Redis-backed ingestion worker
 npm run infra:down  # stop local infrastructure

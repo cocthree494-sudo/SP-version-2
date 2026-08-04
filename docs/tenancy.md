@@ -53,3 +53,34 @@ job IDs, and object storage always resolves beneath a tenant UUID directory.
 `document_chunks` repeats tenant/document composite foreign keys, repository
 predicates, and forced RLS. Hybrid retrieval constrains chunks, documents, and
 sources independently to the same tenant before vector or lexical ranking.
+
+## PostgreSQL release verification
+
+Tenant isolation has two independent layers: repositories always include an
+application-level `tenant_id` predicate, and PostgreSQL RLS applies the same
+boundary to raw SQL as database-enforced defense in depth. Fast SQLite tests
+exercise the first layer only. The tests marked `integration` connect to the
+migrated pgvector database and are the only tests that exercise RLS policies,
+the append-only trigger, and PostgreSQL vector/full-text retrieval.
+
+Those tests must use `TEST_DATABASE_URL`, which authenticates as the
+`support_agent_app` role created by migration `0009`. That role does not own
+tables and is explicitly `NOSUPERUSER` and `NOBYPASSRLS`; the shared fixture
+asserts those properties before any security assertion runs. Never replace
+`TEST_DATABASE_URL` with the migration-owner `DATABASE_URL`: PostgreSQL
+superusers bypass RLS even on tables using `FORCE ROW LEVEL SECURITY`, so that
+"simplification" would make passing isolation tests prove nothing.
+
+For a local live run, start infrastructure, apply migrations, set the restricted
+role's environment-specific password, and run the integration marker:
+
+```powershell
+npm run infra:up
+npm run db:upgrade
+npm run db:configure-test-role
+uv run --project apps/api pytest apps/api/tests -m integration
+```
+
+Developers without PostgreSQL running get explicit skips. CI provisions
+PostgreSQL/pgvector and Redis, applies migrations first, and treats any missing
+database or skipped security setup as a hard failure.

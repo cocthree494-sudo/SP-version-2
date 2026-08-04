@@ -64,12 +64,42 @@ class UsageEvent(UUIDPrimaryKeyMixin, TenantScopedMixin, Base):
     )
     provider: Mapped[str] = mapped_column(String(100), nullable=False)
     model: Mapped[str] = mapped_column(String(200), nullable=False)
-    input_tokens: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
-    output_tokens: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
-    cache_read_tokens: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
-    cache_write_tokens: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
-    latency_ms: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
-    estimated_cost_microusd: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    input_tokens: Mapped[int] = mapped_column(
+        BigInteger,
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+    output_tokens: Mapped[int] = mapped_column(
+        BigInteger,
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+    cache_read_tokens: Mapped[int] = mapped_column(
+        BigInteger,
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+    cache_write_tokens: Mapped[int] = mapped_column(
+        BigInteger,
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+    latency_ms: Mapped[int] = mapped_column(
+        BigInteger,
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+    estimated_cost_microusd: Mapped[int] = mapped_column(
+        BigInteger,
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

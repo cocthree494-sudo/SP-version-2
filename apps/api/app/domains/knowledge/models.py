@@ -78,7 +78,12 @@ class KnowledgeSource(TenantScopedModel):
         server_default=KnowledgeSourceStatus.PENDING.value,
         nullable=False,
     )
-    configuration: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    configuration: Mapped[dict[str, Any]] = mapped_column(
+        JSON,
+        default=dict,
+        server_default="{}",
+        nullable=False,
+    )
     error_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
@@ -123,6 +128,7 @@ class Document(TenantScopedModel):
         "metadata",
         JSON,
         default=dict,
+        server_default="{}",
         nullable=False,
     )
     status: Mapped[DocumentStatus] = mapped_column(
@@ -183,7 +189,12 @@ class IngestionJob(TenantScopedModel):
         server_default="0",
         nullable=False,
     )
-    payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(
+        JSON,
+        default=dict,
+        server_default="{}",
+        nullable=False,
+    )
     scheduled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -234,6 +245,7 @@ class DocumentChunk(TenantScopedModel):
         "metadata",
         JSON,
         default=dict,
+        server_default="{}",
         nullable=False,
     )
 

@@ -21,6 +21,7 @@ if str(api_root) not in sys.path:
 
 from app.core.config import settings  # noqa: E402
 from app.db.base import Base  # noqa: E402
+from app.db.migrations import include_object  # noqa: E402
 from app.domains.auth import models as auth_models  # noqa: E402,F401
 from app.domains.bots import models as bot_models  # noqa: E402,F401
 from app.domains.chat import models as chat_models  # noqa: E402,F401
@@ -54,6 +55,7 @@ def run_migrations_offline() -> None:
         dialect_opts={"paramstyle": "named"},
         compare_type=True,
         compare_server_default=True,
+        include_object=include_object,
     )
 
     with context.begin_transaction():
@@ -68,6 +70,7 @@ def do_run_migrations(connection: Connection) -> None:
         target_metadata=target_metadata,
         compare_type=True,
         compare_server_default=True,
+        include_object=include_object,
     )
 
     with context.begin_transaction():
