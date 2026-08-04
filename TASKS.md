@@ -27,7 +27,7 @@ Completion means implementation, proportionate tests/checks, documentation/hando
   Depends on: T-010  
   Typed environment settings, secret-safe structured logging, request IDs, `/health/live`, `/health/ready`, and DB/Redis readiness checks.
 
-- [ ] **T-013 — Add integration verification for database isolation**  
+- [x] **T-013 — Add integration verification for database isolation**
   Depends on: T-012, T-020  
   **Release-blocking. Follow [CODEX-BRIEF.md](CODEX-BRIEF.md) for the full instructions.**  
   Commit the outstanding implementation work with task IDs. Add PostgreSQL and Redis CI

@@ -3,7 +3,7 @@
 > Read this first. This is the compact handoff document for Claude, Codex, or another coding agent. Detailed architecture is in [PLAN.md](PLAN.md); executable order is in [TASKS.md](TASKS.md).
 
 **Last updated:** 2026-08-05, Codex session
-**Status:** implementation through T-050 is locally protected, and T-051 code exists but remains unchecked. The T-013 PostgreSQL isolation gate is implemented but cannot be completed until it runs against live PostgreSQL/pgvector. Optional tenant BYOK is scheduled in T-046/T-055, not implemented.
+**Status:** T-013 is complete: the full live PostgreSQL/pgvector/Redis CI gate passes. Implementation through T-050 is complete, T-051 code exists but remains unchecked, and optional tenant BYOK is scheduled next in T-046/T-055.
 
 ## 1. Project
 
@@ -238,6 +238,13 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 - Kept T-013 unchecked and all later feature work blocked until the integration suite runs against a live non-superuser PostgreSQL role and passes.
 - Recorded the user's decision to support optional tenant-owned generation-provider keys. Scheduled the secure backend/routing work as T-046, settings UI as T-055, and lifecycle E2E coverage in T-060. Platform-managed providers stay the default; BYOK is scheduled only and is not implemented.
 
+### Session 15 — Codex
+
+- Pushed the protected implementation, T-013 gate, and BYOK schedule after the user explicitly authorized pushing.
+- Ran T-013 through GitHub Actions with live PostgreSQL 16 + pgvector and Redis. The gate exposed and fixed three verification defects: Alembic command arguments were joined incorrectly, PostgreSQL `json` defaults needed a text-normalized comparator because `json` has no equality operator, and test-only mixin models polluted global Alembic metadata.
+- Final CI run `30935817080` passed at commit `cbca180`: Ruff passed, strict mypy passed over 102 source files, all 80 tests passed, migrations upgraded/downgraded/upgraded through `0009`, schema/model parity was empty, and the PostgreSQL agent evaluation passed 6/6.
+- Live restricted-role tests proved fail-closed and cross-tenant RLS behavior for every current tenant table, raw append-only enforcement for `usage_events`, and tenant-isolated pgvector retrieval. T-013 is complete.
+
 ## 7. Open items
 
 | ID | Item | Handling now |
@@ -249,17 +256,11 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 
 ## HANDOFF STATE
 
-**Last completed:** T-050 — dashboard shell and auth flow. T-051 implementation is protected in Git but remains unchecked pending its required verification.
-**Next task:** **Finish T-013 by running the integration gate against live PostgreSQL/pgvector as a non-superuser and fixing any exposed defect. Read [CODEX-BRIEF.md](CODEX-BRIEF.md) first.** Do not start T-046, T-051, T-052, or later feature work before T-013 passes.
-**Blocked on:** This workstation currently has no Docker, PostgreSQL, or pgvector service. A live PostgreSQL 16 + pgvector environment is required to complete T-013; pushing to CI is not authorized by the current request.
+**Last completed:** T-013 — live PostgreSQL isolation verification gate.
+**Next task:** **T-046 — add secure tenant-owned generation-provider credentials and routing.** Its dependencies are complete, so it is the first eligible unchecked task.
+**Blocked on:** Nothing currently.
 
-**Protected local commits:**
-
-- `e07b120` — `[T-030..T-051] add knowledge, agent, and dashboard implementation`
-- `2b738e1` — `[T-013] define database isolation verification gate`
-- `35360f1` — `[T-013] add PostgreSQL isolation integration gate`
-
-**Why T-013 remains open:** The integration fixtures, non-superuser runtime role, RLS/append-only/pgvector/migration tests, and CI services are implemented. On this machine the full local gate reports 65 passed and 14 PostgreSQL tests skipped; `CI=true` correctly hard-fails instead of silently skipping when PostgreSQL is unavailable. Therefore the live security claims are not yet proven and the checkbox must remain open.
-**Uncommitted work:** None intentionally after the BYOK planning documentation commit. No local commits in this handoff have been pushed.
-**Verification:** Ruff, strict mypy, web/widget lint and typecheck pass; the non-PostgreSQL test run has 65 passed and 14 integration skips; offline migration upgrade/downgrade SQL renders through `0009_app_runtime_role`; missing PostgreSQL is a hard failure under `CI=true`. The BYOK update changes documentation only and is verified with diff inspection and `git diff --check`.
-**Gotchas:** Do not mark T-013 complete from skipped tests. Do not mark T-051 complete merely because its files are in the range-labelled commit. T-046/T-055 schedule optional generation BYOK only—plaintext keys must never be stored/re-displayed, platform fallback must be explicit, arbitrary provider base URLs are excluded, and embedding BYOK needs separate vector compatibility/re-indexing design.
+**Pushed state:** `origin/main` contains the implementation and verification fixes through `cbca180`. The T-013 completion/handoff documentation is the only follow-up commit at this handoff.
+**Uncommitted work:** None intentionally after the T-013 completion/handoff commit.
+**Verification:** GitHub Actions run `30935817080` passed with live PostgreSQL 16 + pgvector and Redis: Ruff passed, strict mypy passed over 102 files, 80 tests passed, upgrade → downgrade → upgrade and empty schema/model diff passed, restricted non-superuser RLS/append-only/pgvector tests passed, and agent evaluation passed 6/6.
+**Gotchas:** This workstation still lacks Docker/PostgreSQL/pgvector, so live database checks run in CI. T-051 remains unchecked until its UI completion contract is verified. T-046/T-055 cover optional answer-generation BYOK only—plaintext keys must never be stored/re-displayed, platform fallback must be explicit, arbitrary provider base URLs are excluded, and embedding BYOK needs separate vector compatibility/re-indexing design.
