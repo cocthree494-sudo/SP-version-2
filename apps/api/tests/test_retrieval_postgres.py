@@ -36,6 +36,9 @@ async def _add_knowledge(
         system_policy=None,
         default_language="auto",
         status=BotStatus.ACTIVE,
+        widget_welcome_text="How can we help?",
+        widget_accent_color="#194f46",
+        widget_position="right",
     )
     source = await KnowledgeSourceRepository(session, tenant.id).create(
         bot_id=bot.id,

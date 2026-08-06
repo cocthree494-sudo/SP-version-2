@@ -27,6 +27,7 @@ from app.domains.chat.models import Conversation, ConversationMessage
 from app.domains.chat.rate_limit import InMemoryRateLimiter
 from app.domains.chat.widget_sessions import decode_widget_session_token
 from app.domains.knowledge.models import Document, DocumentChunk, KnowledgeSource
+from app.domains.provider_access.models import ProviderPolicy
 from app.domains.tenancy.models import Tenant
 from app.domains.usage.models import UsageEvent
 from app.main import app
@@ -51,6 +52,7 @@ async def widget_session() -> AsyncGenerator[AsyncSession, None]:
         cast(Table, KnowledgeSource.__table__),
         cast(Table, Document.__table__),
         cast(Table, DocumentChunk.__table__),
+        cast(Table, ProviderPolicy.__table__),
     ]
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all, tables=tables)
@@ -190,4 +192,3 @@ async def test_widget_session_creation_is_rate_limited(
     assert first.status_code == 201
     assert second.status_code == 429
     assert int(second.headers["retry-after"]) >= 1
-

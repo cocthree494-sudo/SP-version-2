@@ -206,10 +206,10 @@ def _insert_sql(table: str, row_id: UUID, seed: SeedRows) -> tuple[str, dict[str
         params.update(
             provider="openai",
             label="Cross-tenant credential",
-            encrypted_secret="cross-ciphertext",
+            encrypted_secret="cross-ciphertext",  # noqa: S106 - non-secret fixture value
             wrapped_data_key="cross-wrapped-key",
             key_version="test-v1",
-            masked_secret="••••ross",
+            masked_secret="••••ross",  # noqa: S106 - non-secret fixture value
             fingerprint="c" * 64,
             low_cost_model_id="test-low",
         )

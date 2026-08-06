@@ -119,6 +119,9 @@ async def create_tenant_bot(
         system_policy=None,
         default_language="auto",
         status=BotStatus.ACTIVE,
+        widget_welcome_text="How can we help?",
+        widget_accent_color="#194f46",
+        widget_position="right",
     )
     await session.commit()
     return tenant.id, bot.id
