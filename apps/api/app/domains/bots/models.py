@@ -45,6 +45,19 @@ class Bot(TenantScopedModel):
             "length(default_language) BETWEEN 2 AND 35",
             name="ck_bots_default_language_length",
         ),
+        CheckConstraint(
+            "length(widget_welcome_text) BETWEEN 1 AND 160",
+            name="ck_bots_widget_welcome_length",
+        ),
+        CheckConstraint(
+            "length(widget_accent_color) = 7 "
+            "AND substr(widget_accent_color, 1, 1) = '#'",
+            name="ck_bots_widget_accent_hex",
+        ),
+        CheckConstraint(
+            "widget_position IN ('left', 'right')",
+            name="ck_bots_widget_position",
+        ),
     )
 
     tenant_id: Mapped[UUID] = mapped_column(
@@ -58,6 +71,24 @@ class Bot(TenantScopedModel):
         String(35),
         default="auto",
         server_default="auto",
+        nullable=False,
+    )
+    widget_welcome_text: Mapped[str] = mapped_column(
+        String(160),
+        default="How can we help?",
+        server_default="How can we help?",
+        nullable=False,
+    )
+    widget_accent_color: Mapped[str] = mapped_column(
+        String(7),
+        default="#194f46",
+        server_default="#194f46",
+        nullable=False,
+    )
+    widget_position: Mapped[str] = mapped_column(
+        String(5),
+        default="right",
+        server_default="right",
         nullable=False,
     )
     status: Mapped[BotStatus] = mapped_column(

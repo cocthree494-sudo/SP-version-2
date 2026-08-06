@@ -1,5 +1,8 @@
 import type {
   BotCreateInput,
+  BotKeyCreateInput,
+  BotKeyResponse,
+  BotKeyUpdateInput,
   BotResponse,
   BotUpdateInput,
   KnowledgeSourceResponse,
@@ -81,6 +84,23 @@ export const dashboardApi = {
     }),
   deleteBot: (botId: string) =>
     dashboardRequest<void>(`/bots/${encodeURIComponent(botId)}`, { method: "DELETE" }),
+  listBotKeys: (botId: string) =>
+    dashboardRequest<BotKeyResponse[]>(`/bots/${encodeURIComponent(botId)}/keys`),
+  createBotKey: (botId: string, payload: BotKeyCreateInput) =>
+    dashboardRequest<BotKeyResponse>(`/bots/${encodeURIComponent(botId)}/keys`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateBotKey: (botId: string, keyId: string, payload: BotKeyUpdateInput) =>
+    dashboardRequest<BotKeyResponse>(
+      `/bots/${encodeURIComponent(botId)}/keys/${encodeURIComponent(keyId)}`,
+      { method: "PATCH", body: JSON.stringify(payload) },
+    ),
+  revokeBotKey: (botId: string, keyId: string) =>
+    dashboardRequest<void>(
+      `/bots/${encodeURIComponent(botId)}/keys/${encodeURIComponent(keyId)}`,
+      { method: "DELETE" },
+    ),
   listSources: (botId: string) =>
     dashboardRequest<KnowledgeSourceResponse[]>(
       `/bots/${encodeURIComponent(botId)}/sources`,

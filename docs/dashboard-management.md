@@ -28,6 +28,10 @@ The knowledge workspace supports:
 
 Bot/source requests are always addressed through the existing tenant-authenticated API. Parsing, crawling, chunking, and embedding remain in the background ingestion worker rather than the Next.js or FastAPI request workers.
 
+Widget appearance, exact-origin keys, preview, and generated installation
+instructions live in the separate `/dashboard/widget` workspace and are
+documented in `docs/widget.md`.
+
 ## Verification
 
 Web lint and TypeScript checks pass. Browser inspection covered populated bot cards, bot creation dialog, file drop zone, website/manual forms, manual edit prefill, transitional and failed source states, source deletion confirmation, and the full 390-pixel mobile knowledge layout. The browser used deterministic same-origin API responses because local PostgreSQL/Redis/Docker were unavailable; backend API behavior and tenant isolation remain covered by the existing API suite.

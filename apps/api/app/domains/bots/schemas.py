@@ -5,6 +5,7 @@ from __future__ import annotations
 import ipaddress
 import re
 from datetime import datetime
+from typing import Literal
 from urllib.parse import urlsplit
 from uuid import UUID
 
@@ -13,6 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from app.domains.bots.enums import BotStatus
 
 _language_tag = re.compile(r"^[a-z]{2,8}(?:-[a-z0-9]{1,8})*$")
+_hex_color = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 
 def normalize_language(value: str) -> str:
@@ -79,11 +81,21 @@ class BotCreateRequest(BaseModel):
     system_policy: str | None = Field(default=None, max_length=20_000)
     default_language: str = "auto"
     status: BotStatus = BotStatus.ACTIVE
+    widget_welcome_text: str = Field(default="How can we help?", min_length=1, max_length=160)
+    widget_accent_color: str = "#194f46"
+    widget_position: Literal["left", "right"] = "right"
 
     @field_validator("default_language")
     @classmethod
     def validate_language(cls, value: str) -> str:
         return normalize_language(value)
+
+    @field_validator("widget_accent_color")
+    @classmethod
+    def validate_accent(cls, value: str) -> str:
+        if _hex_color.fullmatch(value) is None:
+            raise ValueError("widget_accent_color must be a six-digit hex color")
+        return value.lower()
 
 
 class BotUpdateRequest(BaseModel):
@@ -93,6 +105,9 @@ class BotUpdateRequest(BaseModel):
     system_policy: str | None = Field(default=None, max_length=20_000)
     default_language: str | None = None
     status: BotStatus | None = None
+    widget_welcome_text: str | None = Field(default=None, min_length=1, max_length=160)
+    widget_accent_color: str | None = None
+    widget_position: Literal["left", "right"] | None = None
 
     @field_validator("default_language")
     @classmethod
@@ -101,11 +116,25 @@ class BotUpdateRequest(BaseModel):
             return None
         return normalize_language(value)
 
+    @field_validator("widget_accent_color")
+    @classmethod
+    def validate_accent(cls, value: str | None) -> str | None:
+        if value is not None and _hex_color.fullmatch(value) is None:
+            raise ValueError("widget_accent_color must be a six-digit hex color")
+        return value.lower() if value is not None else None
+
     @model_validator(mode="after")
     def require_update(self) -> BotUpdateRequest:
         if not self.model_fields_set:
             raise ValueError("At least one bot field must be provided")
-        for required_field in ("name", "default_language", "status"):
+        for required_field in (
+            "name",
+            "default_language",
+            "status",
+            "widget_welcome_text",
+            "widget_accent_color",
+            "widget_position",
+        ):
             if required_field in self.model_fields_set and getattr(self, required_field) is None:
                 raise ValueError(f"{required_field} cannot be null")
         return self
@@ -119,6 +148,9 @@ class BotResponse(BaseModel):
     system_policy: str | None
     default_language: str
     status: BotStatus
+    widget_welcome_text: str
+    widget_accent_color: str
+    widget_position: Literal["left", "right"]
     created_at: datetime
     updated_at: datetime
 

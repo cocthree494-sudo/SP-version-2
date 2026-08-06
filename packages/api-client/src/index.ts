@@ -52,6 +52,9 @@ export interface BotResponse {
   system_policy: string | null;
   default_language: string;
   status: BotStatus;
+  widget_welcome_text: string;
+  widget_accent_color: string;
+  widget_position: "left" | "right";
   created_at: string;
   updated_at: string;
 }
@@ -61,6 +64,9 @@ export interface BotCreateInput {
   system_policy?: string | null;
   default_language?: string;
   status?: BotStatus;
+  widget_welcome_text?: string;
+  widget_accent_color?: string;
+  widget_position?: "left" | "right";
 }
 
 export interface BotUpdateInput {
@@ -68,6 +74,30 @@ export interface BotUpdateInput {
   system_policy?: string | null;
   default_language?: string;
   status?: BotStatus;
+  widget_welcome_text?: string;
+  widget_accent_color?: string;
+  widget_position?: "left" | "right";
+}
+
+export interface BotKeyResponse {
+  id: string;
+  bot_id: string;
+  publishable_key: string;
+  label: string;
+  allowed_origins: string[];
+  revoked_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BotKeyCreateInput {
+  label?: string;
+  allowed_origins: string[];
+}
+
+export interface BotKeyUpdateInput {
+  label?: string;
+  allowed_origins?: string[];
 }
 
 export type KnowledgeSourceType = "file" | "website" | "manual";

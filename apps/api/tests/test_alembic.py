@@ -33,7 +33,7 @@ def test_alembic_has_conversation_revision_after_knowledge() -> None:
     config = Config(str(api_root / "alembic.ini"))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_current_head() == "0010_provider_access"
+    assert scripts.get_current_head() == "0011_widget_configuration"
     revision = scripts.get_revision("0002_tenancy")
     assert revision is not None
     assert revision.down_revision == "0001_enable_pgvector"
@@ -133,3 +133,12 @@ def test_alembic_has_conversation_revision_after_knowledge() -> None:
     assert "provider_credentials_tenant_isolation" in provider_migration_text
     assert "provider_policies_tenant_isolation" in provider_migration_text
     assert "GRANT SELECT, INSERT, UPDATE, DELETE" in provider_migration_text
+
+    widget_revision = scripts.get_revision("0011_widget_configuration")
+    assert widget_revision is not None
+    assert widget_revision.down_revision == "0010_provider_access"
+    widget_migration = api_root / "alembic" / "versions" / "0011_widget_configuration.py"
+    widget_migration_text = widget_migration.read_text(encoding="utf-8")
+    assert '"widget_welcome_text"' in widget_migration_text
+    assert '"widget_accent_color"' in widget_migration_text
+    assert '"widget_position"' in widget_migration_text

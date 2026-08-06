@@ -136,7 +136,7 @@ Completion means implementation, proportionate tests/checks, documentation/hando
   Depends on: T-044  
   Preact custom element, lazy loader, Shadow DOM or equivalent CSS isolation, responsive/accessibility behavior, streaming, retry/error states, and bundle-size report.
 
-- [ ] **T-054 — Add widget configuration and embed instructions**  
+- [x] **T-054 — Add widget configuration and embed instructions**  
   Depends on: T-051, T-053  
   Basic theme/welcome text, allowed origins, generated snippet, preview, and copyable installation instructions.
 

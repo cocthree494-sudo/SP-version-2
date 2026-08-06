@@ -112,6 +112,9 @@ async def test_owner_can_create_read_update_and_delete_bot(bot_client: AsyncClie
     assert created["name"] == "Help Bot"
     assert created["default_language"] == "bn"
     assert created["status"] == "active"
+    assert created["widget_welcome_text"] == "How can we help?"
+    assert created["widget_accent_color"] == "#194f46"
+    assert created["widget_position"] == "right"
 
     list_response = await bot_client.get("/v1/bots", headers=bearer(tokens))
     get_response = await bot_client.get(
@@ -125,12 +128,22 @@ async def test_owner_can_create_read_update_and_delete_bot(bot_client: AsyncClie
     patch_response = await bot_client.patch(
         f"/v1/bots/{created['id']}",
         headers=bearer(tokens),
-        json={"name": "Updated Bot", "status": "disabled", "system_policy": None},
+        json={
+            "name": "Updated Bot",
+            "status": "disabled",
+            "system_policy": None,
+            "widget_welcome_text": "Ask Northstar",
+            "widget_accent_color": "#336699",
+            "widget_position": "left",
+        },
     )
     assert patch_response.status_code == 200
     assert patch_response.json()["name"] == "Updated Bot"
     assert patch_response.json()["status"] == "disabled"
     assert patch_response.json()["system_policy"] is None
+    assert patch_response.json()["widget_welcome_text"] == "Ask Northstar"
+    assert patch_response.json()["widget_accent_color"] == "#336699"
+    assert patch_response.json()["widget_position"] == "left"
 
     empty_patch = await bot_client.patch(
         f"/v1/bots/{created['id']}",

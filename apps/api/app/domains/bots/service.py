@@ -77,6 +77,9 @@ class BotService:
             system_policy=payload.system_policy,
             default_language=payload.default_language,
             status=payload.status,
+            widget_welcome_text=payload.widget_welcome_text,
+            widget_accent_color=payload.widget_accent_color,
+            widget_position=payload.widget_position,
         )
         await self.session.commit()
         return bot
@@ -101,6 +104,12 @@ class BotService:
             bot.default_language = cast(str, payload.default_language)
         if "status" in fields:
             bot.status = cast(BotStatus, payload.status)
+        if "widget_welcome_text" in fields:
+            bot.widget_welcome_text = cast(str, payload.widget_welcome_text)
+        if "widget_accent_color" in fields:
+            bot.widget_accent_color = cast(str, payload.widget_accent_color)
+        if "widget_position" in fields:
+            bot.widget_position = cast(str, payload.widget_position)
         await self.session.commit()
         return bot
 

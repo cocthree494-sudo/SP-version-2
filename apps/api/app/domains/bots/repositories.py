@@ -47,6 +47,9 @@ class BotRepository(_TenantRepository):
         system_policy: str | None,
         default_language: str,
         status: BotStatus,
+        widget_welcome_text: str,
+        widget_accent_color: str,
+        widget_position: str,
     ) -> Bot:
         tenant_id = await self._prepare_scope()
         bot = Bot(
@@ -55,6 +58,9 @@ class BotRepository(_TenantRepository):
             system_policy=system_policy,
             default_language=default_language,
             status=status,
+            widget_welcome_text=widget_welcome_text,
+            widget_accent_color=widget_accent_color,
+            widget_position=widget_position,
         )
         self.session.add(bot)
         await self.session.flush()

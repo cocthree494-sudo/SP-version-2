@@ -33,3 +33,18 @@ server-side allowed-origin checks are always authoritative.
 The loader and widget are separate entry points, so host pages pay roughly one
 kilobyte gzip before lazy loading the interactive client. Bundle growth should be
 reviewed against this checked baseline during later production acceptance.
+
+## Dashboard configuration and installation
+
+T-054 adds `/dashboard/widget`. Basic welcome text, six-digit accent color, and
+left/right launcher position are persisted on the selected tenant bot. Owners
+and admins create or revoke publishable keys, manage up to twenty exact allowed
+origins through the existing key API, inspect a responsive preview, and copy an
+escaped loader snippet. Members may inspect but cannot mutate configuration.
+
+The generated snippet uses `NEXT_PUBLIC_WIDGET_LOADER_URL` and
+`NEXT_PUBLIC_API_URL`; deployed environments must set both to public HTTPS URLs.
+Changing a key's allowed origins applies immediately. Revocation invalidates
+existing anonymous sessions; restoring the widget requires a new key and an
+updated snippet. Appearance values are emitted as attributes in the copied
+snippet, so a site must recopy/redeploy after an appearance change.
