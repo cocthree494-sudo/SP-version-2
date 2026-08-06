@@ -2,10 +2,13 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from asgi_correlation_id import CorrelationIdMiddleware
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from redis.asyncio import Redis
 
-from app.api import auth, bots, health, knowledge, usage, widget
+from app.api import auth, bots, health, knowledge, providers, usage, widget
 from app.core.config import settings
 from app.core.logger import setup_logging
 from app.db.session import dispose_engine
@@ -42,12 +45,37 @@ app = FastAPI(
 # Add correlation ID middleware for request tracing
 app.add_middleware(CorrelationIdMiddleware)
 
+
+@app.exception_handler(RequestValidationError)
+async def secret_safe_validation_error(
+    _request: Request,
+    exc: RequestValidationError,
+) -> JSONResponse:
+    """Keep write-only credentials out of otherwise useful validation errors."""
+
+    secret_fields = {"api_key", "password", "refresh_token"}
+    errors: list[dict[str, object]] = []
+    for error in exc.errors():
+        sanitized = dict(error)
+        location = sanitized.get("loc", ())
+        if isinstance(location, (list, tuple)) and any(
+            item in secret_fields for item in location
+        ):
+            sanitized["input"] = "**********"
+            sanitized.pop("ctx", None)
+        errors.append(sanitized)
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        content=jsonable_encoder({"detail": errors}),
+    )
+
 # Include routers
 app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(bots.router)
 app.include_router(knowledge.router)
 app.include_router(usage.router)
+app.include_router(providers.router)
 app.include_router(widget.router)
 
 

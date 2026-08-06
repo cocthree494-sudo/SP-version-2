@@ -85,6 +85,11 @@ class Settings(BaseSettings):
     LLM_OUTPUT_COST_MICROUSD_PER_MILLION: int = Field(default=0, ge=0)
     LLM_STRONG_INPUT_COST_MICROUSD_PER_MILLION: int = Field(default=0, ge=0)
     LLM_STRONG_OUTPUT_COST_MICROUSD_PER_MILLION: int = Field(default=0, ge=0)
+    # Optional tenant BYOK encryption key. This must be a URL-safe base64
+    # encoded 32-byte key supplied by a secret manager. Platform-only routing
+    # remains available when it is unset.
+    BYOK_MASTER_KEY: SecretStr | None = None
+    BYOK_MASTER_KEY_VERSION: str = Field(default="local-v1", min_length=1, max_length=64)
 
     # Conversation continuity and retention. Retention is refreshed whenever
     # a message is appended; compaction preserves recent verbatim turns.
@@ -141,6 +146,17 @@ class Settings(BaseSettings):
                 )
             if not self.is_local and not self.AI_BASE_URL.startswith("https://"):
                 raise ValueError("AI_BASE_URL must use HTTPS outside development and test")
+        if self.BYOK_MASTER_KEY is not None:
+            import base64
+
+            try:
+                decoded_key = base64.urlsafe_b64decode(
+                    self.BYOK_MASTER_KEY.get_secret_value().encode("ascii")
+                )
+            except (ValueError, UnicodeEncodeError) as exc:
+                raise ValueError("BYOK_MASTER_KEY must be URL-safe base64") from exc
+            if len(decoded_key) != 32:
+                raise ValueError("BYOK_MASTER_KEY must decode to exactly 32 bytes")
         return self
 
     @property

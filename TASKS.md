@@ -114,7 +114,7 @@ Completion means implementation, proportionate tests/checks, documentation/hando
   Depends on: T-043  
   Grounding, refusal/fallback, multilingual, citation, prompt-injection, and cross-tenant scenarios with repeatable pass/fail reporting.
 
-- [ ] **T-046 — Add secure tenant-owned generation-provider credentials and routing**
+- [x] **T-046 — Add secure tenant-owned generation-provider credentials and routing**
   Depends on: T-013, T-021, T-040, T-041
   Add optional tenant-scoped generation-provider credentials with envelope-encrypted storage and owner/admin APIs to create, list masked metadata, verify, rotate, and revoke them. Resolve approved provider-adapter targets per tenant with explicit `platform_only`, `tenant_first_with_platform_fallback`, or `tenant_only` policy; never return or log raw secrets, and invalidate revoked targets immediately. Include RLS, cross-tenant/role, redaction, revocation, and routing/fallback tests. Keep this provider-neutral and separate from generic external-integration credentials; arbitrary provider base URLs and embedding BYOK are out of scope until separately designed.
 

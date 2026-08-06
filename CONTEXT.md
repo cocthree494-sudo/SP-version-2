@@ -245,6 +245,14 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 - Final CI run `30935817080` passed at commit `cbca180`: Ruff passed, strict mypy passed over 102 source files, all 80 tests passed, migrations upgraded/downgraded/upgraded through `0009`, schema/model parity was empty, and the PostgreSQL agent evaluation passed 6/6.
 - Live restricted-role tests proved fail-closed and cross-tenant RLS behavior for every current tenant table, raw append-only enforcement for `usage_events`, and tenant-isolated pgvector retrieval. T-013 is complete.
 
+### Session 16 — Codex
+
+- Implemented T-046 tenant-owned OpenAI generation credentials with AES-256-GCM envelope encryption, per-credential data keys, versioned master-key wrapping, tenant-bound authenticated data, masked-only responses, and write-only secret inputs.
+- Added owner/admin create, list, verify, rotate, revoke, and routing-policy APIs. Members are denied, repository predicates and forced PostgreSQL RLS protect both new tenant tables, and approved tenant adapters can only target the fixed OpenAI API endpoint.
+- Added explicit `platform_only`, `tenant_first_with_platform_fallback`, and fail-closed `tenant_only` routing. Policy and credential state reload on every widget generation request so rotation and revocation apply immediately; embedding BYOK remains excluded.
+- Added request-validation redaction for credentials and other secret fields, secret-safe verification errors, migration `0010_provider_access`, live RLS matrix coverage, focused lifecycle/role/tenant/routing tests, environment guidance, and provider custody/threat-boundary documentation.
+- Per the user's batch instruction, deferred the broad repository and live PostgreSQL suites. Targeted Ruff and five provider/migration tests pass; the live RLS additions and full suite remain part of the later joint verification phase.
+
 ## 7. Open items
 
 | ID | Item | Handling now |
@@ -256,11 +264,11 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 
 ## HANDOFF STATE
 
-**Last completed:** T-013 — live PostgreSQL isolation verification gate.
-**Next task:** **T-046 — add secure tenant-owned generation-provider credentials and routing.** Its dependencies are complete, so it is the first eligible unchecked task.
+**Last completed:** T-046 — secure tenant-owned generation-provider credentials and routing.
+**Next task:** **T-051 — build bot and knowledge-management UI.** The user authorized a sequential implementation batch through T-062 with broad testing deferred until the batch is built.
 **Blocked on:** Nothing currently.
 
-**Pushed state:** `origin/main` contains the implementation and verification fixes through `cbca180`. The T-013 completion/handoff documentation is the only follow-up commit at this handoff.
-**Uncommitted work:** None intentionally after the T-013 completion/handoff commit.
-**Verification:** GitHub Actions run `30935817080` passed with live PostgreSQL 16 + pgvector and Redis: Ruff passed, strict mypy passed over 102 files, 80 tests passed, upgrade → downgrade → upgrade and empty schema/model diff passed, restricted non-superuser RLS/append-only/pgvector tests passed, and agent evaluation passed 6/6.
-**Gotchas:** This workstation still lacks Docker/PostgreSQL/pgvector, so live database checks run in CI. T-051 remains unchecked until its UI completion contract is verified. T-046/T-055 cover optional answer-generation BYOK only—plaintext keys must never be stored/re-displayed, platform fallback must be explicit, arbitrary provider base URLs are excluded, and embedding BYOK needs separate vector compatibility/re-indexing design.
+**Pushed state:** `origin/main` ends at `16ec1b5`; T-046 is local and has not been pushed because the current request did not authorize a push.
+**Uncommitted work:** T-046 is ready for its focused local commit before T-051 starts.
+**Verification:** Targeted Ruff passed. `tests/test_provider_access.py` plus `tests/test_alembic.py` pass (5 tests); full backend/web/widget, live PostgreSQL, production, and E2E gates are intentionally deferred per the user's instruction.
+**Gotchas:** This workstation still lacks Docker/PostgreSQL/pgvector, so live database checks run in CI. Plaintext tenant keys must never be stored, logged, cached, queued, or re-displayed; platform fallback stays explicit; arbitrary provider URLs and embedding BYOK are excluded.

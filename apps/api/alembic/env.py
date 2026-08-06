@@ -26,6 +26,7 @@ from app.domains.auth import models as auth_models  # noqa: E402,F401
 from app.domains.bots import models as bot_models  # noqa: E402,F401
 from app.domains.chat import models as chat_models  # noqa: E402,F401
 from app.domains.knowledge import models as knowledge_models  # noqa: E402,F401
+from app.domains.provider_access import models as provider_access_models  # noqa: E402,F401
 from app.domains.tenancy import models as tenancy_models  # noqa: E402,F401
 from app.domains.usage import models as usage_models  # noqa: E402,F401
 

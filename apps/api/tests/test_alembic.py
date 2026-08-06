@@ -33,7 +33,7 @@ def test_alembic_has_conversation_revision_after_knowledge() -> None:
     config = Config(str(api_root / "alembic.ini"))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_current_head() == "0009_app_runtime_role"
+    assert scripts.get_current_head() == "0010_provider_access"
     revision = scripts.get_revision("0002_tenancy")
     assert revision is not None
     assert revision.down_revision == "0001_enable_pgvector"
@@ -122,3 +122,14 @@ def test_alembic_has_conversation_revision_after_knowledge() -> None:
     assert "support_agent_app" in role_migration_text
     assert "NOBYPASSRLS" in role_migration_text
     assert "GRANT SELECT, INSERT, UPDATE, DELETE" in role_migration_text
+
+    provider_revision = scripts.get_revision("0010_provider_access")
+    assert provider_revision is not None
+    assert provider_revision.down_revision == "0009_app_runtime_role"
+    provider_migration = api_root / "alembic" / "versions" / "0010_provider_access.py"
+    provider_migration_text = provider_migration.read_text(encoding="utf-8")
+    assert '"provider_credentials"' in provider_migration_text
+    assert '"provider_policies"' in provider_migration_text
+    assert "provider_credentials_tenant_isolation" in provider_migration_text
+    assert "provider_policies_tenant_isolation" in provider_migration_text
+    assert "GRANT SELECT, INSERT, UPDATE, DELETE" in provider_migration_text

@@ -20,6 +20,7 @@ from app.domains.auth import models as _auth_models  # noqa: F401
 from app.domains.bots import models as _bot_models  # noqa: F401
 from app.domains.chat import models as _chat_models  # noqa: F401
 from app.domains.knowledge import models as _knowledge_models  # noqa: F401
+from app.domains.provider_access import models as _provider_access_models  # noqa: F401
 from app.domains.tenancy import models as _tenancy_models  # noqa: F401
 from app.domains.usage import models as _usage_models  # noqa: F401
 
@@ -35,6 +36,8 @@ TENANT_TABLES = (
     "document_chunks",
     "conversations",
     "messages",
+    "provider_credentials",
+    "provider_policies",
 )
 
 
@@ -197,6 +200,33 @@ def _insert_sql(table: str, row_id: UUID, seed: SeedRows) -> tuple[str, dict[str
             "(id, tenant_id, conversation_id, sequence, role, content, citations, metadata) "
             "VALUES (:id, :tenant_id, :conversation_id, :sequence, :role, :content, "
             "CAST('[]' AS json), CAST('{}' AS json))",
+            params,
+        )
+    if table == "provider_credentials":
+        params.update(
+            provider="openai",
+            label="Cross-tenant credential",
+            encrypted_secret="cross-ciphertext",
+            wrapped_data_key="cross-wrapped-key",
+            key_version="test-v1",
+            masked_secret="••••ross",
+            fingerprint="c" * 64,
+            low_cost_model_id="test-low",
+        )
+        return (
+            "INSERT INTO provider_credentials "
+            "(id, tenant_id, provider, label, encrypted_secret, wrapped_data_key, "
+            "key_version, masked_secret, fingerprint, low_cost_model_id) "
+            "VALUES (:id, :tenant_id, :provider, :label, :encrypted_secret, "
+            ":wrapped_data_key, :key_version, :masked_secret, :fingerprint, "
+            ":low_cost_model_id)",
+            params,
+        )
+    if table == "provider_policies":
+        params.update(mode="platform_only", credential_order="[]")
+        return (
+            "INSERT INTO provider_policies (id, tenant_id, mode, credential_order) "
+            "VALUES (:id, :tenant_id, :mode, CAST(:credential_order AS json))",
             params,
         )
     raise AssertionError(f"Missing RLS insert fixture for {table}")
@@ -371,6 +401,32 @@ async def seeded_rows(admin_postgres_engine: AsyncEngine) -> AsyncIterator[SeedR
                 "id": row_ids["messages"],
                 "tenant_b": tenant_b,
                 "conversation": row_ids["conversations"],
+            },
+        )
+        await connection.execute(
+            text(
+                "INSERT INTO provider_credentials "
+                "(id, tenant_id, provider, label, encrypted_secret, wrapped_data_key, "
+                "key_version, masked_secret, fingerprint, low_cost_model_id, status) "
+                "VALUES (:id, :tenant_b, 'openai', 'RLS credential', 'ciphertext', "
+                "'wrapped-key', 'test-v1', '••••test', :fingerprint, "
+                "'test-low', 'verified')"
+            ),
+            {
+                "id": row_ids["provider_credentials"],
+                "tenant_b": tenant_b,
+                "fingerprint": "b" * 64,
+            },
+        )
+        await connection.execute(
+            text(
+                "INSERT INTO provider_policies (id, tenant_id, mode, credential_order) "
+                "VALUES (:id, :tenant_b, 'tenant_only', CAST(:credential_order AS json))"
+            ),
+            {
+                "id": row_ids["provider_policies"],
+                "tenant_b": tenant_b,
+                "credential_order": f'["{row_ids["provider_credentials"]}"]',
             },
         )
         await connection.execute(

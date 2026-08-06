@@ -31,6 +31,8 @@ TENANT_TABLES = (
     "document_chunks",
     "conversations",
     "messages",
+    "provider_credentials",
+    "provider_policies",
 )
 
 

@@ -37,8 +37,12 @@ from app.domains.chat.widget_sessions import (
     validate_widget_session,
 )
 from app.domains.knowledge.retrieval import HybridRetrievalService
-from app.providers.factory import build_embedding_provider, build_llm_targets
+from app.providers.factory import build_embedding_provider
 from app.providers.router import CircuitStore, InMemoryCircuitStore, ModelRouter
+from app.providers.tenant_factory import (
+    TenantProviderUnavailableError,
+    build_tenant_llm_targets,
+)
 
 router = APIRouter(prefix="/v1/widget", tags=["widget"])
 widget_bearer = HTTPBearer(auto_error=False, scheme_name="WidgetSessionBearer")
@@ -315,7 +319,14 @@ async def stream_widget_message(
         window_seconds=settings.WIDGET_MESSAGE_RATE_WINDOW_SECONDS,
     )
     embedding_provider = build_embedding_provider()
-    model_router = ModelRouter(build_llm_targets(), circuits)
+    try:
+        targets = await build_tenant_llm_targets(session, claims.tenant_id)
+    except TenantProviderUnavailableError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from None
+    model_router = ModelRouter(targets, circuits)
     agent = GroundedAnswerOrchestrator(
         session,
         claims.tenant_id,
