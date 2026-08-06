@@ -150,7 +150,7 @@ Completion means implementation, proportionate tests/checks, documentation/hando
   Depends on: T-045, T-051, T-052, T-054, T-055
   Register → create bot → ingest each source type → ask grounded question → embed/widget chat. Include a cross-tenant negative path and a deterministic BYOK path covering add, masking, tenant routing, revocation, and the configured fallback behavior.
 
-- [ ] **T-061 — Add production Docker build and operations runbook**  
+- [x] **T-061 — Add production Docker build and operations runbook**  
   Depends on: T-060  
   Reproducible images, migrations, worker/web processes, backups, secrets, health checks, rollback, and hosting decision checklist.
 

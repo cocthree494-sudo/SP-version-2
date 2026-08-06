@@ -263,6 +263,8 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 - T-055 web ESLint and TypeScript checks pass. Deterministic browser/API lifecycle coverage is scheduled in T-060; broad/live testing remains deferred per the user's batch instruction.
 - Implemented T-060 Playwright coverage for registration → bot → file/website/manual ingestion → ready polling → cited playground answer → embedded widget chat, plus a second-tenant negative path. Added a credential-free deterministic BYOK browser lifecycle mock paired with the real T-046 backend security/routing suite, a local widget host, service orchestration, artifact paths, and execution documentation.
 - Playwright discovers all three T-060 tests and the fixture server passes Node syntax validation. Per the user's explicit instruction, Chromium installation and actual service/browser execution are deferred until the later joint testing phase; `E2E_WEBSITE_URL` is intentionally required for a public SSRF-safe crawl fixture.
+- Implemented T-061 reproducible multi-stage API/worker/migration, Next.js standalone, and static widget Docker images; a production Compose topology with private PostgreSQL/Redis, one-shot migrations, restricted runtime-role provisioning, health checks, persistent uploads, and loopback edge ports; plus secret-safe example configuration.
+- Added an operations runbook covering deploy order, TLS/SSE proxying, secrets and BYOK custody, backups/restores, monitoring, rollback, incident response, hosting decisions, and a measured starting capacity floor for roughly 1,000 daily users. Runtime-role Ruff and web static checks pass. Docker is unavailable on this workstation, so image/Compose builds remain a production-test gate.
 
 ## 7. Open items
 
@@ -275,11 +277,11 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 
 ## HANDOFF STATE
 
-**Last completed:** T-060 — critical-path end-to-end coverage authored.
-**Next task:** **T-061 — add production Docker builds and operations runbook.** The user authorized implementation through T-062 while execution of broad/production tests stays deferred until the batch is built.
+**Last completed:** T-061 — production Docker definitions and operations runbook.
+**Next task:** **T-062 — prepare and execute the MVP acceptance review.** Documentation/review can be completed now; broad, browser, live PostgreSQL, image, and performance execution remains deferred by the user's instruction and must stay truthfully open.
 **Blocked on:** Nothing currently.
 
 **Pushed state:** `origin/main` ends at `16ec1b5`; T-046 is local and has not been pushed because the current request did not authorize a push.
-**Uncommitted work:** T-060 E2E test infrastructure/specs/documentation and Playwright dependency are ready for a focused local commit.
-**Verification:** Playwright `--list` discovers three tests and the fixture server passes `node --check`; service/browser execution is intentionally deferred per the user's instruction.
+**Uncommitted work:** T-061 production definitions and operations documentation are ready for a focused local commit.
+**Verification:** Runtime-role Ruff and web ESLint/TypeScript pass. Docker is unavailable locally, so image/Compose build, runtime, backup/restore, rollback, and load checks are deferred.
 **Gotchas:** This workstation still lacks Docker/PostgreSQL/pgvector, so live database checks run in CI. Plaintext tenant keys must never be stored, logged, cached, queued, or re-displayed; platform fallback stays explicit; arbitrary provider URLs and embedding BYOK are excluded.

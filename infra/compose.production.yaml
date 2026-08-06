@@ -1,0 +1,138 @@
+name: support-agent-production
+
+x-api-image: &api-image
+  image: support-agent-api:${SUPPORT_AGENT_IMAGE_TAG:-local}
+  build:
+    context: ..
+    dockerfile: apps/api/Dockerfile
+
+x-app-environment: &app-environment
+  APP_ENV: production
+  DATABASE_URL: ${APP_DATABASE_URL:?Set restricted APP_DATABASE_URL}
+  REDIS_URL: ${REDIS_URL:?Set password-protected REDIS_URL}
+  AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:?Set a random 32+ character AUTH_JWT_SECRET}
+  BYOK_MASTER_KEY: ${BYOK_MASTER_KEY:-}
+  BYOK_MASTER_KEY_VERSION: ${BYOK_MASTER_KEY_VERSION:-kms-v1}
+  AI_PROVIDER_MODE: ${AI_PROVIDER_MODE:-deterministic}
+  AI_PROVIDER_ID: ${AI_PROVIDER_ID:-deterministic}
+  AI_BASE_URL: ${AI_BASE_URL:-}
+  AI_API_KEY: ${AI_API_KEY:-}
+  LLM_MODEL_ID: ${LLM_MODEL_ID:-deterministic-chat-v1}
+  LLM_STRONG_MODEL_ID: ${LLM_STRONG_MODEL_ID:-}
+  EMBEDDING_PROVIDER_ID: ${EMBEDDING_PROVIDER_ID:-deterministic}
+  EMBEDDING_MODEL_ID: ${EMBEDDING_MODEL_ID:-deterministic-embedding-v1}
+  LOCAL_STORAGE_ROOT: /srv/api/.data/uploads
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:?Set migration-owner POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set migration-owner POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [backend]
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?Set REDIS_PASSWORD}"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a '$${REDIS_PASSWORD}' ping | grep PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD}
+    networks: [backend]
+
+  migrate:
+    <<: *api-image
+    restart: "no"
+    environment:
+      APP_ENV: production
+      DATABASE_URL: ${MIGRATION_DATABASE_URL:?Set migration-owner MIGRATION_DATABASE_URL}
+      APP_DATABASE_URL: ${APP_DATABASE_URL:?Set restricted APP_DATABASE_URL}
+      REDIS_URL: ${REDIS_URL:?Set REDIS_URL}
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:?Set AUTH_JWT_SECRET}
+    command: ["sh", "-c", "alembic upgrade head && python configure_runtime_role.py"]
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [backend]
+
+  api:
+    <<: *api-image
+    restart: unless-stopped
+    environment: *app-environment
+    volumes:
+      - uploads:/srv/api/.data/uploads
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+    ports:
+      - "127.0.0.1:${API_PUBLIC_PORT:-8000}:8000"
+    networks: [backend, edge]
+
+  worker:
+    <<: *api-image
+    restart: unless-stopped
+    environment: *app-environment
+    command: ["arq", "app.workers.ingestion.WorkerSettings"]
+    volumes:
+      - uploads:/srv/api/.data/uploads
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0 if b'arq' in open('/proc/1/cmdline','rb').read() else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+    networks: [backend]
+
+  web:
+    image: support-agent-web:${SUPPORT_AGENT_IMAGE_TAG:-local}
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL:?Set PUBLIC_API_URL}
+        NEXT_PUBLIC_WIDGET_LOADER_URL: ${PUBLIC_WIDGET_LOADER_URL:?Set PUBLIC_WIDGET_LOADER_URL}
+    restart: unless-stopped
+    environment:
+      API_INTERNAL_URL: http://api:8000
+      DASHBOARD_PROXY_MAX_BODY_BYTES: ${DASHBOARD_PROXY_MAX_BODY_BYTES:-25165824}
+    depends_on:
+      api: { condition: service_healthy }
+    ports:
+      - "127.0.0.1:${WEB_PUBLIC_PORT:-3000}:3000"
+    networks: [edge]
+
+  widget:
+    image: support-agent-widget:${SUPPORT_AGENT_IMAGE_TAG:-local}
+    build:
+      context: ..
+      dockerfile: packages/widget/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${WIDGET_PUBLIC_PORT:-8080}:8080"
+    networks: [edge]
+
+networks:
+  backend:
+    internal: true
+  edge:
+
+volumes:
+  postgres_data:
+  redis_data:
+  uploads:

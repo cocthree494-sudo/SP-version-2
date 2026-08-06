@@ -17,3 +17,6 @@ Additional documentation beyond the root `CONTEXT.md`, `PLAN.md`, `TASKS.md`, an
 - [Agent quality and safety evaluations](agent-evaluations.md)
 - [Dashboard authentication and shell](dashboard-auth.md)
 - [Dashboard bot and knowledge management](dashboard-management.md)
+- [Widget implementation and installation](widget.md)
+- [Critical-path end-to-end coverage](e2e.md)
+- [Production operations](operations.md)
