@@ -20,3 +20,4 @@ Additional documentation beyond the root `CONTEXT.md`, `PLAN.md`, `TASKS.md`, an
 - [Widget implementation and installation](widget.md)
 - [Critical-path end-to-end coverage](e2e.md)
 - [Production operations](operations.md)
+- [MVP acceptance review](mvp-acceptance.md)

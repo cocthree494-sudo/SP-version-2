@@ -265,6 +265,7 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 - Playwright discovers all three T-060 tests and the fixture server passes Node syntax validation. Per the user's explicit instruction, Chromium installation and actual service/browser execution are deferred until the later joint testing phase; `E2E_WEBSITE_URL` is intentionally required for a public SSRF-safe crawl fixture.
 - Implemented T-061 reproducible multi-stage API/worker/migration, Next.js standalone, and static widget Docker images; a production Compose topology with private PostgreSQL/Redis, one-shot migrations, restricted runtime-role provisioning, health checks, persistent uploads, and loopback edge ports; plus secret-safe example configuration.
 - Added an operations runbook covering deploy order, TLS/SSE proxying, secrets and BYOK custody, backups/restores, monitoring, rollback, incident response, hosting decisions, and a measured starting capacity floor for roughly 1,000 daily users. Runtime-role Ruff and web static checks pass. Docker is unavailable on this workstation, so image/Compose builds remain a production-test gate.
+- Prepared the T-062 acceptance review with an evidence matrix, exact deferred gates, performance measurement plan, ten-step demo, known gaps/risks, Phase 2 priorities, and sign-off record. The review verdict is implementation-complete but not production-accepted; T-062 correctly remains unchecked until the user-requested joint full/live/browser/image/performance tests execute.
 
 ## 7. Open items
 
@@ -278,10 +279,10 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 ## HANDOFF STATE
 
 **Last completed:** T-061 — production Docker definitions and operations runbook.
-**Next task:** **T-062 — prepare and execute the MVP acceptance review.** Documentation/review can be completed now; broad, browser, live PostgreSQL, image, and performance execution remains deferred by the user's instruction and must stay truthfully open.
+**Next task:** **T-062 — execute the prepared MVP acceptance gates with the user.** The report is complete; full, browser, live PostgreSQL, image, restore, and performance tests remain required before checking it off.
 **Blocked on:** Nothing currently.
 
 **Pushed state:** `origin/main` ends at `16ec1b5`; T-046 is local and has not been pushed because the current request did not authorize a push.
-**Uncommitted work:** T-061 production definitions and operations documentation are ready for a focused local commit.
-**Verification:** Runtime-role Ruff and web ESLint/TypeScript pass. Docker is unavailable locally, so image/Compose build, runtime, backup/restore, rollback, and load checks are deferred.
+**Uncommitted work:** T-062 acceptance documentation is ready for a focused partial-task commit; no implementation task before it remains unchecked.
+**Verification:** Acceptance evidence is reconciled in `docs/mvp-acceptance.md`. The required broad/live/browser/image/performance gates are explicitly pending rather than represented as passes.
 **Gotchas:** This workstation still lacks Docker/PostgreSQL/pgvector, so live database checks run in CI. Plaintext tenant keys must never be stored, logged, cached, queued, or re-displayed; platform fallback stays explicit; arbitrary provider URLs and embedding BYOK are excluded.

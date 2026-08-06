@@ -157,6 +157,7 @@ Completion means implementation, proportionate tests/checks, documentation/hando
 - [ ] **T-062 — MVP acceptance review**  
   Depends on: T-061  
   Run tests/evaluations, measure performance budgets, document known gaps, demo the complete slice, and propose Phase 2 priorities without implementing them.
+  Review/report is prepared in `docs/mvp-acceptance.md`; execution gates remain deferred per user instruction, so this task stays unchecked.
 
 ## Later task buckets — not yet scheduled
 
