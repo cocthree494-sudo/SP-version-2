@@ -344,6 +344,49 @@ h1, h2, h3, p { margin: 0; }
 .source-empty { display: grid; min-height: 160px; place-items: center; padding: 25px; color: var(--ink-faint); font-size: 11px; }
 .source-list-skeleton { height: 180px; margin: 25px; }
 
+.playground-controls { display: flex; align-items: end; gap: 10px; }
+.playground-controls label { display: grid; gap: 5px; color: var(--ink-faint); font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
+.playground-controls select { min-width: 210px; height: 40px; padding: 0 34px 0 12px; border: 1px solid var(--line); border-radius: 8px; background: white; color: var(--navy); font: inherit; font-size: 11px; text-transform: none; letter-spacing: 0; }
+.playground-layout { display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: 20px; align-items: start; }
+.playground-chat, .usage-panel { overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: white; box-shadow: 0 14px 36px rgba(31,69,77,.055); }
+.playground-chat { display: grid; grid-template-rows: auto minmax(440px, 1fr) auto; min-height: 650px; }
+.playground-state { display: flex; align-items: center; gap: 8px; min-height: 42px; padding: 0 20px; border-bottom: 1px solid var(--line); background: #f8fbf9; color: var(--ink-soft); font-size: 9px; font-weight: 750; }
+.state-dot { width: 7px; height: 7px; border-radius: 50%; background: #91a69c; }
+.state-dot-live { background: #58bb89; animation: statusPulse 1.4s ease-in-out infinite; }
+.playground-messages { display: flex; flex-direction: column; gap: 16px; max-height: 570px; overflow-y: auto; padding: 25px; }
+.playground-welcome { display: grid; align-content: center; justify-items: center; min-height: 360px; padding: 30px; text-align: center; }
+.playground-welcome > span { display: grid; place-items: center; width: 51px; height: 51px; border-radius: 15px; background: var(--mint); color: var(--navy); }
+.playground-welcome h2 { margin-top: 18px; color: var(--navy); font-family: var(--font-display), Georgia, serif; font-size: 23px; }
+.playground-welcome p { max-width: 380px; margin-top: 8px; color: var(--ink-soft); font-size: 10px; line-height: 1.6; }
+.chat-bubble { width: min(82%, 650px); padding: 14px 16px; border-radius: 13px; }
+.chat-bubble > span { display: block; margin-bottom: 6px; font-size: 8px; font-weight: 850; text-transform: uppercase; letter-spacing: .08em; }
+.chat-bubble p { color: var(--ink); font-size: 11px; line-height: 1.7; white-space: pre-wrap; }
+.chat-bubble-user { align-self: end; border-bottom-right-radius: 4px; background: var(--navy); }
+.chat-bubble-user > span, .chat-bubble-user p { color: white; }
+.chat-bubble-assistant { align-self: start; border: 1px solid #dfe9e4; border-bottom-left-radius: 4px; background: #f4f9f6; }
+.chat-bubble-assistant > span { color: #53806b; }
+.chat-bubble small { display: block; margin-top: 10px; color: var(--ink-faint); font-size: 8px; }
+.citation-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 11px; }
+.citation-list a, .citation-list span { max-width: 100%; overflow: hidden; padding: 5px 8px; border: 1px solid #cfe0d7; border-radius: 6px; background: white; color: #3f755e; font-size: 8px; font-weight: 750; text-decoration: none; text-overflow: ellipsis; white-space: nowrap; }
+.playground-composer { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 10px; padding: 15px; border-top: 1px solid var(--line); background: #fbfdfc; }
+.playground-composer textarea { width: 100%; min-height: 50px; max-height: 150px; resize: vertical; padding: 11px 13px; border: 1px solid #cddbd4; border-radius: 9px; outline: none; color: var(--ink); font: inherit; font-size: 11px; line-height: 1.5; }
+.playground-composer textarea:focus { border-color: #62a686; box-shadow: 0 0 0 3px rgba(98,166,134,.12); }
+.usage-panel { padding: 23px; }
+.usage-panel h2 { margin-top: 5px; color: var(--navy); font-family: var(--font-display), Georgia, serif; font-size: 24px; }
+.usage-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 21px; }
+.usage-metrics > div { min-height: 82px; padding: 13px; border-radius: 10px; background: #f3f8f5; }
+.usage-metrics span { display: block; color: var(--ink-faint); font-size: 8px; font-weight: 750; }
+.usage-metrics strong { display: block; margin-top: 10px; color: var(--navy); font-family: var(--font-display), Georgia, serif; font-size: 18px; overflow-wrap: anywhere; }
+.usage-breakdown { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); }
+.usage-breakdown h3 { color: var(--navy); font-size: 11px; }
+.usage-breakdown > div { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #edf2ef; }
+.usage-breakdown span { min-width: 0; }
+.usage-breakdown strong, .usage-breakdown small { display: block; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.usage-breakdown strong { color: var(--ink); font-size: 9px; }
+.usage-breakdown small, .usage-breakdown p { margin-top: 4px; color: var(--ink-faint); font-size: 8px; }
+.usage-breakdown b { flex: 0 0 auto; color: var(--ink-soft); font-size: 8px; }
+.usage-breakdown p { margin-top: 14px; line-height: 1.5; }
+
 @media (max-width: 1020px) {
   .landing-hero { gap: 40px; }
   .landing-copy h1 { font-size: clamp(42px, 6vw, 62px); }
@@ -353,6 +396,9 @@ h1, h2, h3, p { margin: 0; }
   .hero-visual { left: 48%; }
   .hero-signal-card { right: 7%; }
   .management-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .playground-layout { grid-template-columns: 1fr; }
+  .usage-panel { order: -1; }
+  .usage-metrics { grid-template-columns: repeat(4, 1fr); }
 }
 
 @media (max-width: 760px) {
@@ -427,6 +473,14 @@ h1, h2, h3, p { margin: 0; }
   .source-row { grid-template-columns: auto minmax(0,1fr); padding: 18px 21px; }
   .source-actions { grid-column: 2; }
   .source-copy > p { white-space: normal; }
+  .playground-controls { display: grid; width: 100%; grid-template-columns: 1fr auto; }
+  .playground-controls label, .playground-controls select { width: 100%; min-width: 0; }
+  .usage-metrics { grid-template-columns: 1fr 1fr; }
+  .playground-chat { min-height: 590px; grid-template-rows: auto minmax(380px, 1fr) auto; }
+  .playground-messages { max-height: 490px; padding: 18px; }
+  .chat-bubble { width: 92%; }
+  .playground-composer { grid-template-columns: 1fr; }
+  .playground-composer .button { width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -128,7 +128,7 @@ Completion means implementation, proportionate tests/checks, documentation/hando
   Depends on: T-023, T-031, T-034, T-035, T-050  
   Bot CRUD, drag/drop files, website/manual forms, source list/status/errors, polling or events, and deletion confirmation.
 
-- [ ] **T-052 — Build tenant playground and usage summary**  
+- [x] **T-052 — Build tenant playground and usage summary**  
   Depends on: T-024, T-043, T-050  
   Streaming chat, visible citations/retrieval state where appropriate, reset conversation, and basic usage view.
 

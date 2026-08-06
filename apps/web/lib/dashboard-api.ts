@@ -5,6 +5,8 @@ import type {
   KnowledgeSourceResponse,
   ManualSourceCreateInput,
   ManualSourceUpdateInput,
+  PlaygroundSessionResponse,
+  UsageSummaryResponse,
   WebsiteSourceCreateInput,
 } from "@support-agent/api-client";
 
@@ -53,6 +55,21 @@ export async function dashboardRequest<T>(path: string, init: RequestInit = {}):
   return (await response.json()) as T;
 }
 
+export async function dashboardStream(path: string, init: RequestInit): Promise<Response> {
+  const headers = new Headers(init.headers);
+  headers.set("Accept", "text/event-stream");
+  headers.set("Content-Type", "application/json");
+  headers.set("X-Relay-Request", "dashboard");
+  const response = await fetch(`/api/backend${path}`, {
+    ...init,
+    headers,
+    credentials: "same-origin",
+    cache: "no-store",
+  });
+  if (!response.ok) throw new DashboardApiError(response.status, await detail(response));
+  return response;
+}
+
 export const dashboardApi = {
   listBots: () => dashboardRequest<BotResponse[]>("/bots"),
   createBot: (payload: BotCreateInput) =>
@@ -94,4 +111,13 @@ export const dashboardApi = {
     ),
   deleteSource: (sourceId: string) =>
     dashboardRequest<void>(`/sources/${encodeURIComponent(sourceId)}`, { method: "DELETE" }),
+  createPlaygroundSession: (botId: string) =>
+    dashboardRequest<PlaygroundSessionResponse>("/playground/sessions", {
+      method: "POST",
+      body: JSON.stringify({ bot_id: botId }),
+    }),
+  usageSummary: (botId?: string) =>
+    dashboardRequest<UsageSummaryResponse>(
+      `/usage/summary${botId ? `?bot_id=${encodeURIComponent(botId)}` : ""}`,
+    ),
 };

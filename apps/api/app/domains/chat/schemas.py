@@ -23,4 +23,21 @@ class WidgetMessageRequest(BaseModel):
     message: str = Field(min_length=1, max_length=20_000)
 
 
-__all__ = ["WidgetMessageRequest", "WidgetSessionResponse"]
+class PlaygroundSessionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    bot_id: UUID
+
+
+class PlaygroundSessionResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    conversation_id: UUID
+
+
+__all__ = [
+    "PlaygroundSessionRequest",
+    "PlaygroundSessionResponse",
+    "WidgetMessageRequest",
+    "WidgetSessionResponse",
+]

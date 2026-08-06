@@ -8,7 +8,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from redis.asyncio import Redis
 
-from app.api import auth, bots, health, knowledge, providers, usage, widget
+from app.api import auth, bots, health, knowledge, playground, providers, usage, widget
 from app.core.config import settings
 from app.core.logger import setup_logging
 from app.db.session import dispose_engine
@@ -76,6 +76,7 @@ app.include_router(bots.router)
 app.include_router(knowledge.router)
 app.include_router(usage.router)
 app.include_router(providers.router)
+app.include_router(playground.router)
 app.include_router(widget.router)
 
 

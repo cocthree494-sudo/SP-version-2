@@ -22,7 +22,7 @@ const primaryNav = [
 const buildNav = [
   { href: "/dashboard/bots", label: "Bots", icon: BotIcon, available: true },
   { href: "/dashboard/knowledge", label: "Knowledge", icon: BookIcon, available: true },
-  { href: "/dashboard/playground", label: "Playground", icon: MessageIcon, available: false },
+  { href: "/dashboard/playground", label: "Playground", icon: MessageIcon, available: true },
 ];
 
 function routeLabel(pathname: string): string {

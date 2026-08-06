@@ -111,6 +111,40 @@ export interface ManualSourceUpdateInput {
   name?: string;
 }
 
+export interface PlaygroundSessionResponse {
+  conversation_id: string;
+}
+
+export interface UsageBreakdownResponse {
+  operation: "generation" | "embedding";
+  provider: string;
+  model: string;
+  event_count: number;
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_tokens: number;
+  cache_write_tokens: number;
+  total_tokens: number;
+  total_latency_ms: number;
+  estimated_cost_microusd: number;
+}
+
+export interface UsageSummaryResponse {
+  start: string | null;
+  end: string | null;
+  bot_id: string | null;
+  event_count: number;
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_tokens: number;
+  cache_write_tokens: number;
+  total_tokens: number;
+  total_latency_ms: number;
+  average_latency_ms: number;
+  estimated_cost_microusd: number;
+  by_model: UsageBreakdownResponse[];
+}
+
 export class ApiError extends Error {
   readonly status: number;
   readonly detail: string;
