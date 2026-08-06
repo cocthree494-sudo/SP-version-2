@@ -146,7 +146,7 @@ Completion means implementation, proportionate tests/checks, documentation/hando
 
 ## Phase 1F — MVP verification and handoff
 
-- [ ] **T-060 — Add critical-path end-to-end tests**  
+- [x] **T-060 — Add critical-path end-to-end tests**  
   Depends on: T-045, T-051, T-052, T-054, T-055
   Register → create bot → ingest each source type → ask grounded question → embed/widget chat. Include a cross-tenant negative path and a deterministic BYOK path covering add, masking, tenant routing, revocation, and the configured fallback behavior.
 

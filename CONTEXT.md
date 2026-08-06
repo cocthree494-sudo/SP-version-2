@@ -261,6 +261,8 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 - T-054 targeted Ruff/web lint/type checks and seven focused bot/migration tests pass, including appearance round-trip. Live migration/browser E2E remains deferred to the joint test phase.
 - Implemented T-055 owner/admin provider settings with transient write-only key forms, masked credential inventory, live verification, rotation, immediate revocation, verification/status timestamps, and ordered selection for platform-only, tenant-first with explicit fallback, or tenant-only routing. Member access is withheld and embedding/arbitrary URL controls remain excluded.
 - T-055 web ESLint and TypeScript checks pass. Deterministic browser/API lifecycle coverage is scheduled in T-060; broad/live testing remains deferred per the user's batch instruction.
+- Implemented T-060 Playwright coverage for registration → bot → file/website/manual ingestion → ready polling → cited playground answer → embedded widget chat, plus a second-tenant negative path. Added a credential-free deterministic BYOK browser lifecycle mock paired with the real T-046 backend security/routing suite, a local widget host, service orchestration, artifact paths, and execution documentation.
+- Playwright discovers all three T-060 tests and the fixture server passes Node syntax validation. Per the user's explicit instruction, Chromium installation and actual service/browser execution are deferred until the later joint testing phase; `E2E_WEBSITE_URL` is intentionally required for a public SSRF-safe crawl fixture.
 
 ## 7. Open items
 
@@ -273,11 +275,11 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 
 ## HANDOFF STATE
 
-**Last completed:** T-055 — BYOK provider settings UI.
-**Next task:** **T-060 — add critical-path end-to-end coverage.** The user authorized implementation through T-062 while execution of broad/production tests stays deferred until the batch is built.
+**Last completed:** T-060 — critical-path end-to-end coverage authored.
+**Next task:** **T-061 — add production Docker builds and operations runbook.** The user authorized implementation through T-062 while execution of broad/production tests stays deferred until the batch is built.
 **Blocked on:** Nothing currently.
 
 **Pushed state:** `origin/main` ends at `16ec1b5`; T-046 is local and has not been pushed because the current request did not authorize a push.
-**Uncommitted work:** T-055 implementation and documentation are ready for a focused local commit.
-**Verification:** T-055 web ESLint and TypeScript checks pass. Full live PostgreSQL, browser, production, and E2E execution is intentionally deferred per the user's instruction.
+**Uncommitted work:** T-060 E2E test infrastructure/specs/documentation and Playwright dependency are ready for a focused local commit.
+**Verification:** Playwright `--list` discovers three tests and the fixture server passes `node --check`; service/browser execution is intentionally deferred per the user's instruction.
 **Gotchas:** This workstation still lacks Docker/PostgreSQL/pgvector, so live database checks run in CI. Plaintext tenant keys must never be stored, logged, cached, queued, or re-displayed; platform fallback stays explicit; arbitrary provider URLs and embedding BYOK are excluded.

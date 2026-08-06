@@ -29,9 +29,13 @@
     "check:api": "uv run --project apps/api ruff check apps/api/app apps/api/tests && uv run --project apps/api mypy apps/api/app apps/api/tests && uv run --project apps/api pytest apps/api/tests",
     "check:web": "npm run lint --workspace @support-agent/web && npm run typecheck --workspace @support-agent/web",
     "check:widget": "npm run lint --workspace @support-agent/widget && npm run typecheck --workspace @support-agent/widget",
-    "eval:agent": "uv run --project apps/api python apps/api/run_agent_eval.py"
+    "eval:agent": "uv run --project apps/api python apps/api/run_agent_eval.py",
+    "e2e:services": "concurrently --kill-others-on-fail --names api,worker,web,fixture --prefix-colors blue,cyan,green,magenta \"npm:dev:api\" \"npm:dev:worker\" \"npm:dev:web\" \"node tests/e2e/fixture-server.mjs\"",
+    "test:e2e": "npm run build --workspace @support-agent/widget && playwright test -c tests/e2e/playwright.config.ts",
+    "test:e2e:install": "playwright install chromium"
   },
   "devDependencies": {
+    "@playwright/test": "^1.55.0",
     "concurrently": "^9.2.1"
   }
 }
