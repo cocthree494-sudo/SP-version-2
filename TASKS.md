@@ -132,7 +132,7 @@ Completion means implementation, proportionate tests/checks, documentation/hando
   Depends on: T-024, T-043, T-050  
   Streaming chat, visible citations/retrieval state where appropriate, reset conversation, and basic usage view.
 
-- [ ] **T-053 — Build isolated embeddable web widget**  
+- [x] **T-053 — Build isolated embeddable web widget**  
   Depends on: T-044  
   Preact custom element, lazy loader, Shadow DOM or equivalent CSS isolation, responsive/accessibility behavior, streaming, retry/error states, and bundle-size report.
 

@@ -33,3 +33,5 @@ persisted. Fixed-window rate limits use Redis Lua atomically. Keys include the
 tenant and bot IDs plus a hash of the client/session identity. Redis failure is
 fail-closed for public traffic. Local tests may inject the in-memory equivalent.
 
+The browser implementation, isolation boundary, accessibility behavior, and
+bundle baseline are documented in `docs/widget.md`.

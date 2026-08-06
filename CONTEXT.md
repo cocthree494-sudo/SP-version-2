@@ -255,6 +255,8 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 - Completed the T-051 audit of the already-protected dashboard implementation: bot CRUD, role-aware controls, drag/drop multi-file upload, website/manual forms, source status/error display, transitional polling, and destructive confirmations are present and wired to the tenant-authenticated BFF. Web lint and TypeScript checks pass; the prior responsive browser inspection remains documented in `docs/dashboard-management.md`.
 - Implemented T-052 with authenticated playground session creation, tenant/channel conversation validation, grounded SSE chat, explicit retrieval/fallback state, visible citations, stream cancellation, conversation reset, and tenant BYOK-aware routing. Added a responsive dashboard playground and bot-filtered token/request/latency/cost/model usage summary.
 - T-052 targeted Ruff, web ESLint, and TypeScript checks pass. API behavioral and browser E2E coverage are intentionally deferred to T-060/the joint test phase requested by the user.
+- Implemented T-053 as a lazy-loaded Preact `<support-agent>` custom element with a Shadow DOM style boundary, in-memory anonymous session custody, incremental SSE text/replacement/citation/completion handling, retry/error states, cancellation, responsive mobile behavior, accessible controls/live regions, and reduced-motion support.
+- Added separate `loader.js` and `widget.js` production entries plus an automatic JSON bundle report. Widget lint, TypeScript, and production build pass; the baseline is 1.87 KB loader/25.56 KB widget raw and 10,965 bytes total gzip. Browser E2E remains deferred to T-060/the joint test phase.
 
 ## 7. Open items
 
@@ -267,11 +269,11 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 
 ## HANDOFF STATE
 
-**Last completed:** T-052 — tenant playground and usage summary.
-**Next task:** **T-053 — build the isolated embeddable web widget.** The user authorized a sequential implementation batch through T-062 with broad testing deferred until the batch is built.
+**Last completed:** T-053 — isolated embeddable web widget.
+**Next task:** **T-054 — add widget configuration and embed instructions.** The user authorized a sequential implementation batch through T-062 with broad testing deferred until the batch is built.
 **Blocked on:** Nothing currently.
 
 **Pushed state:** `origin/main` ends at `16ec1b5`; T-046 is local and has not been pushed because the current request did not authorize a push.
-**Uncommitted work:** T-052 implementation and documentation are ready for a focused local commit.
-**Verification:** T-052 targeted Ruff, web ESLint, and TypeScript checks pass. Full backend/web/widget, live PostgreSQL, browser, production, and E2E gates are intentionally deferred per the user's instruction.
+**Uncommitted work:** T-053 widget implementation and documentation are ready for a focused local commit.
+**Verification:** T-053 widget ESLint, TypeScript, and production bundle build pass. Full backend/web/widget, live PostgreSQL, browser, production, and E2E gates are intentionally deferred per the user's instruction.
 **Gotchas:** This workstation still lacks Docker/PostgreSQL/pgvector, so live database checks run in CI. Plaintext tenant keys must never be stored, logged, cached, queued, or re-displayed; platform fallback stays explicit; arbitrary provider URLs and embedding BYOK are excluded.

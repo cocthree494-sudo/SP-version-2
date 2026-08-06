@@ -1,19 +1,10 @@
-import { API_VERSION } from "@support-agent/api-client";
-import { render } from "preact";
-
-import "./style.css";
-
-function WidgetScaffold() {
-  return (
-    <main>
-      <strong>Support widget scaffold</strong>
-      <span>API contract: {API_VERSION}</span>
-    </main>
-  );
-}
+import "./widget";
 
 const root = document.querySelector<HTMLDivElement>("#app");
-
 if (root) {
-  render(<WidgetScaffold />, root);
+  const widget = document.createElement("support-agent");
+  widget.setAttribute("api-base", "http://127.0.0.1:8000");
+  widget.setAttribute("publishable-key", "pk_preview");
+  widget.setAttribute("welcome", "Welcome to the widget preview");
+  root.append(widget);
 }
