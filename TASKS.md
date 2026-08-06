@@ -140,7 +140,7 @@ Completion means implementation, proportionate tests/checks, documentation/hando
   Depends on: T-051, T-053  
   Basic theme/welcome text, allowed origins, generated snippet, preview, and copyable installation instructions.
 
-- [ ] **T-055 — Build BYOK provider settings UI**
+- [x] **T-055 — Build BYOK provider settings UI**
   Depends on: T-046, T-050
   Add, test, rotate, and revoke tenant provider credentials; show only masked metadata and verification/status details; and let an owner/admin choose platform-only, tenant-first with explicit platform fallback, or tenant-only routing. Never persist a raw key in browser storage or re-display it after submission.
 

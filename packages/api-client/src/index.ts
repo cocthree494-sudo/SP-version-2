@@ -175,6 +175,41 @@ export interface UsageSummaryResponse {
   by_model: UsageBreakdownResponse[];
 }
 
+export type GenerationProvider = "openai";
+export type ProviderCredentialStatus = "unverified" | "verified" | "invalid" | "revoked";
+export type ProviderRoutingMode =
+  | "platform_only"
+  | "tenant_first_with_platform_fallback"
+  | "tenant_only";
+
+export interface ProviderCredentialResponse {
+  id: string;
+  provider: GenerationProvider;
+  label: string;
+  masked_secret: string;
+  low_cost_model_id: string;
+  strong_model_id: string | null;
+  status: ProviderCredentialStatus;
+  verified_at: string | null;
+  rotated_at: string | null;
+  revoked_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProviderCredentialCreateInput {
+  provider: GenerationProvider;
+  label: string;
+  api_key: string;
+  low_cost_model_id: string;
+  strong_model_id?: string | null;
+}
+
+export interface ProviderPolicyResponse {
+  mode: ProviderRoutingMode;
+  credential_order: string[];
+}
+
 export class ApiError extends Error {
   readonly status: number;
   readonly detail: string;

@@ -259,6 +259,8 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 - Added separate `loader.js` and `widget.js` production entries plus an automatic JSON bundle report. Widget lint, TypeScript, and production build pass; the baseline is 1.87 KB loader/25.56 KB widget raw and 10,965 bytes total gzip. Browser E2E remains deferred to T-060/the joint test phase.
 - Implemented T-054 with persisted per-bot welcome text, accent color, and launcher position in migration `0011_widget_configuration`; added an owner/admin dashboard for exact allowed origins, publishable-key create/update/revoke, responsive preview, escaped generated loader snippet, clipboard flow, and installation guidance. Members remain read-only.
 - T-054 targeted Ruff/web lint/type checks and seven focused bot/migration tests pass, including appearance round-trip. Live migration/browser E2E remains deferred to the joint test phase.
+- Implemented T-055 owner/admin provider settings with transient write-only key forms, masked credential inventory, live verification, rotation, immediate revocation, verification/status timestamps, and ordered selection for platform-only, tenant-first with explicit fallback, or tenant-only routing. Member access is withheld and embedding/arbitrary URL controls remain excluded.
+- T-055 web ESLint and TypeScript checks pass. Deterministic browser/API lifecycle coverage is scheduled in T-060; broad/live testing remains deferred per the user's batch instruction.
 
 ## 7. Open items
 
@@ -271,11 +273,11 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 
 ## HANDOFF STATE
 
-**Last completed:** T-054 — widget configuration and embed instructions.
-**Next task:** **T-055 — build the BYOK provider settings UI.** The user authorized a sequential implementation batch through T-062 with broad testing deferred until the batch is built.
+**Last completed:** T-055 — BYOK provider settings UI.
+**Next task:** **T-060 — add critical-path end-to-end coverage.** The user authorized implementation through T-062 while execution of broad/production tests stays deferred until the batch is built.
 **Blocked on:** Nothing currently.
 
 **Pushed state:** `origin/main` ends at `16ec1b5`; T-046 is local and has not been pushed because the current request did not authorize a push.
-**Uncommitted work:** T-054 implementation and documentation are ready for a focused local commit.
-**Verification:** T-054 targeted Ruff, web ESLint/TypeScript, seven bot/migration tests, and the updated appearance round-trip test pass. Full live PostgreSQL, browser, production, and E2E gates are intentionally deferred per the user's instruction.
+**Uncommitted work:** T-055 implementation and documentation are ready for a focused local commit.
+**Verification:** T-055 web ESLint and TypeScript checks pass. Full live PostgreSQL, browser, production, and E2E execution is intentionally deferred per the user's instruction.
 **Gotchas:** This workstation still lacks Docker/PostgreSQL/pgvector, so live database checks run in CI. Plaintext tenant keys must never be stored, logged, cached, queued, or re-displayed; platform fallback stays explicit; arbitrary provider URLs and embedding BYOK are excluded.

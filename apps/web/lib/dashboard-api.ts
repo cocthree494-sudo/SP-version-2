@@ -9,6 +9,10 @@ import type {
   ManualSourceCreateInput,
   ManualSourceUpdateInput,
   PlaygroundSessionResponse,
+  ProviderCredentialCreateInput,
+  ProviderCredentialResponse,
+  ProviderPolicyResponse,
+  ProviderRoutingMode,
   UsageSummaryResponse,
   WebsiteSourceCreateInput,
 } from "@support-agent/api-client";
@@ -140,4 +144,32 @@ export const dashboardApi = {
     dashboardRequest<UsageSummaryResponse>(
       `/usage/summary${botId ? `?bot_id=${encodeURIComponent(botId)}` : ""}`,
     ),
+  listProviderCredentials: () =>
+    dashboardRequest<ProviderCredentialResponse[]>("/providers/credentials"),
+  createProviderCredential: (payload: ProviderCredentialCreateInput) =>
+    dashboardRequest<ProviderCredentialResponse>("/providers/credentials", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  verifyProviderCredential: (credentialId: string) =>
+    dashboardRequest<ProviderCredentialResponse>(
+      `/providers/credentials/${encodeURIComponent(credentialId)}/verify`,
+      { method: "POST" },
+    ),
+  rotateProviderCredential: (credentialId: string, apiKey: string) =>
+    dashboardRequest<ProviderCredentialResponse>(
+      `/providers/credentials/${encodeURIComponent(credentialId)}/secret`,
+      { method: "PUT", body: JSON.stringify({ api_key: apiKey }) },
+    ),
+  revokeProviderCredential: (credentialId: string) =>
+    dashboardRequest<void>(
+      `/providers/credentials/${encodeURIComponent(credentialId)}`,
+      { method: "DELETE" },
+    ),
+  getProviderPolicy: () => dashboardRequest<ProviderPolicyResponse>("/providers/policy"),
+  updateProviderPolicy: (mode: ProviderRoutingMode, credentialOrder: string[]) =>
+    dashboardRequest<ProviderPolicyResponse>("/providers/policy", {
+      method: "PATCH",
+      body: JSON.stringify({ mode, credential_order: credentialOrder }),
+    }),
 };

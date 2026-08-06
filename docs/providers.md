@@ -65,3 +65,17 @@ Compromise of the application plus its wrapping key remains a custody risk, so
 production should restrict secret-manager access, audit decrypt operations,
 rotate wrapping keys, encrypt backups, and keep database and key-management
 permissions separated.
+
+## Dashboard provider settings (T-055)
+
+Owners and admins manage generation BYOK at `/dashboard/providers`. The page can
+add an OpenAI key, trigger live verification, rotate or revoke it, and order
+verified active credentials for the tenant policy. It explains and exposes only
+the three backend routing modes; embedding keys and arbitrary provider URLs are
+not offered.
+
+Raw keys use password inputs with browser autocomplete disabled. They exist only
+in transient component/form state, are cleared after every add or rotate attempt,
+never enter `localStorage`/`sessionStorage`, and are never re-displayed. All list,
+status, error, and policy views use masked metadata returned by the API. Members
+do not call or see the provider-management API surface.
