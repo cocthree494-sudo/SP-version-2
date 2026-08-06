@@ -124,7 +124,7 @@ Completion means implementation, proportionate tests/checks, documentation/hando
   Depends on: T-022  
   Fast responsive Next.js shell, login/register, protected routes, organization context, error/loading states, and accessible design tokens.
 
-- [ ] **T-051 — Build bot and knowledge-management UI**  
+- [x] **T-051 — Build bot and knowledge-management UI**  
   Depends on: T-023, T-031, T-034, T-035, T-050  
   Bot CRUD, drag/drop files, website/manual forms, source list/status/errors, polling or events, and deletion confirmation.
 

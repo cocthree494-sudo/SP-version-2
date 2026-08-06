@@ -252,6 +252,7 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 - Added explicit `platform_only`, `tenant_first_with_platform_fallback`, and fail-closed `tenant_only` routing. Policy and credential state reload on every widget generation request so rotation and revocation apply immediately; embedding BYOK remains excluded.
 - Added request-validation redaction for credentials and other secret fields, secret-safe verification errors, migration `0010_provider_access`, live RLS matrix coverage, focused lifecycle/role/tenant/routing tests, environment guidance, and provider custody/threat-boundary documentation.
 - Per the user's batch instruction, deferred the broad repository and live PostgreSQL suites. Targeted Ruff and five provider/migration tests pass; the live RLS additions and full suite remain part of the later joint verification phase.
+- Completed the T-051 audit of the already-protected dashboard implementation: bot CRUD, role-aware controls, drag/drop multi-file upload, website/manual forms, source status/error display, transitional polling, and destructive confirmations are present and wired to the tenant-authenticated BFF. Web lint and TypeScript checks pass; the prior responsive browser inspection remains documented in `docs/dashboard-management.md`.
 
 ## 7. Open items
 
@@ -264,11 +265,11 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 
 ## HANDOFF STATE
 
-**Last completed:** T-046 — secure tenant-owned generation-provider credentials and routing.
-**Next task:** **T-051 — build bot and knowledge-management UI.** The user authorized a sequential implementation batch through T-062 with broad testing deferred until the batch is built.
+**Last completed:** T-051 — bot and knowledge-management UI.
+**Next task:** **T-052 — build tenant playground and usage summary.** The user authorized a sequential implementation batch through T-062 with broad testing deferred until the batch is built.
 **Blocked on:** Nothing currently.
 
 **Pushed state:** `origin/main` ends at `16ec1b5`; T-046 is local and has not been pushed because the current request did not authorize a push.
-**Uncommitted work:** T-046 is ready for its focused local commit before T-051 starts.
-**Verification:** Targeted Ruff passed. `tests/test_provider_access.py` plus `tests/test_alembic.py` pass (5 tests); full backend/web/widget, live PostgreSQL, production, and E2E gates are intentionally deferred per the user's instruction.
+**Uncommitted work:** T-051 completion/handoff documentation is ready for its focused local commit.
+**Verification:** T-046 targeted Ruff and five provider/migration tests pass. T-051 web lint and TypeScript checks pass. Full backend/web/widget, live PostgreSQL, production, and E2E gates are intentionally deferred per the user's instruction.
 **Gotchas:** This workstation still lacks Docker/PostgreSQL/pgvector, so live database checks run in CI. Plaintext tenant keys must never be stored, logged, cached, queued, or re-displayed; platform fallback stays explicit; arbitrary provider URLs and embedding BYOK are excluded.
