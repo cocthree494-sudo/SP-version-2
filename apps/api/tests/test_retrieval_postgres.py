@@ -8,6 +8,7 @@ from uuid import UUID
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.tenancy import set_database_tenant
 from app.domains.bots.enums import BotStatus
 from app.domains.bots.repositories import BotRepository
@@ -128,3 +129,14 @@ async def test_pgvector_retrieval_orders_results_and_never_leaks_tenant_data(
     assert results[0].vector_score is not None
     assert all(result.citation.source_id == source_a for result in results)
     assert all("BETA-ONLY" not in result.content for result in results)
+
+    conversational_results = await service.retrieve(
+        bot_id=bot_a,
+        query="How many days do I have to request a refund?",
+        language="en",
+        top_k=2,
+    )
+
+    assert conversational_results[0].content.startswith("Refunds are available")
+    assert conversational_results[0].lexical_score is not None
+    assert conversational_results[0].score >= settings.CHAT_MIN_GROUNDED_SCORE

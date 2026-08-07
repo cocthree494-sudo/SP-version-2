@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
@@ -198,18 +199,23 @@ class HybridRetrievalService:
                 .limit(settings.RETRIEVAL_CANDIDATE_LIMIT)
             )
         ).all()
-        ts_query = func.plainto_tsquery("simple", query)
-        search_vector: Any = literal_column("document_chunks.search_vector")
-        rank = func.ts_rank_cd(search_vector, ts_query)
-        lexical_rows = (
-            await self.session.execute(
-                self._base_query(filters)
-                .add_columns(rank.label("lexical_score"))
-                .where(search_vector.op("@@")(ts_query))
-                .order_by(rank.desc())
-                .limit(settings.RETRIEVAL_CANDIDATE_LIMIT)
-            )
-        ).all()
+        query_terms = sorted(_terms(query))
+        lexical_rows: Sequence[Any] = ()
+        if query_terms:
+            ts_query: Any = func.plainto_tsquery("simple", query_terms[0])
+            for term in query_terms[1:]:
+                ts_query = ts_query.op("||")(func.plainto_tsquery("simple", term))
+            search_vector: Any = literal_column("document_chunks.search_vector")
+            rank = func.ts_rank_cd(search_vector, ts_query)
+            lexical_rows = (
+                await self.session.execute(
+                    self._base_query(filters)
+                    .add_columns(rank.label("lexical_score"))
+                    .where(search_vector.op("@@")(ts_query))
+                    .order_by(rank.desc())
+                    .limit(settings.RETRIEVAL_CANDIDATE_LIMIT)
+                )
+            ).all()
         return (
             [_Candidate(row[0], row[1], row[2], float(row[3])) for row in vector_rows],
             [_Candidate(row[0], row[1], row[2], float(row[3])) for row in lexical_rows],
