@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.core.config import settings
 from app.core.tenancy import tenant_session_scope
 from app.db.base import utc_now
+from app.db.models import register_model_mappings
 from app.db.session import async_session_factory, dispose_engine
 from app.domains.knowledge.enums import IngestionJobState, IngestionJobType, KnowledgeSourceStatus
 from app.domains.knowledge.models import IngestionJob
@@ -191,6 +192,7 @@ async def startup(ctx: dict[str, Any]) -> None:
 
     from app.workers.source_ingestion import SourceIngestionHandler
 
+    register_model_mappings()
     dispatcher = IngestionDispatcher()
     embedding_provider = build_embedding_provider()
     dispatcher.register(

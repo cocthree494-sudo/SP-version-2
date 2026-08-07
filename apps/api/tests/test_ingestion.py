@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
 from collections.abc import AsyncGenerator
 from datetime import datetime
+from pathlib import Path
 from typing import cast
 from uuid import UUID
 
@@ -54,6 +58,31 @@ from app.workers.ingestion import (
     process_ingestion_job,
 )
 from app.workers.queue import ArqIngestionQueue, IngestionQueueMessage
+
+
+def test_standalone_worker_registers_all_model_mappings() -> None:
+    api_root = Path(__file__).resolve().parents[1]
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "from sqlalchemy.orm import configure_mappers; "
+                "import app.workers.ingestion; "
+                "configure_mappers()"
+            ),
+        ],
+        cwd=api_root,
+        capture_output=True,
+        text=True,
+        check=False,
+        env={
+            **os.environ,
+            "DATABASE_URL": "sqlite+aiosqlite:///:memory:",
+            "REDIS_URL": "redis://127.0.0.1:6379/0",
+        },
+    )
+    assert completed.returncode == 0, completed.stderr
 
 
 class FakeQueue:

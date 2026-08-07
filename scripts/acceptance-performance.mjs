@@ -67,7 +67,7 @@ async function readSse(response, started) {
 async function main() {
   const live = await request("/health/live");
   const ready = await request("/health/ready");
-  const email = `acceptance-${Date.now()}@example.test`;
+  const email = `acceptance-${Date.now()}@example.com`;
   const tokens = await request("/v1/auth/register", {
     method: "POST",
     body: JSON.stringify({
