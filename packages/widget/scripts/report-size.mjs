@@ -6,6 +6,11 @@ import { fileURLToPath } from "node:url";
 const root = new URL("../dist/", import.meta.url);
 const rootPath = fileURLToPath(root);
 
+const loader = await readFile(new URL("loader.js", root), "utf8");
+if (loader.includes("import.meta")) {
+  throw new Error("loader.js must remain valid when installed as a classic script");
+}
+
 async function files(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
   const output = [];

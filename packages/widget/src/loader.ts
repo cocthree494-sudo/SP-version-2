@@ -11,9 +11,25 @@ if (script) {
   if (!existing) document.body.append(element);
 
   const widgetSource = script.dataset.widgetSrc || new URL("./widget.js", script.src).href;
-  let loading: Promise<unknown> | null = null;
+  let loading: Promise<void> | null = null;
   const load = () => {
-    loading ??= import(/* @vite-ignore */ widgetSource);
+    loading ??= new Promise<void>((resolve, reject) => {
+      if (customElements.get("support-agent")) {
+        resolve();
+        return;
+      }
+      const widgetScript = document.createElement("script");
+      widgetScript.type = "module";
+      widgetScript.src = widgetSource;
+      if (script.nonce) widgetScript.nonce = script.nonce;
+      widgetScript.addEventListener("load", () => resolve(), { once: true });
+      widgetScript.addEventListener(
+        "error",
+        () => reject(new Error("Unable to load the support widget")),
+        { once: true },
+      );
+      document.head.append(widgetScript);
+    });
     return loading;
   };
   for (const event of ["pointerdown", "keydown", "touchstart"] as const) {
