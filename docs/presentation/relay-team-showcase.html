@@ -1,0 +1,661 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Relay — Universal Support Agent | Team Showcase</title>
+  <style>
+    :root {
+      --ink: #082c35;
+      --deep: #123f48;
+      --deep-2: #0b3038;
+      --paper: #f6f7f3;
+      --paper-2: #ecefe8;
+      --coral: #ff8876;
+      --coral-2: #ffd6ce;
+      --lime: #d7f45b;
+      --mint: #93e4c8;
+      --sky: #9bdcf0;
+      --muted: #65777a;
+      --line: rgba(8, 44, 53, .14);
+      --white-line: rgba(255,255,255,.16);
+      --shadow: 0 28px 70px rgba(4, 28, 34, .20);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: #061d23; }
+    body {
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      overflow: hidden;
+    }
+    .deck { width: 100vw; height: 100vh; display: grid; place-items: center; }
+    .slide {
+      width: 1600px;
+      height: 900px;
+      position: relative;
+      overflow: hidden;
+      display: none;
+      background: var(--paper);
+      padding: 72px 84px 66px;
+      transform-origin: center;
+    }
+    .slide.active { display: block; }
+    .slide.dark { color: var(--paper); background: var(--deep-2); }
+    .slide.coral { background: var(--coral); }
+    .slide.lime { background: var(--lime); }
+    .grain {
+      position: absolute; inset: 0; pointer-events: none; opacity: .06;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
+    }
+    .topline { display: flex; align-items: center; justify-content: space-between; position: relative; z-index: 4; }
+    .brand { display: flex; align-items: center; gap: 13px; font-weight: 850; font-size: 22px; letter-spacing: -.03em; }
+    .brand-mark { width: 30px; height: 30px; display: flex; align-items: end; gap: 4px; transform: rotate(-12deg); }
+    .brand-mark i { display: block; width: 7px; border-radius: 8px; background: var(--mint); }
+    .brand-mark i:nth-child(1) { height: 17px; background: currentColor; opacity: .9; }
+    .brand-mark i:nth-child(2) { height: 28px; background: var(--coral); }
+    .brand-mark i:nth-child(3) { height: 12px; background: var(--lime); }
+    .kicker { font-size: 14px; font-weight: 850; text-transform: uppercase; letter-spacing: .17em; color: var(--muted); }
+    .dark .kicker { color: #a8c1c3; }
+    .slide-no { font-size: 13px; font-weight: 800; letter-spacing: .15em; color: var(--muted); }
+    .dark .slide-no { color: #9bb5b8; }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: 92px; line-height: .96; letter-spacing: -.065em; max-width: 1100px; }
+    h2 { font-size: 60px; line-height: 1.02; letter-spacing: -.052em; max-width: 1180px; }
+    h3 { font-size: 25px; line-height: 1.12; letter-spacing: -.025em; }
+    .lead { font-size: 27px; line-height: 1.42; color: #355158; max-width: 1000px; }
+    .dark .lead { color: #c0d3d4; }
+    .title-row { margin-top: 44px; position: relative; z-index: 3; }
+    .title-row h2 { margin-top: 12px; }
+    .rule { width: 84px; height: 8px; border-radius: 999px; background: var(--coral); margin: 25px 0 24px; transform: rotate(-3deg); }
+    .dark .rule { background: var(--lime); }
+    .footer { position: absolute; left: 84px; right: 84px; bottom: 32px; display: flex; justify-content: space-between; align-items: center; z-index: 4; color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .06em; }
+    .dark .footer { color: #86a8ac; }
+    .grid { display: grid; gap: 22px; }
+    .g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .card { background: white; border: 1px solid var(--line); border-radius: 24px; padding: 25px; box-shadow: 0 12px 32px rgba(11,48,56,.06); }
+    .dark .card { background: rgba(255,255,255,.055); border-color: var(--white-line); box-shadow: none; }
+    .card p { margin-top: 10px; font-size: 17px; line-height: 1.42; color: var(--muted); }
+    .dark .card p { color: #b9ccce; }
+    .icon { width: 43px; height: 43px; border-radius: 14px; display: grid; place-items: center; background: var(--coral-2); color: var(--ink); font-size: 18px; font-weight: 900; margin-bottom: 19px; }
+    .icon.lime { background: var(--lime); }
+    .icon.mint { background: var(--mint); }
+    .icon.sky { background: var(--sky); }
+    .dark .icon { color: var(--ink); }
+    .chip { display: inline-flex; align-items: center; gap: 8px; padding: 9px 13px; border-radius: 999px; background: var(--paper-2); font-size: 13px; font-weight: 800; color: var(--deep); }
+    .dark .chip { background: rgba(255,255,255,.09); color: #e7f1ef; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--coral); }
+    .metric { padding: 22px 24px; border-left: 3px solid var(--coral); }
+    .metric strong { display: block; font-size: 54px; line-height: .95; letter-spacing: -.05em; }
+    .metric span { display: block; margin-top: 10px; font-size: 14px; color: var(--muted); font-weight: 750; }
+    .dark .metric span { color: #a8c1c3; }
+    .metric.lime-border { border-left-color: var(--lime); }
+    .metric.mint-border { border-left-color: var(--mint); }
+    .metric.sky-border { border-left-color: var(--sky); }
+    .arrow { color: var(--coral); font-weight: 900; }
+    .orb { position: absolute; width: 620px; height: 620px; right: 70px; top: 145px; border-radius: 50%; border: 1px solid rgba(255,255,255,.24); }
+    .orb:before, .orb:after { content: ""; position: absolute; inset: 80px -80px; border: 2px solid rgba(255,136,118,.48); border-radius: 50%; transform: rotate(23deg); }
+    .orb:after { inset: 150px -120px; border-color: rgba(147,228,200,.40); transform: rotate(-18deg); }
+    .orb-core { position: absolute; inset: 205px; border-radius: 50%; background: radial-gradient(circle, rgba(215,244,91,.7), rgba(215,244,91,.06) 48%, transparent 70%); display: grid; place-items: center; }
+    .orb-core .brand-mark { transform: rotate(-12deg) scale(2.5); color: white; }
+    .timeline { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-top: 70px; position: relative; }
+    .timeline:before { content: ""; position: absolute; height: 2px; left: 4%; right: 4%; top: 31px; background: var(--line); }
+    .timeline-step { position: relative; z-index: 2; text-align: center; }
+    .timeline-step b { width: 62px; height: 62px; margin: 0 auto 18px; border-radius: 50%; background: var(--deep); color: white; display: grid; place-items: center; font-size: 19px; border: 7px solid var(--paper); }
+    .timeline-step:nth-child(3n+2) b { background: var(--coral); color: var(--ink); }
+    .timeline-step:nth-child(3n) b { background: var(--lime); color: var(--ink); }
+    .timeline-step span { font-size: 15px; font-weight: 800; line-height: 1.25; display: block; }
+    .diagram { margin-top: 36px; position: relative; }
+    .arch { display: grid; grid-template-columns: 240px 1fr 285px; gap: 24px; align-items: stretch; height: 575px; }
+    .stack { display: grid; gap: 13px; }
+    .node { border: 1px solid var(--white-line); border-radius: 19px; padding: 18px 19px; background: rgba(255,255,255,.06); }
+    .node strong { display: block; font-size: 17px; }
+    .node small { display: block; margin-top: 7px; color: #a8c1c3; font-size: 13px; line-height: 1.35; }
+    .node.accent { border-color: rgba(215,244,91,.55); background: rgba(215,244,91,.11); }
+    .core { border: 1px solid rgba(147,228,200,.5); border-radius: 30px; padding: 25px; background: rgba(147,228,200,.06); display: grid; grid-template-rows: auto 1fr auto; }
+    .core-head { display: flex; justify-content: space-between; align-items: center; }
+    .core-head h3 { color: var(--mint); }
+    .domain-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; align-content: center; }
+    .domain { padding: 21px 14px; background: var(--paper); color: var(--ink); border-radius: 18px; text-align: center; font-weight: 850; font-size: 15px; box-shadow: 0 10px 25px rgba(0,0,0,.16); }
+    .core-flow { display: flex; gap: 8px; justify-content: center; align-items: center; font-size: 12px; color: #a8c1c3; }
+    .security-layers { margin-top: 46px; display: grid; gap: 17px; }
+    .layer { display: grid; grid-template-columns: 175px 1fr 170px; align-items: center; border-radius: 22px; padding: 19px 24px; background: white; border: 1px solid var(--line); }
+    .layer b { font-size: 18px; }
+    .layer p { color: var(--muted); font-size: 16px; }
+    .layer span { justify-self: end; font-size: 13px; font-weight: 850; padding: 8px 12px; border-radius: 999px; background: var(--paper-2); }
+    .flow-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; align-items: center; margin-top: 58px; }
+    .flow-box { min-height: 138px; border-radius: 22px; padding: 20px 16px; background: white; border: 1px solid var(--line); text-align: center; display: grid; place-items: center; align-content: center; gap: 12px; }
+    .flow-box b { font-size: 17px; line-height: 1.15; }
+    .flow-box small { color: var(--muted); font-size: 12px; line-height: 1.3; }
+    .flow-box:nth-child(odd) { border-top: 6px solid var(--coral); }
+    .flow-box:nth-child(3n) { border-top-color: var(--lime); }
+    .flow-arrow { font-size: 25px; color: var(--coral); text-align: center; }
+    .two-panel { display: grid; grid-template-columns: 1.05fr .95fr; gap: 32px; margin-top: 42px; }
+    .code-tree { background: var(--deep-2); color: #dbe9e7; border-radius: 25px; padding: 28px 32px; font: 17px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; box-shadow: var(--shadow); }
+    .code-tree .c { color: var(--mint); }
+    .code-tree .a { color: var(--coral); }
+    .code-tree .l { color: var(--lime); }
+    .bars { display: grid; gap: 17px; margin-top: 38px; }
+    .bar-row { display: grid; grid-template-columns: 165px 1fr 95px; gap: 15px; align-items: center; }
+    .bar-row label { font-size: 15px; font-weight: 800; }
+    .track { height: 15px; border-radius: 999px; background: #dfe5df; overflow: hidden; }
+    .fill { height: 100%; border-radius: inherit; background: var(--coral); }
+    .bar-row:nth-child(2n) .fill { background: var(--deep); }
+    .bar-row:nth-child(3n) .fill { background: var(--mint); }
+    .bar-row strong { font-size: 15px; text-align: right; }
+    .screenshot-shell { background: #dfe5df; border-radius: 28px; padding: 12px; box-shadow: var(--shadow); }
+    .screenshot-shell img { width: 100%; display: block; border-radius: 19px; }
+    .widget-mock { height: 525px; background: white; border-radius: 30px; border: 1px solid var(--line); box-shadow: var(--shadow); padding: 28px; display: flex; flex-direction: column; }
+    .widget-mock .chat-head { background: var(--deep); color: white; padding: 20px; border-radius: 20px; display: flex; justify-content: space-between; }
+    .bubble { padding: 15px 17px; border-radius: 17px; max-width: 82%; font-size: 15px; line-height: 1.35; margin-top: 18px; }
+    .bubble.agent { background: var(--paper-2); }
+    .bubble.user { background: var(--coral-2); align-self: end; }
+    .cite { margin-top: 10px; color: var(--deep); font-weight: 800; font-size: 12px; }
+    .model-groups { display: grid; grid-template-columns: 1fr 1.55fr 1fr; gap: 24px; margin-top: 43px; align-items: stretch; }
+    .model-group { border-radius: 25px; padding: 25px; border: 1px solid var(--line); background: white; }
+    .model-group h3 { margin-bottom: 20px; }
+    .pill-list { display: flex; flex-wrap: wrap; gap: 10px; }
+    .pill { padding: 10px 13px; border-radius: 12px; background: var(--paper-2); font-size: 13px; font-weight: 750; }
+    .center-shield { background: var(--deep); color: white; display: grid; place-items: center; text-align: center; }
+    .shield { width: 100px; height: 116px; background: var(--lime); color: var(--ink); clip-path: polygon(50% 0, 94% 18%, 84% 76%, 50% 100%, 16% 76%, 6% 18%); display: grid; place-items: center; font-size: 35px; font-weight: 900; margin-bottom: 20px; }
+    .decision-table { margin-top: 35px; border-radius: 24px; overflow: hidden; border: 1px solid var(--line); }
+    .decision-row { display: grid; grid-template-columns: 250px 1fr 1.1fr; background: white; border-bottom: 1px solid var(--line); }
+    .decision-row:last-child { border-bottom: 0; }
+    .decision-row > * { padding: 15px 20px; font-size: 14px; line-height: 1.28; }
+    .decision-row strong { background: var(--paper-2); }
+    .decision-row .why { color: var(--muted); }
+    .demo-list { counter-reset: demo; display: grid; grid-template-columns: 1fr 1fr; gap: 15px 26px; margin-top: 38px; }
+    .demo-list div { counter-increment: demo; min-height: 76px; display: grid; grid-template-columns: 48px 1fr; align-items: center; gap: 13px; background: white; border: 1px solid var(--line); border-radius: 18px; padding: 13px 16px; }
+    .demo-list div:before { content: counter(demo, decimal-leading-zero); font-weight: 900; color: var(--coral); font-size: 17px; }
+    .demo-list span { font-size: 14px; font-weight: 750; line-height: 1.3; }
+    .roadmap { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-top: 45px; }
+    .phase { min-height: 420px; border-radius: 25px; padding: 25px; background: rgba(255,255,255,.06); border: 1px solid var(--white-line); }
+    .phase.current { background: var(--lime); color: var(--ink); border-color: var(--lime); }
+    .phase b { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .14em; opacity: .7; }
+    .phase h3 { margin-top: 12px; }
+    .phase ul { margin: 22px 0 0; padding-left: 20px; }
+    .phase li { margin: 11px 0; font-size: 14px; line-height: 1.32; color: #bbced0; }
+    .phase.current li { color: #29494e; }
+    .note { margin-top: 24px; padding: 16px 18px; border-radius: 16px; background: var(--coral-2); font-size: 14px; font-weight: 750; line-height: 1.35; }
+    .dark .note { background: rgba(255,136,118,.13); color: #ffd7cf; border: 1px solid rgba(255,136,118,.25); }
+    section[data-title="Hybrid retrieval"] .two-panel { margin-top: 28px; }
+    section[data-title="Hybrid retrieval"] .grid .card { padding: 16px 20px; }
+    section[data-title="Hybrid retrieval"] .grid .icon { width: 36px; height: 36px; margin-bottom: 10px; }
+    section[data-title="Hybrid retrieval"] .grid .card p { margin-top: 6px; font-size: 15px; }
+    .nav { position: fixed; right: 18px; bottom: 18px; z-index: 100; display: flex; gap: 8px; }
+    .nav button { width: 42px; height: 42px; border: 0; border-radius: 13px; background: rgba(255,255,255,.9); color: var(--ink); font-size: 20px; cursor: pointer; box-shadow: 0 10px 24px rgba(0,0,0,.2); }
+    .progress { position: fixed; left: 0; bottom: 0; height: 4px; background: var(--coral); z-index: 101; transition: width .2s ease; }
+    @media (max-width: 1100px), (max-height: 700px) { .slide { transform: scale(.62); } }
+    @media print {
+      @page { size: 1600px 900px; margin: 0; }
+      html, body { background: white; overflow: visible; }
+      .deck { display: block; width: auto; height: auto; }
+      .slide { display: block !important; transform: none !important; page-break-after: always; }
+      .slide:last-of-type { page-break-after: auto; }
+      .nav, .progress { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="deck">
+    <section class="slide dark active" data-title="Relay">
+      <div class="grain"></div>
+      <div class="topline"><div class="brand"><span class="brand-mark"><i></i><i></i><i></i></span>Relay</div><div class="kicker">Team showcase · Phase 1 accepted</div></div>
+      <div class="title-row" style="width:850px;margin-top:150px">
+        <div class="kicker" style="color:var(--coral)">Universal Support Agent</div>
+        <h1 style="margin-top:24px">The clear signal in every customer conversation.</h1>
+        <div class="rule"></div>
+        <p class="lead">How we designed, built, secured, tested, and prepared a multi-tenant AI support SaaS—from first principles to an accepted MVP.</p>
+      </div>
+      <div class="orb"><div class="orb-core"><span class="brand-mark"><i></i><i></i><i></i></span></div></div>
+      <div class="footer"><span>AUGUST 2026</span><span>01 / 27</span></div>
+    </section>
+
+    <section class="slide" data-title="Executive summary">
+      <div class="topline"><div class="brand"><span class="brand-mark"><i></i><i></i><i></i></span>Relay</div><div class="slide-no">02 / 27</div></div>
+      <div class="title-row"><div class="kicker">Executive summary</div><h2>One product. Three knowledge sources. One channel-neutral support brain.</h2></div>
+      <div class="two-panel" style="grid-template-columns:1.08fr .92fr;align-items:center">
+        <div class="screenshot-shell"><img src="assets/relay-landing.png" alt="Relay product landing page"></div>
+        <div>
+          <p class="lead">A tenant signs up, creates a bot, connects trusted knowledge, tests grounded answers, and installs a fast widget—without handing over provider control or weakening tenant isolation.</p>
+          <div class="grid g2" style="margin-top:33px">
+            <div class="metric"><strong>34</strong><span>versioned API routes</span></div>
+            <div class="metric lime-border"><strong>11</strong><span>database migrations</span></div>
+            <div class="metric mint-border"><strong>86</strong><span>live tests passing</span></div>
+            <div class="metric sky-border"><strong>3/3</strong><span>critical browser flows</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="footer"><span>PRODUCT + PLATFORM + PROOF</span><span>02</span></div>
+    </section>
+
+    <section class="slide coral" data-title="Why we built it">
+      <div class="topline"><div class="brand"><span class="brand-mark"><i></i><i></i><i></i></span>Relay</div><div class="slide-no">03 / 27</div></div>
+      <div class="title-row"><div class="kicker" style="color:var(--ink)">Why this exists</div><h2 style="max-width:1280px">Support teams have knowledge. Customers still wait for answers—or receive guesses.</h2></div>
+      <div class="grid g3" style="margin-top:62px">
+        <div class="card"><div class="icon lime">01</div><h3>Knowledge is fragmented</h3><p>Policies live across files, sites, and tribal knowledge. Finding the right answer is slower than answering it.</p></div>
+        <div class="card"><div class="icon mint">02</div><h3>Generic AI is risky</h3><p>Without retrieval boundaries, citations, and safe fallback, fluent responses can become expensive hallucinations.</p></div>
+        <div class="card"><div class="icon sky">03</div><h3>SaaS trust is structural</h3><p>Tenant data, provider secrets, jobs, vectors, and logs must be isolated from day one—not patched later.</p></div>
+      </div>
+      <p style="position:absolute;left:84px;bottom:95px;font-size:30px;font-weight:850;max-width:1180px">Our goal: <span style="background:var(--ink);color:white;padding:5px 12px;border-radius:9px">grounded</span>, multilingual answers at low cost, with graceful failure and evidence.</p>
+      <div class="footer" style="color:var(--ink)"><span>PROBLEM → PRODUCT PRINCIPLES</span><span>03</span></div>
+    </section>
+
+    <section class="slide" data-title="Users and outcomes">
+      <div class="topline"><div class="brand"><span class="brand-mark"><i></i><i></i><i></i></span>Relay</div><div class="slide-no">04 / 27</div></div>
+      <div class="title-row"><div class="kicker">Product boundary</div><h2>Built around three actors—and a deliberately focused MVP.</h2></div>
+      <div class="grid g3" style="margin-top:46px">
+        <div class="card" style="min-height:360px"><div class="icon">C</div><h3>End customer</h3><p>Asks in any supported language, receives a streamed answer, sees citations where the channel supports them, and gets a safe fallback when evidence is weak.</p><div class="note">Outcome: faster, trustworthy self-service.</div></div>
+        <div class="card" style="min-height:360px"><div class="icon lime">T</div><h3>Tenant team</h3><p>Creates bots, adds knowledge, watches ingestion, tests answers, configures the widget, controls provider routing, and monitors usage.</p><div class="note" style="background:#e8f4c1">Outcome: control without infrastructure burden.</div></div>
+        <div class="card" style="min-height:360px"><div class="icon mint">P</div><h3>Platform operator</h3><p>Runs migrations, health checks, workers, backups, recovery, CI, cost and latency telemetry. Full platform-admin UI is intentionally deferred.</p><div class="note" style="background:#d9f2ea">Outcome: observable, reversible operations.</div></div>
+      </div>
+      <div class="footer"><span>MVP FIRST · BUSINESS LAYER LATER</span><span>04</span></div>
+    </section>
+
+    <section class="slide" data-title="Tenant journey">
+      <div class="topline"><div class="brand"><span class="brand-mark"><i></i><i></i><i></i></span>Relay</div><div class="slide-no">05 / 27</div></div>
+      <div class="title-row"><div class="kicker">Core product journey</div><h2>From empty workspace to a support bot in seven steps.</h2></div>
+      <div class="timeline">
+        <div class="timeline-step"><b>1</b><span>Register<br>workspace</span></div>
+        <div class="timeline-step"><b>2</b><span>Create<br>bot</span></div>
+        <div class="timeline-step"><b>3</b><span>Add trusted<br>knowledge</span></div>
+        <div class="timeline-step"><b>4</b><span>Worker<br>ingests</span></div>
+        <div class="timeline-step"><b>5</b><span>Test in<br>playground</span></div>
+        <div class="timeline-step"><b>6</b><span>Configure<br>widget / BYOK</span></div>
+        <div class="timeline-step"><b>7</b><span>Publish &<br>measure</span></div>
+      </div>
+      <div class="grid g3" style="margin-top:62px">
+        <div class="chip"><span class="dot"></span>Every step tenant-scoped</div>
+        <div class="chip"><span class="dot" style="background:var(--lime)"></span>Long work stays off request workers</div>
+        <div class="chip"><span class="dot" style="background:var(--mint)"></span>Every answer ends in evidence or fallback</div>
+      </div>
+      <div class="footer"><span>THE COMPLETE VERTICAL SLICE</span><span>05</span></div>
+    </section>
+
+    <section class="slide dark" data-title="Feature map">
+      <div class="grain"></div><div class="topline"><div class="brand"><span class="brand-mark"><i></i><i></i><i></i></span>Relay</div><div class="slide-no">06 / 27</div></div>
+      <div class="title-row"><div class="kicker">What is in Phase 1</div><h2>A complete feature map—not just a chat endpoint.</h2></div>
+      <div class="grid g4" style="margin-top:38px">
+        <div class="card"><div class="icon">A</div><h3>Identity & tenancy</h3><p>Register, login, refresh rotation, organization bootstrap, owner/admin/member roles.</p></div>
+        <div class="card"><div class="icon lime">B</div><h3>Bot lifecycle</h3><p>Bot CRUD, status, language, appearance, exact-origin publishable keys and revocation.</p></div>
+        <div class="card"><div class="icon mint">K</div><h3>Knowledge</h3><p>PDF, DOCX, TXT, MD, bounded websites, manual Q&A, versioning and statuses.</p></div>
+        <div class="card"><div class="icon sky">R</div><h3>RAG engine</h3><p>Hybrid retrieval, RRF fusion, deduplication, citations, prompt-injection boundary.</p></div>
+        <div class="card"><div class="icon sky">C</div><h3>Conversations</h3><p>Recent turns, rolling summary, retention hooks, ordered messages, SSE streaming.</p></div>
+        <div class="card"><div class="icon mint">P</div><h3>Provider control</h3><p>Low-cost tiering, failover policy, circuit state, secure optional tenant BYOK.</p></div>
+        <div class="card"><div class="icon lime">U</div><h3>Product UX</h3><p>Responsive dashboard, playground, usage view, widget preview and install snippet.</p></div>
+        <div class="card"><div class="icon">O</div><h3>Operations</h3><p>Docker, health/readiness, migrations, backup/restore, rollback rehearsal, CI.</p></div>
+      </div>
+      <div class="footer"><span>34 COMPLETED TASK RECORDS · 39 COMMITS</span><span>06</span></div>
+    </section>
+
+    <section class="slide dark" data-title="Architecture">
+      <div class="grain"></div><div class="topline"><div class="brand"><span class="brand-mark"><i></i><i></i><i></i></span>Relay</div><div class="slide-no">07 / 27</div></div>
+      <div class="title-row" style="margin-top:28px"><div class="kicker">System architecture</div><h2>A channel-neutral core surrounded by thin delivery adapters.</h2></div>
+      <div class="diagram arch">
+        <div class="stack">
+          <div class="node accent"><strong>Next.js dashboard</strong><small>Private tenant operations via same-origin BFF</small></div>
+          <div class="node accent"><strong>Preact widget</strong><small>Shadow DOM, lazy loader, anonymous session</small></div>
+          <div class="node"><strong>Future channels</strong><small>WhatsApp · Telegram · Messenger · Email</small></div>
+          <div class="node"><strong>External clients</strong><small>Versioned REST + SSE stream</small></div>
+        </div>
+        <div class="core">
+          <div class="core-head"><h3>Async FastAPI application</h3><span class="chip">/v1 · 34 routes</span></div>
+          <div class="domain-grid">
+            <div class="domain">Auth & tenancy</div><div class="domain">Bots & keys</div><div class="domain">Knowledge</div>
+            <div class="domain">Retrieval</div><div class="domain">Agent orchestration</div><div class="domain">Usage</div>
+            <div class="domain">Provider access</div><div class="domain">Conversations</div><div class="domain">Widget API</div>
+          </div>
+          <div class="core-flow"><span>request context</span><span class="arrow">→</span><span>tenant scope</span><span class="arrow">→</span><span>domain service</span><span class="arrow">→</span><span>repository / adapter</span></div>
+        </div>
+        <div class="stack">
+          <div class="node"><strong>PostgreSQL + pgvector</strong><small>Relational data, RLS, vectors, lexical search</small></div>
+          <div class="node"><strong>Redis</strong><small>Queue, rate limits, circuit state, short-lived data</small></div>
+          <div class="node"><strong>ARQ worker</strong><small>Parsing, crawling, chunking, embedding</small></div>
+          <div class="node"><strong>Provider adapters</strong><small>LLM · embeddings · storage</small></div>
+        </div>
+      </div>
+      <div class="footer"><span>DOMAIN CODE NEVER IMPORTS A CHANNEL</span><span>07</span></div>
+    </section>
+
+    <section class="slide" data-title="Tech stack">
+      <div class="topline"><div class="brand"><span class="brand-mark"><i></i><i></i><i></i></span>Relay</div><div class="slide-no">08 / 27</div></div>
+      <div class="title-row"><div class="kicker">Technology choices</div><h2>Each technology was chosen for a specific product constraint.</h2></div>
+      <div class="grid g4" style="margin-top:40px">
+        <div class="card"><div class="icon">Py</div><h3>Python 3.12 + FastAPI</h3><p>AI/data ecosystem, async I/O, typed APIs, native streaming, strong validation.</p></div>
+        <div class="card"><div class="icon lime">N</div><h3>Next.js 16 + React 19</h3><p>Responsive tenant dashboard, server-rendered shells, production routing and tooling.</p></div>
+        <div class="card"><div class="icon mint">P</div><h3>Preact + Vite</h3><p>Small embeddable runtime, isolated custom element, fast customer-site load.</p></div>
+        <div class="card"><div class="icon sky">PG</div><h3>PostgreSQL + pgvector</h3><p>SaaS relational integrity and semantic/lexical retrieval in one operational system.</p></div>
+        <div class="card"><div class="icon sky">R</div><h3>Redis + ARQ</h3><p>Queueing, rate limits, provider health, and work isolation without heavy orchestration.</p></div>
+        <div class="card"><div class="icon mint">SA</div><h3>SQLAlchemy + Alembic</h3><p>Explicit async persistence, reversible schema history, testable constraints and RLS.</p></div>
+        <div class="card"><div class="icon lime">SSE</div><h3>HTTP Server-Sent Events</h3><p>Proxy-friendly one-way token streaming with cancellation and simple browser clients.</p></div>
+        <div class="card"><div class="icon">D</div><h3>Docker + GitHub Actions</h3><p>Hosting-agnostic builds, reproducible gates, production topology and recovery drills.</p></div>
+      </div>
+      <div class="footer"><span>CONFIGURATION OVER VENDOR LOCK-IN</span><span>08</span></div>
+    </section>
+
+    <section class="slide" data-title="Repository and delivery">
+      <div class="topline"><div class="brand"><span class="brand-mark"><i></i><i></i><i></i></span>Relay</div><div class="slide-no">09 / 27</div></div>
+      <div class="title-row"><div class="kicker">How we built it</div><h2>A monorepo plus a durable cross-agent delivery system.</h2></div>
+      <div class="two-panel">
+        <div class="code-tree"><span class="a">support-agent/</span><br>├─ <span class="c">apps/api</span> · FastAPI + domains + worker<br>├─ <span class="c">apps/web</span> · Next.js dashboard<br>├─ <span class="l">packages/widget</span> · Preact custom element<br>├─ <span class="l">packages/api-client</span> · shared TS contracts<br>├─ infra · dev + production Compose<br>├─ tests/e2e · critical browser flows<br>├─ docs · security + operations + product<br>└─ CONTEXT · TASKS · PLAN · AGENTS</div>
+        <div>
+          <div class="grid g2">
+            <div class="metric"><strong>39</strong><span>focused commits</span></div>
+            <div class="metric lime-border"><strong>34</strong><span>completed task records</span></div>
+            <div class="metric mint-border"><strong>114</strong><span>typed Python files checked</span></div>
+            <div class="metric sky-border"><strong>19+</strong><span>domain/runbook docs</span></div>
+          </div>
+          <div class="note" style="margin-top:28px">Decision log + granular tasks + truthful handoff state let Claude, Codex, or a teammate continue without repeating product discovery.</div>
+        </div>
+      </div>
+      <div class="footer"><span>SMALL SLICES · TASK-ID COMMITS · EVIDENCE BEFORE CHECKBOXES</span><span>09</span></div>
+    </section>
+
+    <section class="slide" data-title="Tenant isolation">
+      <div class="topline"><div class="brand"><span class="brand-mark"><i></i><i></i><i></i></span>Relay</div><div class="slide-no">10 / 27</div></div>
+      <div class="title-row"><div class="kicker">Security architecture</div><h2>Tenant isolation is a layered invariant—not one WHERE clause.</h2></div>
+      <div class="security-layers">
+        <div class="layer"><b>1 · Request boundary</b><p>Resolve authenticated tenant, bot, role, and origin once; reject conflicts early.</p><span>IDENTITY</span></div>
+        <div class="layer"><b>2 · Domain/repository</b><p>Every tenant-owned query carries explicit `tenant_id` predicates and ownership checks.</p><span>APPLICATION</span></div>
+        <div class="layer"><b>3 · PostgreSQL RLS</b><p>Transaction-local tenant context + forced policies under a non-superuser runtime role.</p><span>DATABASE</span></div>
+        <div class="layer"><b>4 · Async boundaries</b><p>Queue payloads, rate-limit keys, storage paths, retrieval filters, and logs include tenant scope.</p><span>INFRA</span></div>
+        <div class="layer"><b>5 · Release proof</b><p>Cross-tenant reads/writes, pgvector retrieval, append-only usage, credentials, and policies are tested live.</p><span>VERIFICATION</span></div>
+      </div>
+      <div class="footer"><span>FAIL CLOSED · DEFENSE IN DEPTH</span><span>10</span></div>
+    </section>
+
+    <section class="slide dark" data-title="Authentication">
+      <div class="grain"></div><div class="topline"><div class="brand"><span class="brand-mark"><i></i><i></i><i></i></span>Relay</div><div class="slide-no">11 / 27</div></div>
+      <div class="title-row"><div class="kicker">Identity, sessions, roles</div><h2>Secure onboarding without pushing tokens into browser storage.</h2></div>
+      <div class="flow-row" style="grid-template-columns:1fr 45px 1fr 45px 1fr 45px 1fr;margin-top:64px">
+        <div class="flow-box"><b>Register</b><small>Atomically create user, tenant, owner membership, and first session</small></div><div class="flow-arrow">→</div>
+        <div class="flow-box"><b>Argon2id</b><small>Password hashing with rehash support</small></div><div class="flow-arrow">→</div>
+        <div class="flow-box"><b>Short access JWT</b><small>Tenant-bound identity and role</small></div><div class="flow-arrow">→</div>
+        <div class="flow-box"><b>Rotated refresh family</b><small>Opaque hash-at-rest token; replay revokes the family</small></div>
+      </div>
+      <div class="grid g3" style="margin-top:55px">
+        <div class="card"><h3>Same-origin BFF</h3><p>Next.js stores access/refresh tokens only in HttpOnly, SameSite cookies.</p></div>
+        <div class="card"><h3>Role boundaries</h3><p>Owner/admin mutate bots, keys, knowledge, and BYOK; members remain read-oriented.</p></div>
+        <div class="card"><h3>Anonymous widget</h3><p>Separate short-lived JWT bound to tenant, bot, key, conversation, origin, token ID, and audience.</p></div>
+      </div>
+      <div class="footer"><span>NO ACCESS TOKEN IN LOCALSTORAGE</span><span>11</span></div>
+    </section>
+
+    <section class="slide" data-title="Knowledge ingestion">
+      <div class="topline"><div class="brand"><span class="brand-mark"><i></i><i></i><i></i></span>Relay</div><div class="slide-no">12 / 27</div></div>
+      <div class="title-row"><div class="kicker">Knowledge pipeline</div><h2>Heavy work is asynchronous, idempotent, bounded, and version-safe.</h2></div>
+      <div class="flow-row" style="grid-template-columns:repeat(13, auto)">
+        <div class="flow-box"><b>Create source</b><small>file · website · manual</small></div><div class="flow-arrow">→</div>
+        <div class="flow-box"><b>Queue job</b><small>tenant key + idempotency</small></div><div class="flow-arrow">→</div>
+        <div class="flow-box"><b>Extract</b><small>safe parse / bounded crawl</small></div><div class="flow-arrow">→</div>
+        <div class="flow-box"><b>Normalize</b><small>text + metadata + checksum</small></div><div class="flow-arrow">→</div>
+        <div class="flow-box"><b>Chunk</b><small>structure + overlap</small></div><div class="flow-arrow">→</div>
+        <div class="flow-box"><b>Embed</b><small>provider-neutral batches</small></div><div class="flow-arrow">→</div>
+        <div class="flow-box"><b>Activate</b><small>atomic new version</small></div>
+      </div>
+      <div class="grid g3" style="margin-top:55px">
+        <div class="card"><div class="icon">F</div><h3>Secure files</h3><p>PDF/DOCX/TXT/MD, streamed size/type/signature validation, archive safety, cleanup.</p></div>
+        <div class="card"><div class="icon lime">W</div><h3>Bounded websites</h3><p>Exact-host crawl, robots/rate/depth/page limits, DNS/IP SSRF and redirect defense.</p></div>
+        <div class="card"><div class="icon mint">Q</div><h3>Authoritative Q&A</h3><p>Question/answer becomes a short trusted document; unchanged edits do not duplicate work.</p></div>
+      </div>
+      <div class="note">A failed re-ingestion never destroys the last active document version.</div>
+      <div class="footer"><span>NO PARSING · CRAWLING · EMBEDDING IN API REQUEST WORKERS</span><span>12</span></div>
+    </section>
+
+    <section class="slide" data-title="Hybrid retrieval">
+      <div class="topline"><div class="brand"><span class="brand-mark"><i></i><i></i><i></i></span>Relay</div><div class="slide-no">13 / 27</div></div>
+      <div class="title-row"><div class="kicker">Retrieval engine</div><h2>Semantic meaning + exact words + tenant filters = traceable evidence.</h2></div>
+      <div class="two-panel" style="grid-template-columns:.85fr 1.15fr">
+        <div class="grid" style="gap:16px">
+          <div class="card"><div class="icon sky">V</div><h3>Vector candidates</h3><p>pgvector cosine similarity captures meaning across phrasing.</p></div>
+          <div class="card"><div class="icon lime">L</div><h3>Lexical candidates</h3><p>PostgreSQL tsvector/GIN keeps exact terms, policies, IDs, and names discoverable.</p></div>
+          <div class="card"><div class="icon mint">F</div><h3>Hard filters</h3><p>Tenant, bot, source, status, and language are applied before ranking.</p></div>
+        </div>
+        <div class="card" style="padding:35px">
+          <div style="display:flex;justify-content:space-between;align-items:center"><h3>Reciprocal-rank fusion</h3><span class="chip">top K only</span></div>
+          <div class="bars">
+            <div class="bar-row"><label>Refund policy</label><div class="track"><div class="fill" style="width:92%"></div></div><strong>cited #1</strong></div>
+            <div class="bar-row"><label>Returns FAQ</label><div class="track"><div class="fill" style="width:74%"></div></div><strong>cited #2</strong></div>
+            <div class="bar-row"><label>Shipping guide</label><div class="track"><div class="fill" style="width:38%"></div></div><strong>filtered</strong></div>
+            <div class="bar-row"><label>Duplicate chunk</label><div class="track"><div class="fill" style="width:27%"></div></div><strong>deduped</strong></div>
+          </div>
+          <div class="note" style="margin-top:35px">Each result carries source/document IDs, title, URL, chunk ordinal, and character offsets for citations.</div>
+        </div>
+      </div>
+      <div class="footer"><span>RETRIEVAL IS TENANT-BOUND BEFORE THE MODEL SEES ANYTHING</span><span>13</span></div>
+    </section>
+
+    <section class="slide dark" data-title="Grounded orchestration">
+      <div class="grain"></div><div class="topline"><div class="brand"><span class="brand-mark"><i></i><i></i><i></i></span>Relay</div><div class="slide-no">14 / 27</div></div>
+      <div class="title-row"><div class="kicker">Agent orchestration</div><h2>The model is one replaceable step inside a guarded answer pipeline.</h2></div>
+      <div class="flow-row" style="grid-template-columns:repeat(13,auto);margin-top:48px">
+        <div class="flow-box"><b>Question</b><small>detect language + validate context</small></div><div class="flow-arrow">→</div>
+        <div class="flow-box"><b>Retrieve</b><small>tenant-scoped chunks</small></div><div class="flow-arrow">→</div>
+        <div class="flow-box"><b>Assemble</b><small>policy separate from untrusted data</small></div><div class="flow-arrow">→</div>
+        <div class="flow-box"><b>Route</b><small>provider + tier + policy</small></div><div class="flow-arrow">→</div>
+        <div class="flow-box"><b>Generate</b><small>same-language draft</small></div><div class="flow-arrow">→</div>
+        <div class="flow-box"><b>Validate</b><small>citations + grounding</small></div><div class="flow-arrow">→</div>
+        <div class="flow-box"><b>Commit & stream</b><small>messages + usage atomically</small></div>
+      </div>
+      <div class="grid g3" style="margin-top:50px">
+        <div class="card"><h3>Evidence available</h3><p>Answer with validated `[n]` citations and return traceable source metadata.</p></div>
+        <div class="card"><h3>Draft invalid</h3><p>Promote/retry through the strong tier within the total request budget.</p></div>
+        <div class="card"><h3>Evidence weak</h3><p>Skip model cost and return a localized “I don't know from available information.”</p></div>
+      </div>
+      <div class="footer"><span>KNOWLEDGE IS UNTRUSTED DATA · TENANT POLICY IS TRUSTED CONTEXT</span><span>14</span></div>
+    </section>
+
+    <section class="slide" data-title="Model router">
+      <div class="topline"><div class="brand"><span class="brand-mark"><i></i><i></i><i></i></span>Relay</div><div class="slide-no">15 / 27</div></div>
+      <div class="title-row"><div class="kicker">Cost, quality, reliability</div><h2>Start cheap. Promote deliberately. Fail over only when it is safe.</h2></div>
+      <div class="model-groups">
+        <div class="model-group"><div class="icon lime">$</div><h3>Low-cost default</h3><div class="pill-list"><span class="pill">grounded FAQ</span><span class="pill">simple intent</span><span class="pill">normal latency</span></div><div class="note">Configured IDs and prices—never hard-coded domain logic.</div></div>
+        <div class="model-group center-shield"><div><div class="shield">R</div><h3>Observable router</h3><p style="margin-top:12px;color:#bad0d1;line-height:1.45">Weak retrieval · complex query · tenant policy · validation retry · provider health</p><div class="pill-list" style="justify-content:center;margin-top:24px"><span class="chip">timeouts</span><span class="chip">retry budget</span><span class="chip">circuit breaker</span></div></div></div>
+        <div class="model-group"><div class="icon">↑</div><h3>Strong / next target</h3><div class="pill-list"><span class="pill">multi-step</span><span class="pill">invalid draft</span><span class="pill">policy-required</span></div><div class="note">Streaming never switches providers after text has been emitted.</div></div>
+      </div>
+      <div class="footer"><span>ROUTING REASONS + ATTEMPT HISTORY ARE PERSISTED WITHOUT SECRETS</span><span>15</span></div>
+    </section>
+
+    <section class="slide" data-title="BYOK security">
+      <div class="topline"><div class="brand"><span class="brand-mark"><i></i><i></i><i></i></span>Relay</div><div class="slide-no">16 / 27</div></div>
+      <div class="title-row"><div class="kicker">Optional tenant BYOK</div><h2>Customer-controlled provider access without turning secrets into product data.</h2></div>
+      <div class="flow-row" style="grid-template-columns:repeat(9,auto);margin-top:62px">
+        <div class="flow-box"><b>Write once</b><small>owner/admin submits key over TLS</small></div><div class="flow-arrow">→</div>
+        <div class="flow-box"><b>Envelope encrypt</b><small>AES-256-GCM + per-credential data key</small></div><div class="flow-arrow">→</div>
+        <div class="flow-box"><b>Store metadata</b><small>ciphertext, wrapped key, fingerprint, suffix</small></div><div class="flow-arrow">→</div>
+        <div class="flow-box"><b>Resolve JIT</b><small>decrypt only at provider-call boundary</small></div><div class="flow-arrow">→</div>
+        <div class="flow-box"><b>Rotate / revoke</b><small>state reloaded; revocation immediate</small></div>
+      </div>
+      <div class="grid g3" style="margin-top:52px">
+        <div class="card"><h3>platform_only</h3><p>Default onboarding path. No tenant secret required.</p></div>
+        <div class="card"><h3>tenant_first + explicit fallback</h3><p>Tenant targets first; platform spend only with explicit consent.</p></div>
+        <div class="card"><h3>tenant_only</h3><p>Fails safely when unavailable or revoked—never spends platform credentials silently.</p></div>
+      </div>
+      <div class="note">Raw keys are never returned, logged, cached, queued, stored in browser storage, or included in prompts. Arbitrary provider URLs and embedding BYOK are intentionally excluded.</div>
+      <div class="footer"><span>MASKED RESPONSES · FIXED APPROVED ENDPOINTS · TENANT RLS</span><span>16</span></div>
+    </section>
+
+    <section class="slide dark" data-title="Conversations and streaming">
+      <div class="grain"></div><div class="topline"><div class="brand"><span class="brand-mark"><i></i><i></i><i></i></span>Relay</div><div class="slide-no">17 / 27</div></div>
+      <div class="title-row"><div class="kicker">Conversation continuity</div><h2>Enough memory for coherence—without inventing a permanent customer profile.</h2></div>
+      <div class="two-panel" style="margin-top:48px">
+        <div class="card" style="padding:32px"><h3>Context window</h3><div style="display:flex;gap:12px;margin-top:25px;align-items:end"><div style="width:31%;height:160px;background:rgba(147,228,200,.16);border:1px solid rgba(147,228,200,.3);border-radius:18px;padding:17px"><b>Rolling summary</b><p style="font-size:13px">older state, compacted</p></div><div style="width:69%;height:250px;background:rgba(215,244,91,.13);border:1px solid rgba(215,244,91,.35);border-radius:18px;padding:17px"><b>Recent verbatim turns</b><p style="font-size:13px">bounded, ordered, tenant-owned</p></div></div><div class="note">Retention refreshes on activity; purge hooks are tenant-scoped.</div></div>
+        <div><div class="grid g2">
+          <div class="card"><div class="icon">SSE</div><h3>Ready → delta → replace</h3><p>Incremental content, citation, completion, and safe error events.</p></div>
+          <div class="card"><div class="icon lime">×</div><h3>Cancellation</h3><p>Disconnect stops generation and avoids partial message persistence.</p></div>
+          <div class="card"><div class="icon mint">#</div><h3>Ordered writes</h3><p>Row-locked sequence allocation prevents conversation races.</p></div>
+          <div class="card"><div class="icon sky">$</div><h3>Atomic usage</h3><p>Messages and all incurred model usage/cost commit together.</p></div>
+        </div><p class="lead" style="font-size:20px;margin-top:28px">Consent-aware long-term profile memory is deferred because it needs view, correction, deletion, retention, residency, and identity-linking rules.</p></div>
+      </div>
+      <div class="footer"><span>RECENT WINDOW + SERVER SUMMARY · NOT SURVEILLANCE MEMORY</span><span>17</span></div>
+    </section>
+
+    <section class="slide" data-title="Product experience">
+      <div class="topline"><div class="brand"><span class="brand-mark"><i></i><i></i><i></i></span>Relay</div><div class="slide-no">18 / 27</div></div>
+      <div class="title-row" style="margin-top:24px"><div class="kicker">Dashboard + widget</div><h2>A rich control plane and a tiny customer-site runtime.</h2></div>
+      <div class="two-panel" style="grid-template-columns:1.3fr .7fr;margin-top:32px">
+        <div><div class="screenshot-shell"><img src="assets/relay-landing.png" alt="Relay product experience"></div><div class="pill-list" style="margin-top:22px"><span class="pill">auth + organization</span><span class="pill">bot CRUD</span><span class="pill">knowledge status</span><span class="pill">playground + usage</span><span class="pill">provider settings</span><span class="pill">widget config</span></div></div>
+        <div class="widget-mock"><div class="chat-head"><div><b>Relay Support</b><small style="display:block;opacity:.7;margin-top:4px">Typically replies in moments</small></div><span>×</span></div><div class="bubble agent">How can we help today?</div><div class="bubble user">How many days do I have to request a refund?</div><div class="bubble agent">Customers have 30 days to request a refund. <b>[1]</b><div class="cite">[1] Refund policy · cited source</div></div><div style="margin-top:auto;border:1px solid var(--line);border-radius:14px;padding:14px;color:var(--muted);font-size:14px">Type your question…</div></div>
+      </div>
+      <div class="footer"><span>SHADOW DOM · ACCESSIBLE · RESPONSIVE · 571 B GZIP LOADER</span><span>18</span></div>
+    </section>
+
+    <section class="slide" data-title="Data model">
+      <div class="topline"><div class="brand"><span class="brand-mark"><i></i><i></i><i></i></span>Relay</div><div class="slide-no">19 / 27</div></div>
+      <div class="title-row"><div class="kicker">Data model</div><h2>One relational spine, grouped by responsibility.</h2></div>
+      <div class="model-groups" style="grid-template-columns:repeat(4,1fr);margin-top:45px">
+        <div class="model-group"><div class="icon">ID</div><h3>Identity</h3><div class="pill-list"><span class="pill">users</span><span class="pill">tenants</span><span class="pill">tenant_memberships</span><span class="pill">refresh_tokens</span></div></div>
+        <div class="model-group"><div class="icon lime">KB</div><h3>Knowledge</h3><div class="pill-list"><span class="pill">knowledge_sources</span><span class="pill">documents</span><span class="pill">document_chunks</span><span class="pill">ingestion_jobs</span></div></div>
+        <div class="model-group"><div class="icon mint">AI</div><h3>Agent runtime</h3><div class="pill-list"><span class="pill">bots</span><span class="pill">bot_keys</span><span class="pill">conversations</span><span class="pill">messages</span><span class="pill">usage_events</span></div></div>
+        <div class="model-group"><div class="icon sky">PK</div><h3>Provider control</h3><div class="pill-list"><span class="pill">provider_credentials</span><span class="pill">provider_policies</span></div><div class="note">All tenant-owned tables carry `tenant_id`; UUIDs + UTC timestamps throughout.</div></div>
+      </div>
+      <div class="grid g3" style="margin-top:45px">
+        <div class="chip"><span class="dot"></span>Composite tenant foreign keys</div><div class="chip"><span class="dot" style="background:var(--lime)"></span>Append-only usage events</div><div class="chip"><span class="dot" style="background:var(--mint)"></span>Versioned knowledge activation</div>
+      </div>
+      <div class="footer"><span>11 REVERSIBLE ALEMBIC MIGRATIONS</span><span>19</span></div>
+    </section>
+
+    <section class="slide dark" data-title="API and boundaries">
+      <div class="grain"></div><div class="topline"><div class="brand"><span class="brand-mark"><i></i><i></i><i></i></span>Relay</div><div class="slide-no">20 / 27</div></div>
+      <div class="title-row"><div class="kicker">API surface</div><h2>Versioned REST for control. SSE for conversations. Small interfaces for change.</h2></div>
+      <div class="grid g4" style="margin-top:43px">
+        <div class="card"><h3>/auth · /me</h3><p>Register, login, refresh, tenant-bound identity.</p></div>
+        <div class="card"><h3>/bots · /keys</h3><p>Bot lifecycle, allowed origins, key rotation and revocation.</p></div>
+        <div class="card"><h3>/sources</h3><p>File, website, manual Q&A, status, edit, delete.</p></div>
+        <div class="card"><h3>/playground</h3><p>Private session creation and grounded SSE messages.</p></div>
+        <div class="card"><h3>/widget</h3><p>Anonymous session and message streaming with exact-origin validation.</p></div>
+        <div class="card"><h3>/providers</h3><p>Write-only credential lifecycle and explicit routing policy.</p></div>
+        <div class="card"><h3>/usage</h3><p>Tenant summaries by bot, time range, operation, provider and model.</p></div>
+        <div class="card"><h3>/health</h3><p>Liveness and dependency-aware readiness for operations.</p></div>
+      </div>
+      <div class="note">Current shared TypeScript contracts are maintained in the monorepo; automatic OpenAPI generation/diff checking is a documented release-infrastructure gap.</div>
+      <div class="footer"><span>PROVIDER-SPECIFIC PAYLOADS STAY INSIDE ADAPTERS</span><span>20</span></div>
+    </section>
+
+    <section class="slide" data-title="Quality gates">
+      <div class="topline"><div class="brand"><span class="brand-mark"><i></i><i></i><i></i></span>Relay</div><div class="slide-no">21 / 27</div></div>
+      <div class="title-row"><div class="kicker">Testing and acceptance</div><h2>We used failures as architecture feedback—not as boxes to bypass.</h2></div>
+      <div class="grid g4" style="margin-top:40px">
+        <div class="metric"><strong>86</strong><span>live PostgreSQL/pgvector/Redis tests</span></div>
+        <div class="metric lime-border"><strong>6/6</strong><span>agent quality + safety evaluations</span></div>
+        <div class="metric mint-border"><strong>3/3</strong><span>critical Playwright browser flows</span></div>
+        <div class="metric sky-border"><strong>2/2</strong><span>final CI jobs green</span></div>
+      </div>
+      <div class="two-panel" style="margin-top:44px">
+        <div class="card"><h3>Release-blocking proofs</h3><div class="pill-list" style="margin-top:20px"><span class="pill">restricted DB role</span><span class="pill">RLS cross-tenant</span><span class="pill">append-only usage</span><span class="pill">pgvector branch</span><span class="pill">migrations</span><span class="pill">BYOK redaction</span><span class="pill">prompt injection</span></div></div>
+        <div class="card"><h3>End-to-end proofs</h3><div class="pill-list" style="margin-top:20px"><span class="pill">register → bot</span><span class="pill">all source types</span><span class="pill">grounded citation</span><span class="pill">widget chat</span><span class="pill">tenant B denied</span><span class="pill">BYOK lifecycle</span></div></div>
+      </div>
+      <div class="note">Final evidence run: GitHub Actions `31212237732`; documentation/handoff revalidation run `31213202513` also passed.</div>
+      <div class="footer"><span>RUFF · STRICT MYPY · PYTEST · ESLINT · TSC · PLAYWRIGHT</span><span>21</span></div>
+    </section>
+
+    <section class="slide lime" data-title="Performance">
+      <div class="topline"><div class="brand"><span class="brand-mark"><i></i><i></i><i></i></span>Relay</div><div class="slide-no">22 / 27</div></div>
+      <div class="title-row"><div class="kicker" style="color:var(--ink)">Measured performance</div><h2>Application overhead is comfortably inside the MVP budgets.</h2></div>
+      <div class="grid g4" style="margin-top:37px">
+        <div class="metric"><strong>3.05</strong><span>ms · liveness p95</span></div>
+        <div class="metric"><strong>5.39</strong><span>ms · authenticated /me p95</span></div>
+        <div class="metric"><strong>6.01</strong><span>ms · bot list p95</span></div>
+        <div class="metric"><strong>26.68</strong><span>ms · SSE chat total p95</span></div>
+      </div>
+      <div class="two-panel" style="margin-top:34px">
+        <div class="card" style="background:var(--ink);color:white"><h3>First ready p95</h3><div style="font-size:94px;font-weight:900;letter-spacing:-.07em;margin-top:28px">10.58<span style="font-size:28px"> ms</span></div><p style="color:#b7ccce">30 sequential warm samples in production Compose.</p></div>
+        <div class="card" style="background:white"><h3>Manual source → ready</h3><div style="font-size:94px;font-weight:900;letter-spacing:-.07em;margin-top:28px">543.22<span style="font-size:28px"> ms</span></div><p>Includes API create, Redis queue, worker processing, embedding, and activation.</p></div>
+      </div>
+      <div class="note" style="background:rgba(255,255,255,.55)">Deterministic providers isolate application overhead. Live-provider latency, cold starts, large corpora, and sustained concurrency still require host-specific load testing.</div>
+      <div class="footer" style="color:var(--ink)"><span>30-SAMPLE PRODUCTION-COMPOSE REPORT</span><span>22</span></div>
+    </section>
+
+    <section class="slide dark" data-title="Deployment and operations">
+      <div class="grain"></div><div class="topline"><div class="brand"><span class="brand-mark"><i></i><i></i><i></i></span>Relay</div><div class="slide-no">23 / 27</div></div>
+      <div class="title-row"><div class="kicker">Production topology</div><h2>Reproducible services, a one-shot migration gate, and rehearsed recovery.</h2></div>
+      <div class="diagram" style="display:grid;grid-template-columns:230px 1fr 240px;gap:25px;margin-top:50px;align-items:center">
+        <div class="stack"><div class="node accent"><strong>TLS / SSE edge</strong><small>selected host / reverse proxy</small></div><div class="node"><strong>Customer traffic</strong><small>dashboard + widget</small></div></div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:15px">
+          <div class="node" style="min-height:170px"><strong>Web</strong><small>Next.js standalone image</small></div>
+          <div class="node" style="min-height:170px"><strong>API</strong><small>FastAPI runtime role</small></div>
+          <div class="node" style="min-height:170px"><strong>Worker</strong><small>ARQ ingestion process</small></div>
+          <div class="node" style="min-height:170px"><strong>Widget</strong><small>static loader + module</small></div>
+          <div class="node accent" style="grid-column:1/5"><strong>Migration job → application services</strong><small>schema first, then health/readiness gates</small></div>
+          <div class="node"><strong>PostgreSQL</strong><small>private + persistent</small></div>
+          <div class="node"><strong>Redis</strong><small>private + authenticated</small></div>
+          <div class="node" style="grid-column:3/5"><strong>Uploads volume</strong><small>S3 adapter is the production next step</small></div>
+        </div>
+        <div class="stack"><div class="node"><strong>Health + logs</strong><small>liveness, readiness, structured traces</small></div><div class="node"><strong>Backup / restore</strong><small>custom dump restored in isolation</small></div><div class="node"><strong>Rollback rehearsal</strong><small>same immutable tag restarted healthy</small></div></div>
+      </div>
+      <div class="footer"><span>DOCKER-FIRST · ENV-CONFIGURED · HOSTING-AGNOSTIC</span><span>23</span></div>
+    </section>
+
+    <section class="slide" data-title="Decisions and trade-offs">
+      <div class="topline"><div class="brand"><span class="brand-mark"><i></i><i></i><i></i></span>Relay</div><div class="slide-no">24 / 27</div></div>
+      <div class="title-row" style="margin-top:25px"><div class="kicker">Key decisions</div><h2>What we optimized for—and what we intentionally postponed.</h2></div>
+      <div class="decision-table">
+        <div class="decision-row"><strong>Multi-tenant from day one</strong><span>Explicit scope + RLS everywhere</span><span class="why">More upfront rigor; avoids unsafe retrofitting.</span></div>
+        <div class="decision-row"><strong>Channel-neutral core</strong><span>Web widget first; thin future adapters</span><span class="why">Ship one channel without coupling the agent to it.</span></div>
+        <div class="decision-row"><strong>PostgreSQL + pgvector</strong><span>Relational + vector + lexical in one system</span><span class="why">Operational simplicity before specialized search scale.</span></div>
+        <div class="decision-row"><strong>Async ingestion</strong><span>Redis-backed worker</span><span class="why">Reliable long work; eventual readiness instead of request blocking.</span></div>
+        <div class="decision-row"><strong>Grounding before fluency</strong><span>Citation validation + safe fallback</span><span class="why">Refusal is better than an unsupported answer.</span></div>
+        <div class="decision-row"><strong>Platform default + optional BYOK</strong><span>Explicit routing modes</span><span class="why">Easy onboarding and customer control without silent cost transfer.</span></div>
+        <div class="decision-row"><strong>Docker / config boundaries</strong><span>Hosting and model IDs remain replaceable</span><span class="why">Vendor choices are still open; keep decisions reversible.</span></div>
+      </div>
+      <div class="footer"><span>REVERSIBLE DECISIONS WHILE PROVIDERS AND HOSTING REMAIN OPEN</span><span>24</span></div>
+    </section>
+
+    <section class="slide" data-title="Live demo">
+      <div class="topline"><div class="brand"><span class="brand-mark"><i></i><i></i><i></i></span>Relay</div><div class="slide-no">25 / 27</div></div>
+      <div class="title-row" style="margin-top:26px"><div class="kicker">Recommended live demo</div><h2>Show the product and its trust boundaries in one narrative.</h2></div>
+      <div class="demo-list">
+        <div><span>Register organization A and create a bot.</span></div><div><span>Add file, bounded website, and manual Q&A sources.</span></div>
+        <div><span>Watch queued → processing → ready worker states.</span></div><div><span>Ask a supported question; show stream + citation.</span></div>
+        <div><span>Ask an unsupported question; show safe fallback.</span></div><div><span>Configure appearance/origin and copy widget snippet.</span></div>
+        <div><span>Chat through the embedded Shadow DOM widget.</span></div><div><span>Add, mask, verify, route, rotate, and revoke BYOK.</span></div>
+        <div><span>Sign in as tenant B; prove tenant A data returns nothing.</span></div><div><span>Close with health, usage, restore, CI, and image evidence.</span></div>
+      </div>
+      <div class="footer"><span>15–20 MINUTE PRODUCT + PLATFORM WALKTHROUGH</span><span>25</span></div>
+    </section>
+
+    <section class="slide dark" data-title="Roadmap and gaps">
+      <div class="grain"></div><div class="topline"><div class="brand"><span class="brand-mark"><i></i><i></i><i></i></span>Relay</div><div class="slide-no">26 / 27</div></div>
+      <div class="title-row" style="margin-top:25px"><div class="kicker">What comes next</div><h2>Phase 1 is accepted. Production launch is a separate decision.</h2></div>
+      <div class="roadmap">
+        <div class="phase current"><b>Phase 1 · complete</b><h3>Working web MVP</h3><ul><li>Tenancy, auth, roles</li><li>Knowledge + RAG</li><li>Provider routing + BYOK</li><li>Dashboard + widget</li><li>CI + production acceptance</li></ul></div>
+        <div class="phase"><b>Phase 2 · proposed</b><h3>Reliability & channels</h3><ul><li>Managed S3 + KMS</li><li>Real multi-provider redundancy</li><li>Metrics and alerts</li><li>WhatsApp / Telegram / email</li><li>Consent-aware durable memory</li></ul></div>
+        <div class="phase"><b>Phase 3 · later</b><h3>Business & humans</h3><ul><li>Stripe and quotas</li><li>Platform admin</li><li>Human inbox</li><li>Assignment / takeover</li><li>Account-management depth</li></ul></div>
+        <div class="phase"><b>Before traffic</b><h3>Launch prerequisites</h3><ul><li>Hosting + budget selection</li><li>TLS/SSE edge review</li><li>Managed storage/KMS</li><li>Legal + security sign-off</li><li>Load / accessibility / pen test</li></ul></div>
+      </div>
+      <div class="footer"><span>TECHNICALLY ACCEPTED · PRODUCTION ROLLOUT CONDITIONAL</span><span>26</span></div>
+    </section>
+
+    <section class="slide coral" data-title="Closing">
+      <div class="topline"><div class="brand"><span class="brand-mark"><i></i><i></i><i></i></span>Relay</div><div class="slide-no">27 / 27</div></div>
+      <div class="title-row" style="margin-top:130px;max-width:1180px"><div class="kicker" style="color:var(--ink)">The takeaway</div><h1 style="font-size:86px">We did not build “a chatbot.” We built the foundation of a trustworthy support product.</h1><div class="rule" style="background:var(--ink)"></div><p class="lead" style="color:var(--ink)">Grounded answers. Strict tenant isolation. Cost-aware routing. Optional customer-controlled providers. A fast product surface. And evidence that the complete slice works.</p></div>
+      <div style="position:absolute;right:100px;bottom:102px;background:var(--ink);color:white;padding:22px 28px;border-radius:18px;font-size:20px;font-weight:850">Next decision → production readiness priorities</div>
+      <div class="footer" style="color:var(--ink)"><span>QUESTIONS / DISCUSSION</span><span>27</span></div>
+    </section>
+  </main>
+  <div class="nav"><button id="prev" aria-label="Previous slide">←</button><button id="next" aria-label="Next slide">→</button></div>
+  <div class="progress" id="progress"></div>
+  <script>
+    const slides = [...document.querySelectorAll('.slide')];
+    const params = new URLSearchParams(location.search);
+    let current = Math.max(0, Math.min(slides.length - 1, Number(params.get('slide') || 1) - 1));
+    function show(index, updateUrl = true) {
+      current = (index + slides.length) % slides.length;
+      slides.forEach((slide, i) => slide.classList.toggle('active', i === current));
+      document.title = `${String(current + 1).padStart(2, '0')} · ${slides[current].dataset.title} — Relay`;
+      document.getElementById('progress').style.width = `${((current + 1) / slides.length) * 100}%`;
+      if (updateUrl) history.replaceState(null, '', `?slide=${current + 1}`);
+    }
+    document.getElementById('prev').addEventListener('click', () => show(current - 1));
+    document.getElementById('next').addEventListener('click', () => show(current + 1));
+    addEventListener('keydown', (event) => {
+      if (['ArrowRight', 'PageDown', ' '].includes(event.key)) show(current + 1);
+      if (['ArrowLeft', 'PageUp'].includes(event.key)) show(current - 1);
+      if (event.key === 'Home') show(0);
+      if (event.key === 'End') show(slides.length - 1);
+    });
+    show(current, false);
+  </script>
+</body>
+</html>

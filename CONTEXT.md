@@ -272,6 +272,12 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 - Final GitHub Actions run `31212237732` passed both jobs: 86 live PostgreSQL/pgvector/Redis tests, 6/6 agent evaluation, 3/3 Playwright flows in 24.9 seconds, production image/Compose boot and health, restricted runtime-role verification, isolated dump/restore, and immutable-tag service recovery.
 - The final 30-sample report measured endpoint p95 values at or below 6.01 ms, playground SSE total p95 at 26.68 ms, first-ready p95 at 10.58 ms, and manual-source ready time at 543.22 ms with deterministic providers. `docs/mvp-acceptance.md` records artifacts, gaps, demo, Phase 2 priorities, and the conditional production rollout decision.
 
+### Session 17 — Codex
+
+- Produced a 27-slide Relay team showcase covering the product problem, personas, complete feature map, architecture, technology choices, repository structure, tenant isolation, auth, ingestion, retrieval, grounded orchestration, provider routing, BYOK custody, streaming, UX, data model, API surface, acceptance evidence, measured performance, deployment, trade-offs, demo flow, gaps, and roadmap.
+- Added the self-contained HTML source, an actual Relay product screenshot, a 27-page PDF, a 27-slide 16:9 PPTX, a reproducible PPTX builder, and a Bengali presenter guide with timing, demo checklist, and Q&A anchors.
+- Rendered every slide in Microsoft Edge through Playwright, visually inspected all 27 slides in contact sheets plus a full-resolution clipping correction, and structurally verified both deliverables. The final PDF has 27 pages; the PPTX has 27 slides at 13.333 × 7.5 inches.
+
 ## 7. Open items
 
 | ID | Item | Handling now |
@@ -287,7 +293,7 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 **Next task:** None scheduled. The user must promote and split a Later task bucket before Phase 2 implementation starts.
 **Blocked on:** No implementation blocker. Production traffic remains blocked on hosting/budget selection and named release-owner/security approval of the prerequisites in `docs/mvp-acceptance.md`.
 
-**Pushed state:** `origin/main` includes all T-062 implementation and acceptance documentation. Evidence run `31212237732` and documentation run `31212933992` both passed the full live/browser and Production Compose jobs.
+**Pushed state:** `origin/main` includes the T-062 acceptance baseline and this 27-slide presentation delivery at the current handoff.
 **Uncommitted work:** None known at handoff.
-**Verification:** Local Ruff/strict mypy/unit and web/widget checks pass; the final widget build and Playwright skill smoke check pass. Remote run `31212237732` passed 86 live tests, 6/6 evaluation, 3/3 browser flows, production Compose health, performance measurement, backup/restore, and recovery; run `31212933992` revalidated the finalized acceptance documentation commit.
+**Verification:** The presentation was rendered in Microsoft Edge with Playwright and visually inspected across all 27 slides. Structural checks confirm 27 PDF pages and 27 PPTX slides at 16:9. The established product baseline remains run `31212237732`: 86 live tests, 6/6 evaluation, 3/3 browser flows, production Compose health, performance measurement, backup/restore, and recovery.
 **Gotchas:** This workstation still lacks Docker/PostgreSQL/pgvector, so live database checks run in CI. Plaintext tenant keys must never be stored, logged, cached, queued, or re-displayed; platform fallback stays explicit; arbitrary provider URLs and embedding BYOK are excluded.
