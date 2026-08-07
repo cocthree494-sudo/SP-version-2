@@ -287,7 +287,7 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 **Next task:** None scheduled. The user must promote and split a Later task bucket before Phase 2 implementation starts.
 **Blocked on:** No implementation blocker. Production traffic remains blocked on hosting/budget selection and named release-owner/security approval of the prerequisites in `docs/mvp-acceptance.md`.
 
-**Pushed state:** `origin/main` ends at `c83d67a`; final CI run `31212237732` passed both the full live/browser job and Production Compose acceptance job.
-**Uncommitted work:** Only the final T-062 acceptance/task/handoff documentation update is present; no unrelated work is known.
-**Verification:** Local Ruff/strict mypy/unit and web/widget checks pass; the final widget build and Playwright skill smoke check pass. Remote run `31212237732` passed 86 live tests, 6/6 evaluation, 3/3 browser flows, production Compose health, performance measurement, backup/restore, and recovery.
+**Pushed state:** `origin/main` includes all T-062 implementation and acceptance documentation. Evidence run `31212237732` and documentation run `31212933992` both passed the full live/browser and Production Compose jobs.
+**Uncommitted work:** None known at handoff.
+**Verification:** Local Ruff/strict mypy/unit and web/widget checks pass; the final widget build and Playwright skill smoke check pass. Remote run `31212237732` passed 86 live tests, 6/6 evaluation, 3/3 browser flows, production Compose health, performance measurement, backup/restore, and recovery; run `31212933992` revalidated the finalized acceptance documentation commit.
 **Gotchas:** This workstation still lacks Docker/PostgreSQL/pgvector, so live database checks run in CI. Plaintext tenant keys must never be stored, logged, cached, queued, or re-displayed; platform fallback stays explicit; arbitrary provider URLs and embedding BYOK are excluded.
