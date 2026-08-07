@@ -91,3 +91,135 @@ jobs:
           name: playwright-acceptance-${{ github.sha }}
           path: output/playwright*
           if-no-files-found: ignore
+
+  production-acceptance:
+    name: Production Compose acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      COMPOSE_PROJECT_NAME: support-agent-acceptance
+      COMPOSE_FILE: infra/compose.production.yaml
+      POSTGRES_DB: support_agent
+      POSTGRES_USER: support_agent
+      POSTGRES_PASSWORD: ci_owner_password_2026
+      APP_DATABASE_URL: postgresql+asyncpg://support_agent_app:ci_app_password_2026@postgres:5432/support_agent
+      MIGRATION_DATABASE_URL: postgresql+asyncpg://support_agent:ci_owner_password_2026@postgres:5432/support_agent
+      REDIS_PASSWORD: ci_redis_password_2026
+      REDIS_URL: redis://:ci_redis_password_2026@redis:6379/0
+      AUTH_JWT_SECRET: ci-production-acceptance-jwt-secret-2026-long
+      AI_PROVIDER_MODE: deterministic
+      AI_PROVIDER_ID: deterministic
+      LLM_MODEL_ID: deterministic-chat-v1
+      DETERMINISTIC_LLM_RESPONSE: "[1] Deterministic support response."
+      EMBEDDING_PROVIDER_ID: deterministic
+      EMBEDDING_MODEL_ID: deterministic-embedding-v1
+      PUBLIC_API_URL: http://127.0.0.1:18000
+      PUBLIC_WIDGET_LOADER_URL: http://127.0.0.1:18080/loader.js
+      API_PUBLIC_PORT: 18000
+      WEB_PUBLIC_PORT: 13000
+      WIDGET_PUBLIC_PORT: 18080
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install JavaScript dependencies
+        run: npm ci
+
+      - name: Build and boot production Compose
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp .env.production.example .env.acceptance
+          python - <<'PY'
+          from pathlib import Path
+          import os
+          path = Path('.env.acceptance')
+          values = {
+              'SUPPORT_AGENT_IMAGE_TAG': 'acceptance',
+              'POSTGRES_DB': os.environ['POSTGRES_DB'],
+              'POSTGRES_USER': os.environ['POSTGRES_USER'],
+              'POSTGRES_PASSWORD': os.environ['POSTGRES_PASSWORD'],
+              'MIGRATION_DATABASE_URL': os.environ['MIGRATION_DATABASE_URL'],
+              'APP_DATABASE_URL': os.environ['APP_DATABASE_URL'],
+              'REDIS_PASSWORD': os.environ['REDIS_PASSWORD'],
+              'REDIS_URL': os.environ['REDIS_URL'],
+              'AUTH_JWT_SECRET': os.environ['AUTH_JWT_SECRET'],
+              'AI_PROVIDER_MODE': os.environ['AI_PROVIDER_MODE'],
+              'AI_PROVIDER_ID': os.environ['AI_PROVIDER_ID'],
+              'LLM_MODEL_ID': os.environ['LLM_MODEL_ID'],
+              'DETERMINISTIC_LLM_RESPONSE': os.environ['DETERMINISTIC_LLM_RESPONSE'],
+              'EMBEDDING_PROVIDER_ID': os.environ['EMBEDDING_PROVIDER_ID'],
+              'EMBEDDING_MODEL_ID': os.environ['EMBEDDING_MODEL_ID'],
+              'PUBLIC_API_URL': os.environ['PUBLIC_API_URL'],
+              'PUBLIC_WIDGET_LOADER_URL': os.environ['PUBLIC_WIDGET_LOADER_URL'],
+              'API_PUBLIC_PORT': os.environ['API_PUBLIC_PORT'],
+              'WEB_PUBLIC_PORT': os.environ['WEB_PUBLIC_PORT'],
+              'WIDGET_PUBLIC_PORT': os.environ['WIDGET_PUBLIC_PORT'],
+          }
+          lines = []
+          for line in path.read_text().splitlines():
+              key = line.split('=', 1)[0] if '=' in line and not line.startswith('#') else None
+              lines.append(f"{key}={values[key]}" if key in values else line)
+          path.write_text('\n'.join(lines) + '\n')
+          PY
+          docker compose --env-file .env.acceptance -f "$COMPOSE_FILE" build
+          docker compose --env-file .env.acceptance -f "$COMPOSE_FILE" up -d --wait
+          curl --fail --retry 20 --retry-delay 2 http://127.0.0.1:18000/health/live
+          curl --fail --retry 20 --retry-delay 2 http://127.0.0.1:18000/health/ready
+          curl --fail --retry 20 --retry-delay 2 http://127.0.0.1:18080/health
+
+      - name: Verify runtime role and measure performance
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose --env-file .env.acceptance -f "$COMPOSE_FILE" exec -T postgres sh -c \
+            'PGPASSWORD="$POSTGRES_PASSWORD" psql -U support_agent -d support_agent -Atc "SELECT rolcanlogin = true AND rolsuper = false AND rolbypassrls = false FROM pg_roles WHERE rolname = '\''support_agent_app'\''"' | grep -qx t
+          ACCEPTANCE_API_URL=http://127.0.0.1:18000 ACCEPTANCE_SAMPLE_COUNT=30 npm run acceptance:performance
+
+      - name: Run backup and isolated restore drill
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p output
+          docker compose --env-file .env.acceptance -f "$COMPOSE_FILE" exec -T postgres sh -c \
+            'PGPASSWORD="$POSTGRES_PASSWORD" pg_dump -U support_agent -d support_agent --format=custom' > output/acceptance-backup.dump
+          docker compose --env-file .env.acceptance -f "$COMPOSE_FILE" exec -T postgres sh -c \
+            'PGPASSWORD="$POSTGRES_PASSWORD" createdb -U support_agent support_agent_restore'
+          docker compose --env-file .env.acceptance -f "$COMPOSE_FILE" exec -T postgres sh -c \
+            'PGPASSWORD="$POSTGRES_PASSWORD" pg_restore -U support_agent -d support_agent_restore --exit-on-error' < output/acceptance-backup.dump
+          docker compose --env-file .env.acceptance -f "$COMPOSE_FILE" exec -T postgres sh -c \
+            'PGPASSWORD="$POSTGRES_PASSWORD" psql -U support_agent -d support_agent_restore -Atc "SELECT version_num FROM alembic_version"' | grep -q .
+
+      - name: Re-deploy current immutable tag (rollback rehearsal)
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose --env-file .env.acceptance -f "$COMPOSE_FILE" stop api worker web widget
+          docker compose --env-file .env.acceptance -f "$COMPOSE_FILE" up -d --wait api worker web widget
+          curl --fail --retry 20 --retry-delay 2 http://127.0.0.1:18000/health/ready
+
+      - name: Upload production acceptance artifacts and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-acceptance-${{ github.sha }}
+          path: |
+            output/acceptance-*
+            output/*.json
+          if-no-files-found: ignore
+
+      - name: Dump Compose logs on failure
+        if: failure()
+        shell: bash
+        run: docker compose --env-file .env.acceptance -f "$COMPOSE_FILE" logs --no-color
+
+      - name: Tear down production Compose
+        if: always()
+        shell: bash
+        run: docker compose --env-file .env.acceptance -f "$COMPOSE_FILE" down -v --remove-orphans

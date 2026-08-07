@@ -2,8 +2,8 @@
 
 > Read this first. This is the compact handoff document for Claude, Codex, or another coding agent. Detailed architecture is in [PLAN.md](PLAN.md); executable order is in [TASKS.md](TASKS.md).
 
-**Last updated:** 2026-08-05, Codex session
-**Status:** T-013 is complete: the full live PostgreSQL/pgvector/Redis CI gate passes. Implementation through T-050 is complete, T-051 code exists but remains unchecked, and optional tenant BYOK is scheduled next in T-046/T-055.
+**Last updated:** 2026-08-07, Codex session
+**Status:** Implementation through T-061 is complete. T-062 live tests/evaluation pass; its browser, production image/Compose, recovery, and performance acceptance gates await remote CI execution.
 
 ## 1. Project
 
@@ -266,6 +266,8 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 - Implemented T-061 reproducible multi-stage API/worker/migration, Next.js standalone, and static widget Docker images; a production Compose topology with private PostgreSQL/Redis, one-shot migrations, restricted runtime-role provisioning, health checks, persistent uploads, and loopback edge ports; plus secret-safe example configuration.
 - Added an operations runbook covering deploy order, TLS/SSE proxying, secrets and BYOK custody, backups/restores, monitoring, rollback, incident response, hosting decisions, and a measured starting capacity floor for roughly 1,000 daily users. Runtime-role Ruff and web static checks pass. Docker is unavailable on this workstation, so image/Compose builds remain a production-test gate.
 - Prepared the T-062 acceptance review with an evidence matrix, exact deferred gates, performance measurement plan, ten-step demo, known gaps/risks, Phase 2 priorities, and sign-off record. The review verdict is implementation-complete but not production-accepted; T-062 correctly remains unchecked until the user-requested joint full/live/browser/image/performance tests execute.
+- Executed the local T-062 quality gate: Ruff, strict mypy over 113 files, 69 tests passed with 16 live-only skips, web/widget lint and typecheck, production web/widget builds, and the SQLite agent evaluation passed 6/6. GitHub Actions run `31160066729` separately passed all 85 live PostgreSQL/pgvector/Redis tests and the PostgreSQL evaluation 6/6 before its browser step failed at service startup.
+- Fixed that browser startup failure by running root API/worker commands from `apps/api`. Added a production-Compose acceptance job covering image boot/health, restricted-role verification, 30-sample endpoint/chat measurements, isolated backup/restore, and immutable-tag service recovery, plus an executable performance report. These remote-only gates have not run yet, so T-062 remains unchecked.
 
 ## 7. Open items
 
@@ -279,10 +281,10 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 ## HANDOFF STATE
 
 **Last completed:** T-061 — production Docker definitions and operations runbook.
-**Next task:** **T-062 — execute the prepared MVP acceptance gates with the user.** The report is complete; full, browser, live PostgreSQL, image, restore, and performance tests remain required before checking it off.
-**Blocked on:** Nothing currently.
+**Next task:** **T-062 — run the remaining CI acceptance gates.** Live database tests/evaluation pass; browser, production image/Compose, restore/recovery, and measured performance still require one remote CI execution.
+**Blocked on:** Pushing the focused T-062 gate commit is an external action and requires explicit user authorization; Docker is unavailable locally.
 
-**Pushed state:** `origin/main` ends at `16ec1b5`; T-046 is local and has not been pushed because the current request did not authorize a push.
-**Uncommitted work:** T-062 acceptance documentation is ready for a focused partial-task commit; no implementation task before it remains unchecked.
-**Verification:** Acceptance evidence is reconciled in `docs/mvp-acceptance.md`. The required broad/live/browser/image/performance gates are explicitly pending rather than represented as passes.
+**Pushed state:** `origin/main` ends at `8e82882`; its CI run `31160066729` passed live checks/evaluation and failed before browser test execution because of the now-fixed worker import path.
+**Uncommitted work:** T-062 browser-launch fix and production acceptance automation are ready for a focused commit; no unrelated work is present.
+**Verification:** Local full checks/build and SQLite evaluation pass; live CI tests/evaluation pass. Browser/image/restore/recovery/performance results remain explicitly pending rather than represented as passes.
 **Gotchas:** This workstation still lacks Docker/PostgreSQL/pgvector, so live database checks run in CI. Plaintext tenant keys must never be stored, logged, cached, queued, or re-displayed; platform fallback stays explicit; arbitrary provider URLs and embedding BYOK are excluded.

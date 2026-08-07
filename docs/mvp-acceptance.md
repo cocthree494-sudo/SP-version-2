@@ -25,17 +25,31 @@ than treating an unrun check as a pass.
 | T-053 widget bundle | Pass | Loader 1.87 KB raw/997 B gzip; widget 25.56 KB raw/9,968 B gzip |
 | T-054 bot/migration compatibility | Pass | 7 focused bot/migration tests plus appearance round-trip |
 | T-060 test discovery | Pass | Playwright lists 3 tests; fixture server passes syntax validation |
-| Full repository lint/type/unit suite | Pending | Run `npm run check` in the joint test phase |
-| Live PostgreSQL/pgvector/Redis isolation after migrations 0010–0011 | Pending | Run CI integration matrix and schema parity against restricted role |
-| Agent quality evaluation on current head | Pending | Run `npm run eval:agent` after live migration |
-| Critical Playwright browser flow | Pending | Install Chromium, supply public `E2E_WEBSITE_URL`, run `npm run test:e2e` |
-| Production image/Compose runtime | Pending | Docker unavailable on implementation workstation; build and boot in staging |
-| Backup/restore and rollback drill | Pending | Follow `docs/operations.md` in isolated staging |
-| Performance/load budgets | Pending | Measure the workload matrix below; no estimates may be reported as results |
+| Full repository lint/type/unit suite | Pass | Local `npm run check` on 2026-08-07: Ruff, strict mypy over 113 files, 69 tests passed/16 live-only skipped, web/widget lint and typecheck |
+| Live PostgreSQL/pgvector/Redis isolation after migrations 0010–0011 | Pass | GitHub Actions run `31160066729`: migrations, restricted role, and all 85 tests passed before the browser step |
+| Agent quality evaluation on current head | Pass | GitHub Actions run `31160066729` passed PostgreSQL evaluation 6/6; local SQLite evaluation also passed 6/6 |
+| Critical Playwright browser flow | Pending | Run `31160066729` exposed `ModuleNotFoundError: app` before tests; root API/worker launch now changes into `apps/api`, awaiting CI execution |
+| Production image/Compose runtime | Pending | Automated in the new `production-acceptance` CI job; Docker remains unavailable locally, so the job must execute remotely |
+| Backup/restore and rollback drill | Pending | The CI job now performs an isolated dump/restore and immutable-tag service redeploy rehearsal; awaiting execution |
+| Performance/load budgets | Pending | `npm run acceptance:performance` records 30-sample endpoint/SSE percentiles and manual-ingestion readiness in production Compose; awaiting execution |
 | Production smoke/security review | Pending | TLS, SSE proxy, secrets/KMS, egress, alerts, canary, tenant isolation |
 
 T-062 remains unchecked until every required pending gate either passes or is
 explicitly waived by the release owner with a documented risk decision.
+
+## Execution record
+
+- GitHub Actions run `31160066729` on commit `8e82882` proved the full live
+  database/Redis suite and agent evaluation, then failed before Playwright test
+  execution because the root worker command could not import `app`.
+- The API and worker npm commands now run with `apps/api` as their working
+  directory; an import/startup check loads both FastAPI and `WorkerSettings`.
+- Local `npm run check`, `npm run build`, the 6/6 SQLite evaluation, CI YAML
+  parsing, and Node syntax checks for the fixture/performance scripts pass.
+- A production acceptance job now builds and boots Compose, verifies the
+  restricted runtime role, measures warm endpoint/chat performance, restores a
+  PostgreSQL dump into an isolated database, and rehearses immutable-tag
+  service recovery. Its results are not represented as passes until CI runs it.
 
 ## Performance measurement matrix
 

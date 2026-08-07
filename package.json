@@ -15,8 +15,8 @@
     "setup": "node scripts/setup.mjs",
     "dev": "node scripts/dev.mjs",
     "dev:apps": "concurrently --kill-others-on-fail --names api,worker,web,widget --prefix-colors blue,cyan,green,magenta \"npm:dev:api\" \"npm:dev:worker\" \"npm:dev:web\" \"npm:dev:widget\"",
-    "dev:api": "uv run --project apps/api uvicorn app.main:app --reload --host 127.0.0.1 --port 8000",
-    "dev:worker": "uv run --project apps/api arq app.workers.ingestion.WorkerSettings",
+    "dev:api": "uv run --directory apps/api uvicorn app.main:app --reload --host 127.0.0.1 --port 8000",
+    "dev:worker": "uv run --directory apps/api arq app.workers.ingestion.WorkerSettings",
     "dev:web": "npm run dev --workspace @support-agent/web",
     "dev:widget": "npm run dev --workspace @support-agent/widget",
     "infra:up": "docker compose --env-file .env -f infra/compose.yaml up -d --wait",
@@ -30,6 +30,7 @@
     "check:web": "npm run lint --workspace @support-agent/web && npm run typecheck --workspace @support-agent/web",
     "check:widget": "npm run lint --workspace @support-agent/widget && npm run typecheck --workspace @support-agent/widget",
     "eval:agent": "uv run --project apps/api python apps/api/run_agent_eval.py",
+    "acceptance:performance": "node scripts/acceptance-performance.mjs",
     "e2e:services": "concurrently --kill-others-on-fail --names api,worker,web,fixture --prefix-colors blue,cyan,green,magenta \"npm:dev:api\" \"npm:dev:worker\" \"npm:dev:web\" \"node tests/e2e/fixture-server.mjs\"",
     "test:e2e": "npm run build --workspace @support-agent/widget && playwright test -c tests/e2e/playwright.config.ts",
     "test:e2e:install": "playwright install chromium"
