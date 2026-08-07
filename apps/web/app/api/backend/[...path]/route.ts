@@ -65,11 +65,24 @@ function responseHeaders(upstream: Response): Headers {
   return headers;
 }
 
+function hasSameDashboardOrigin(request: NextRequest, origin: string | null): boolean {
+  if (!origin) return true;
+  try {
+    const parsed = new URL(origin);
+    const host = request.headers.get("host");
+    const forwardedProtocol = request.headers.get("x-forwarded-proto")?.split(",", 1)[0]?.trim();
+    const protocol = forwardedProtocol || request.nextUrl.protocol.replace(/:$/, "");
+    return Boolean(host) && parsed.host === host && parsed.protocol === `${protocol}:`;
+  } catch {
+    return false;
+  }
+}
+
 async function proxy(request: NextRequest, context: RouteContext): Promise<NextResponse> {
   if (!SAFE_METHODS.has(request.method)) {
     const relayHeader = request.headers.get("x-relay-request");
     const origin = request.headers.get("origin");
-    if (relayHeader !== "dashboard" || (origin && origin !== request.nextUrl.origin)) {
+    if (relayHeader !== "dashboard" || !hasSameDashboardOrigin(request, origin)) {
       return NextResponse.json({ detail: "Invalid dashboard request" }, { status: 403 });
     }
   }
