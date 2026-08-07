@@ -71,3 +71,23 @@ jobs:
 
       - name: Run PostgreSQL agent quality evaluation
         run: npm run eval:agent
+
+      - name: Install Chromium for acceptance browser flow
+        run: npx playwright install --with-deps chromium
+
+      - name: Run critical-path browser acceptance
+        env:
+          # The file/manual sources make the answer deterministic; example.com is
+          # a public, bounded crawl target and does not require credentials.
+          E2E_WEBSITE_URL: https://example.com/
+          DETERMINISTIC_LLM_RESPONSE: "[1] Deterministic support response."
+          DATABASE_URL: postgresql+asyncpg://support_agent_app:ci_only_app@127.0.0.1:5432/support_agent_test
+        run: npm run test:e2e
+
+      - name: Upload browser acceptance artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-acceptance-${{ github.sha }}
+          path: output/playwright*
+          if-no-files-found: ignore
