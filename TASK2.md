@@ -56,7 +56,7 @@ This file is the source of truth for Phase 2 planning and implementation order. 
   Depends on: T-072, T-073  
   Run the full provider matrix against configured test accounts/endpoints and deterministic fakes: setup, model selection, health state, normal routing, failover before first streamed text, tenant-only failure, explicit platform fallback, credential rotation/revocation, and custom-provider egress protection. Add provider-visible routing/audit metadata without exposing secrets or message content; measure setup and chat latency/error budgets; update operations, security, and user-facing setup documentation. Perform desktop/mobile browser inspection and production-like integration verification before marking the provider expansion ready.
 
-- [ ] **T-075 — Add an account menu with explicit sign-out**  
+- [x] **T-075 — Add an account menu with explicit sign-out**  
   Depends on: T-050  
   Replace the current direct sign-out behavior on the dashboard header user control and sidebar user control with one consistent account menu. Clicking the user name/avatar opens, rather than ends, the session. The menu shows the signed-in user’s display name, verified email, current organization/workspace, and role using only the authenticated session data; it provides a clearly labelled “Sign out” action as a separate final menu item. Do not expose tokens, provider secrets, tenant data outside the active organization, or authentication implementation details.
 
