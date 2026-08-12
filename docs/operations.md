@@ -31,6 +31,11 @@ uploads, AI-local settings, and test artifacts from every image context.
    Redis, and 64+ character JWT secrets. URL-encode passwords inside URLs.
 2. Decide public HTTPS names for dashboard, API, and widget host. Set
    `PUBLIC_API_URL` and `PUBLIC_WIDGET_LOADER_URL` before building the web image.
+   If social sign-in is enabled, set `OAUTH_WEB_BASE_URL` to the dashboard origin
+   and register the exact callback paths
+   `/api/auth/oauth/google/callback`, `/api/auth/oauth/microsoft/callback`, and
+   `/api/auth/oauth/github/callback` with the corresponding providers. Leave a
+   provider's client ID and secret blank to keep that provider disabled.
 3. For tenant BYOK, create a URL-safe-base64 32-byte wrapping key in KMS/Vault or
    the deployment secret manager and set `BYOK_MASTER_KEY` plus a stable version.
    Database operators should not have access to this key. Leave it unset only if
