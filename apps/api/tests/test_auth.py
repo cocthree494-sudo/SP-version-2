@@ -344,3 +344,31 @@ async def test_social_registration_uses_one_time_pkce_state_and_creates_password
     social_user = await UserRepository(auth_session).get_by_email("social@example.com")
     assert social_user is not None
     assert social_user.password_hash is None
+
+
+@pytest.mark.asyncio
+async def test_account_deletion_requires_typed_confirmation_and_releases_email(
+    auth_client: AsyncClient,
+    auth_session: AsyncSession,
+) -> None:
+    registered = await auth_client.post("/v1/auth/register", json=registration_payload())
+    token = registered.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    rejected = await auth_client.post(
+        "/v1/account/delete",
+        headers=headers,
+        json={"password": "correct horse battery staple", "confirmation": "DELETE"},
+    )
+    assert rejected.status_code == 422
+    deleted = await auth_client.post(
+        "/v1/account/delete",
+        headers=headers,
+        json={"password": "correct horse battery staple", "confirmation": "DELETE MY ACCOUNT"},
+    )
+    assert deleted.status_code == 204
+    assert await UserRepository(auth_session).get_by_email("owner@example.com") is None
+    reused = await auth_client.post(
+        "/v1/auth/register",
+        json=registration_payload(email="owner@example.com", organization_name="Reused"),
+    )
+    assert reused.status_code == 201

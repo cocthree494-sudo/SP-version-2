@@ -175,6 +175,7 @@ export const dashboardApi = {
       { method: "DELETE" },
     ),
   getProviderPolicy: () => dashboardRequest<ProviderPolicyResponse>("/providers/policy"),
+  deleteAccount: (password: string) => dashboardRequest<void>("/account/delete", { method: "POST", body: JSON.stringify({ password, confirmation: "DELETE MY ACCOUNT" }) }),
   updateProviderPolicy: (mode: ProviderRoutingMode, credentialOrder: string[]) =>
     dashboardRequest<ProviderPolicyResponse>("/providers/policy", {
       method: "PATCH",

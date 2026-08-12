@@ -141,9 +141,7 @@ class AuthService:
             return result
         except IntegrityError as exc:
             await self.session.rollback()
-            raise RegistrationConflictError(
-                "Email or organization slug is already in use"
-            ) from exc
+            raise RegistrationConflictError("Email or organization slug is already in use") from exc
 
     async def login(self, request: LoginRequest) -> AuthTokens:
         user = await self.users.get_by_email(str(request.email))
@@ -152,9 +150,8 @@ class AuthService:
             await to_thread.run_sync(_verify_against_dummy, password)
             raise InvalidCredentialsError("Invalid email, password, or organization")
 
-        verified = (
-            user.password_hash is not None
-            and await to_thread.run_sync(verify_password, password, user.password_hash)
+        verified = user.password_hash is not None and await to_thread.run_sync(
+            verify_password, password, user.password_hash
         )
         if not verified or user.status is not UserStatus.ACTIVE:
             raise InvalidCredentialsError("Invalid email, password, or organization")
@@ -175,6 +172,31 @@ class AuthService:
         result = await self._create_session(user_id=user.id, tenant_id=tenant.id)
         await self.session.commit()
         return result
+
+    async def delete_account(
+        self,
+        *,
+        user: User,
+        tenant: Tenant,
+        membership: TenantMembership,
+        password: str,
+        confirmation: str,
+    ) -> None:
+        if confirmation != "DELETE MY ACCOUNT":
+            raise InvalidCredentialsError("Type DELETE MY ACCOUNT to confirm account deletion")
+        if user.password_hash is None or not await to_thread.run_sync(
+            verify_password, password, user.password_hash
+        ):
+            raise InvalidCredentialsError("Recent authentication is required before deletion")
+        memberships = await AuthMembershipRepository(self.session).list_for_login(user_id=user.id)
+        if membership.role is MembershipRole.OWNER and len(memberships) == 1:
+            await self.session.delete(tenant)
+        else:
+            await self.session.delete(membership)
+            if user.memberships:
+                user.memberships = [item for item in user.memberships if item.id != membership.id]
+        await self.session.delete(user)
+        await self.session.commit()
 
     async def refresh(self, raw_token: str) -> AuthTokens:
         try:
@@ -423,11 +445,14 @@ class AuthService:
             raise InvalidCredentialsError("The social identity belongs to a different account")
         profile = continuation.profile
         identity_repo = ProviderIdentityRepository(self.session)
-        if await identity_repo.get_by_subject(
-            provider=profile.provider,
-            issuer=profile.issuer,
-            subject=profile.subject,
-        ) is not None:
+        if (
+            await identity_repo.get_by_subject(
+                provider=profile.provider,
+                issuer=profile.issuer,
+                subject=profile.subject,
+            )
+            is not None
+        ):
             raise RegistrationConflictError("This social identity is already linked")
         await identity_repo.create(
             provider=profile.provider,
@@ -454,8 +479,7 @@ class AuthService:
             user_id=user_id,
             family_id=uuid4(),
             token_hash=hash_refresh_token(refresh_token),
-            expires_at=datetime.now(UTC)
-            + timedelta(days=settings.AUTH_REFRESH_TOKEN_TTL_DAYS),
+            expires_at=datetime.now(UTC) + timedelta(days=settings.AUTH_REFRESH_TOKEN_TTL_DAYS),
         )
         access_token, expires_in = create_access_token(user_id, tenant_id)
         return AuthTokens(

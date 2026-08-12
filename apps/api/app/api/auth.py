@@ -22,6 +22,7 @@ from app.domains.auth.oauth import (
     RedisOAuthStateStore,
 )
 from app.domains.auth.schemas import (
+    AccountDeletionRequest,
     CurrentTenantResponse,
     LoginRequest,
     MeResponse,
@@ -317,6 +318,24 @@ async def me(context: CurrentAuth) -> MeResponse:
         ),
         role=context.membership.role,
     )
+
+
+@router.post("/account/delete", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_account(
+    payload: AccountDeletionRequest, context: CurrentAuth, session: DbSession
+) -> None:
+    try:
+        await AuthService(session).delete_account(
+            user=context.user,
+            tenant=context.tenant,
+            membership=context.membership,
+            password=payload.password.get_secret_value(),
+            confirmation=payload.confirmation,
+        )
+    except InvalidCredentialsError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
+        ) from None
 
 
 __all__ = ["AuthContext", "require_auth_context", "router"]

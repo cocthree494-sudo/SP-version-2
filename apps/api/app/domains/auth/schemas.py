@@ -19,9 +19,7 @@ _valid_slug = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
 def create_organization_slug(name: str) -> str:
     """Create a stable ASCII slug, with a safe fallback for non-Latin names."""
 
-    ascii_name = (
-        unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode("ascii")
-    )
+    ascii_name = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode("ascii")
     slug = _slug_separator.sub("-", ascii_name.casefold()).strip("-")[:63].rstrip("-")
     if len(slug) >= 2:
         return slug
@@ -31,9 +29,7 @@ def create_organization_slug(name: str) -> str:
 def normalize_organization_slug(value: str) -> str:
     normalized = value.strip().casefold()
     if not 2 <= len(normalized) <= 63 or _valid_slug.fullmatch(normalized) is None:
-        raise ValueError(
-            "Organization slug must be 2-63 lowercase letters, numbers, or hyphens"
-        )
+        raise ValueError("Organization slug must be 2-63 lowercase letters, numbers, or hyphens")
     return normalized
 
 
@@ -90,6 +86,11 @@ class SocialAuthStartRequest(BaseModel):
         if value is None or not value.strip():
             return None
         return normalize_organization_slug(value)
+
+
+class AccountDeletionRequest(BaseModel):
+    password: SecretStr = Field(min_length=1, max_length=256)
+    confirmation: Literal["DELETE MY ACCOUNT"]
 
 
 class SocialAuthStartResponse(BaseModel):
