@@ -66,12 +66,20 @@ export function ProtectedShell({ children }: Readonly<{ children: React.ReactNod
   const router = useRouter();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
 
   useEffect(() => {
     if (status === "anonymous") {
       router.replace(`/login?next=${encodeURIComponent(pathname)}`);
     }
   }, [pathname, router, status]);
+
+  useEffect(() => {
+    if (!accountOpen) return;
+    const close = (event: KeyboardEvent) => { if (event.key === "Escape") setAccountOpen(false); };
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [accountOpen]);
 
   if (status === "loading") return <LoadingShell />;
   if (status === "anonymous" || user === null) return <LoadingShell />;
@@ -168,10 +176,10 @@ export function ProtectedShell({ children }: Readonly<{ children: React.ReactNod
             <button
               className="icon-button icon-button-muted"
               type="button"
-              onClick={() => void signOut()}
-              aria-label="Sign out"
+              onClick={() => setAccountOpen((current) => !current)}
+              aria-label="Open account menu"
               disabled={loggingOut}
-              title="Sign out"
+              title="Account"
             >
               <UserIcon width={17} height={17} />
             </button>
@@ -208,11 +216,11 @@ export function ProtectedShell({ children }: Readonly<{ children: React.ReactNod
           </div>
           <div className="dashboard-header-actions">
             <span className="status-pill"><span className="status-dot" />Systems operational</span>
-            <button className="header-user" type="button" onClick={() => void signOut()}>
+            <div className="account-menu-wrap"><button className="header-user" type="button" onClick={() => setAccountOpen((current) => !current)} aria-expanded={accountOpen} aria-haspopup="menu">
               <span className="user-avatar user-avatar-small">{initials(displayName)}</span>
               <span>{displayName}</span>
               <span className="header-user-chevron" aria-hidden="true">⌄</span>
-            </button>
+            </button>{accountOpen ? <div className="account-menu" role="menu"><div className="account-menu-summary"><strong>{displayName}</strong><span>{user.email}</span><span>{user.tenant.name} · {user.role}</span></div><button type="button" role="menuitem" className="account-menu-signout" onClick={() => void signOut()} disabled={loggingOut}>{loggingOut ? "Signing out…" : "Sign out"}</button></div> : null}</div>
           </div>
         </header>
         <main className="dashboard-content">{children}</main>

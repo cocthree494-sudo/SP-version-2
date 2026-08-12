@@ -448,6 +448,11 @@ h1, h2, h3, p { margin: 0; }
 .provider-search-form { display: grid; grid-template-columns: minmax(0, 1fr) 42px; align-items: end; gap: 8px; }
 .provider-search-button { min-height: 42px; display: grid; place-items: center; border: 1px solid var(--navy); border-radius: 9px; background: var(--navy); color: #d8ff5e; cursor: pointer; }
 .provider-search-button:hover, .provider-search-button:focus-visible { background: var(--teal); }
+.account-menu-wrap { position: relative; }
+.account-menu { position: absolute; top: calc(100% + 10px); right: 0; z-index: 30; width: 235px; padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: #fff; box-shadow: 0 15px 40px rgba(15, 44, 47, .16); }
+.account-menu-summary { display: grid; gap: 4px; padding: 9px; color: var(--ink-faint); font-size: 10px; }
+.account-menu-summary strong { color: var(--navy); font-size: 12px; }
+.account-menu-signout { width: 100%; margin-top: 5px; padding: 10px; border: 0; border-top: 1px solid var(--line); background: transparent; color: #a33f35; text-align: left; font-weight: 800; cursor: pointer; }
 .provider-catalog-tools label { display: grid; gap: 6px; color: var(--navy); font-size: 9px; font-weight: 800; }
 .provider-catalog-tools input, .provider-catalog-tools select { width: 100%; min-height: 42px; padding: 0 12px; border: 1px solid #b6d0c5; border-radius: 9px; background: rgba(255,255,255,.9); color: var(--ink); font: inherit; font-size: 11px; outline: none; }
 .provider-catalog-tools input:focus, .provider-catalog-tools select:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(25, 76, 68, .12); }

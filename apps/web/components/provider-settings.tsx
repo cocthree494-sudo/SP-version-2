@@ -147,7 +147,7 @@ export function ProviderSettings() {
 
   async function addCredential(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!canManage || saving || !selectedProvider?.enabled) return;
+    if (!canManage || saving || !selectedProvider?.enabled || !lowModel) return;
     const submittedKey = apiKey;
     setSaving(true);
     setError(null);
@@ -157,6 +157,7 @@ export function ProviderSettings() {
         provider: selectedProviderId as GenerationProvider,
         label: `${selectedProvider?.label ?? "Provider"} · ${lowModel}`,
         api_key: submittedKey,
+        base_url: selectedProviderId === "custom" ? customBaseUrl : null,
         low_cost_model_id: lowModel.trim(),
         strong_model_id: strongModel.trim() || null,
       });
