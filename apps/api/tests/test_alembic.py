@@ -33,7 +33,7 @@ def test_alembic_has_conversation_revision_after_knowledge() -> None:
     config = Config(str(api_root / "alembic.ini"))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_current_head() == "0016_channel_installations"
+    assert scripts.get_current_head() == "0017_voice_agents"
     revision = scripts.get_revision("0002_tenancy")
     assert revision is not None
     assert revision.down_revision == "0001_enable_pgvector"

@@ -34,6 +34,8 @@ TENANT_TABLES = (
     "provider_credentials",
     "provider_policies",
     "channel_installations",
+    "voice_agent_installations",
+    "voice_webhook_events",
 )
 
 

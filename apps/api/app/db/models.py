@@ -13,6 +13,7 @@ from app.domains.knowledge import models as _knowledge_models
 from app.domains.provider_access import models as _provider_access_models
 from app.domains.tenancy import models as _tenancy_models
 from app.domains.usage import models as _usage_models
+from app.domains.voice import models as _voice_models
 
 _REGISTERED_MODULES = (
     _auth_models,
@@ -23,13 +24,14 @@ _REGISTERED_MODULES = (
     _provider_access_models,
     _tenancy_models,
     _usage_models,
+    _voice_models,
 )
 
 
 def register_model_mappings() -> None:
     """Provide an explicit, testable worker/bootstrap registration hook."""
 
-    if len(_REGISTERED_MODULES) != 8:  # pragma: no cover - import invariant
+    if len(_REGISTERED_MODULES) != 9:  # pragma: no cover - import invariant
         raise RuntimeError("Application ORM model registry is incomplete")
 
 

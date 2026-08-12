@@ -407,6 +407,14 @@ h1, h2, h3, p { margin: 0; }
 .channel-page .page-hero h1 { color: var(--navy-deep); font-size: clamp(34px, 4vw, 58px); letter-spacing: -.06em; line-height: .98; }
 .channel-page .page-hero p { color: var(--ink-soft); font-size: 14px; line-height: 1.65; }
 .channel-layout { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(280px, .8fr); gap: 20px; align-items: start; }
+.voice-page { gap: 24px; }
+.voice-page .page-hero { display: grid; gap: 12px; max-width: 760px; }
+.voice-page .page-hero h1 { color: var(--navy-deep); font-size: clamp(34px, 4vw, 58px); letter-spacing: -.06em; line-height: .98; }
+.voice-page .page-hero p { color: var(--ink-soft); font-size: 14px; line-height: 1.65; }
+.voice-layout { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(280px, .8fr); gap: 20px; align-items: start; }
+.voice-form { display: grid; gap: 20px; padding: 23px; }
+.voice-toggles { display: grid; gap: 11px; padding: 13px; border: 1px solid var(--line); border-radius: 9px; background: #fbfdfc; }
+.consent-check.nested { padding-left: 22px; color: var(--ink-faint); }
 .channel-form { display: grid; gap: 20px; padding: 23px; }
 .channel-options { display: grid; gap: 9px; }
 .channel-option { display: grid; grid-template-columns: 18px 1fr; gap: 11px; padding: 13px; border: 1px solid var(--line); border-radius: 10px; background: #fbfdfc; cursor: pointer; }
@@ -554,6 +562,7 @@ h1, h2, h3, p { margin: 0; }
   .provider-layout { grid-template-columns: 1fr; }
   .channel-layout { grid-template-columns: 1fr; }
   .channel-safety-card { position: static; }
+  .voice-layout { grid-template-columns: 1fr; }
   .policy-card { position: static; }
 }
 

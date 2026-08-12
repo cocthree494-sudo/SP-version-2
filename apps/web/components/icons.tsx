@@ -123,6 +123,14 @@ export function GlobeIcon(props: IconProps) {
   );
 }
 
+export function PhoneIcon(props: IconProps) {
+  return (
+    <IconFrame {...props}>
+      <path d="M6.6 3.5 9 3l2 4-2.2 1.8a14.4 14.4 0 0 0 6.4 6.4L17 13l4 2-.5 2.4a3 3 0 0 1-3.2 2.4C10.8 19.1 4.9 13.2 4.2 6.7a3 3 0 0 1 2.4-3.2Z" />
+    </IconFrame>
+  );
+}
+
 export function SearchIcon(props: IconProps) {
   return <IconFrame {...props}><circle cx="11" cy="11" r="6.5" /><path d="m16 16 5 5" /></IconFrame>;
 }

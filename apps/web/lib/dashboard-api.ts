@@ -8,6 +8,9 @@ import type {
   ChannelInstallInput,
   ChannelInstallationResponse,
   ChannelStatus,
+  VoiceAgentResponse,
+  VoiceInstallInput,
+  VoiceStatus,
   KnowledgeSourceResponse,
   ManualSourceCreateInput,
   ManualSourceUpdateInput,
@@ -192,6 +195,17 @@ export const dashboardApi = {
     }),
   revokeChannel: (channelId: string) =>
     dashboardRequest<void>(`/channels/${encodeURIComponent(channelId)}`, { method: "DELETE" }),
+  listVoiceAgents: () => dashboardRequest<VoiceAgentResponse[]>("/voice"),
+  installVoiceAgent: (payload: VoiceInstallInput) =>
+    dashboardRequest<VoiceAgentResponse>("/voice", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateVoiceAgent: (voiceId: string, status: VoiceStatus) =>
+    dashboardRequest<VoiceAgentResponse>(`/voice/${encodeURIComponent(voiceId)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    }),
   updateProviderPolicy: (mode: ProviderRoutingMode, credentialOrder: string[]) =>
     dashboardRequest<ProviderPolicyResponse>("/providers/policy", {
       method: "PATCH",

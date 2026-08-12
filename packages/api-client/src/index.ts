@@ -286,6 +286,41 @@ export interface ChannelInstallInput {
   consent_acknowledged: boolean;
 }
 
+export type VoiceStatus = "pending" | "ready" | "paused" | "error";
+
+export interface VoiceAgentResponse {
+  id: string;
+  bot_id: string | null;
+  provider: "twilio" | "sip";
+  phone_number: string;
+  language: string;
+  voice: string;
+  business_hours: Record<string, unknown>;
+  outbound_enabled: boolean;
+  recording_enabled: boolean;
+  retention_days: number;
+  monthly_cost_limit_usd: number;
+  status: VoiceStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VoiceInstallInput {
+  bot_id?: string | null;
+  provider?: "twilio" | "sip";
+  phone_number: string;
+  language?: string;
+  voice?: string;
+  business_hours?: Record<string, unknown>;
+  outbound_enabled?: boolean;
+  recording_enabled?: boolean;
+  retention_days?: number;
+  monthly_cost_limit_usd?: number;
+  consent_acknowledged: boolean;
+  outbound_consent?: boolean;
+  recording_consent?: boolean;
+}
+
 export interface ProviderCatalogModel {
   id: string;
   label: string;

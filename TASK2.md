@@ -62,7 +62,7 @@ This file is the source of truth for Phase 2 planning and implementation order. 
 
   Implement accessible menu-button behavior: correct expanded state and menu semantics, keyboard operation, focus management, Escape and outside-click dismissal, loading/disabled sign-out state, and responsive placement that does not clip on small screens. Selecting “Sign out” must keep the existing POST-only logout route and cookie clearing, then redirect to login; merely opening, closing, or navigating the account menu must never log the user out. Add component/browser coverage for desktop and mobile behavior, explicit logout, keyboard dismissal, and session-cookie clearing.
 
-- [ ] **T-076 — Add the tenant channel-installation foundation and approved connection modes**  
+- [x] **T-076 — Add the tenant channel-installation foundation and approved connection modes**  
   Depends on: T-050, T-055  
   Add a dedicated `Channels / Integrations` surface and tenant-scoped installation model. Every installation must bind `tenant_id`, channel type, external account/page identity, connection status, selected conversation scope, consent record, credential reference, expiry/rotation state, and audit metadata. Convert inbound channel events into the existing channel-neutral conversation contract and send the agent response back through the same verified installation; never mix channel identities, conversations, memory, credentials, or queues across tenants.
 
