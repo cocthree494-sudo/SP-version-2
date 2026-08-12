@@ -24,7 +24,7 @@ This file is the source of truth for Phase 2 planning and implementation order. 
 
 ## Approved tasks
 
-- [ ] **T-070 — Add Google, Microsoft, and GitHub social sign-in**  
+- [x] **T-070 — Add Google, Microsoft, and GitHub social sign-in**  
   Depends on: T-022, T-050  
   Add provider-neutral OAuth/OIDC authentication for Google, Microsoft, and GitHub on both the login and workspace-registration screens. Render compact, official icon-only provider buttons with accessible names, keyboard focus, hover/focus labels, responsive layout, and provider-compliant branding; do not show Apple or magic-link options. Preserve the existing email/password flow.
 
