@@ -33,7 +33,7 @@ def test_alembic_has_conversation_revision_after_knowledge() -> None:
     config = Config(str(api_root / "alembic.ini"))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_current_head() == "0013_grant_provider_identities_runtime_role"
+    assert scripts.get_current_head() == "0013_runtime_identity_grant"
     revision = scripts.get_revision("0002_tenancy")
     assert revision is not None
     assert revision.down_revision == "0001_enable_pgvector"
@@ -153,7 +153,7 @@ def test_alembic_has_conversation_revision_after_knowledge() -> None:
     assert "nullable=True" in social_migration_text
 
     runtime_identity_revision = scripts.get_revision(
-        "0013_grant_provider_identities_runtime_role"
+        "0013_runtime_identity_grant"
     )
     assert runtime_identity_revision is not None
     assert runtime_identity_revision.down_revision == "0012_social_auth"
@@ -161,7 +161,7 @@ def test_alembic_has_conversation_revision_after_knowledge() -> None:
         api_root
         / "alembic"
         / "versions"
-        / "0013_grant_provider_identities_runtime_role.py"
+        / "0013_runtime_identity_grant.py"
     )
     runtime_identity_migration_text = runtime_identity_migration.read_text(encoding="utf-8")
     assert '"provider_identities"' in runtime_identity_migration_text
