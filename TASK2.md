@@ -78,7 +78,7 @@ This file is the source of truth for Phase 2 planning and implementation order. 
 
   Make recording disabled by default. If a tenant enables recording, require an explicit consent announcement, regional recording-policy configuration, retention period, deletion/export controls, access audit, and encrypted storage; transcript and summary retention must be independently configurable. Show per-call and per-minute usage, provider/model cost, latency, failure reason, and limits before activation; do not promise unlimited calling. Add deterministic fake-provider tests and production-like tests for provider connection, inbound call, outbound opt-in, streaming interruption, multilingual text, silence/timeout, transfer/handoff, voicemail, recording consent, retention/deletion, opt-out, duplicate webhook events, provider outage/failover, cost cap, secret redaction, and cross-tenant isolation. Do not expose voice calling in the dashboard until the security, consent, abuse, and end-to-end call verification gates pass.
 
-- [ ] **T-078 — Add secure account deletion and email reuse**
+- [x] **T-078 — Add secure account deletion and email reuse**
   Depends on: T-022, T-050, T-070, T-075
   Add an authenticated account-settings deletion flow with a clear destructive warning, recent-authentication/step-up confirmation, explicit typed confirmation, and a final summary of what will be removed. Revoke every active session and refresh-token family immediately; remove provider identities, linked-login records, personal profile data, and memberships according to the approved retention policy. The deletion path must never log passwords, OAuth tokens, provider secrets, deletion confirmation text, or private customer content.
 
