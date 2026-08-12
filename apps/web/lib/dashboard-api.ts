@@ -154,6 +154,11 @@ export const dashboardApi = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  discoverCustomProviderModels: (baseUrl: string, apiKey: string) =>
+    dashboardRequest<string[]>("/providers/custom/models", {
+      method: "POST",
+      body: JSON.stringify({ base_url: baseUrl, api_key: apiKey }),
+    }),
   verifyProviderCredential: (credentialId: string) =>
     dashboardRequest<ProviderCredentialResponse>(
       `/providers/credentials/${encodeURIComponent(credentialId)}/verify`,

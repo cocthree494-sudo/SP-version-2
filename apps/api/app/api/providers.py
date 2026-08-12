@@ -17,6 +17,7 @@ from app.core.envelope import (
 from app.db.session import get_db_session
 from app.domains.provider_access.catalog import provider_catalog
 from app.domains.provider_access.schemas import (
+    CustomProviderModelsRequest,
     ProviderCatalogEntryResponse,
     ProviderCredentialCreateRequest,
     ProviderCredentialResponse,
@@ -34,6 +35,7 @@ from app.domains.provider_access.service import (
     ProviderCredentialVerificationError,
 )
 from app.domains.tenancy.enums import MembershipRole
+from app.providers.custom_endpoint import CustomEndpointSecurityError, discover_custom_models
 from app.providers.tenant_factory import LiveCredentialVerifier
 
 router = APIRouter(prefix="/v1/providers", tags=["providers"])
@@ -81,6 +83,8 @@ def _domain_error(exc: Exception) -> HTTPException:
         return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
     if isinstance(exc, ProviderCredentialVerificationError):
         return HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
+    if isinstance(exc, (CustomEndpointSecurityError, ValueError)):
+        return HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
     return HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
 
 
@@ -92,6 +96,19 @@ async def list_provider_catalog(
 
     del context
     return [ProviderCatalogEntryResponse.from_catalog(entry) for entry in provider_catalog()]
+
+
+@router.post("/custom/models", response_model=list[str])
+async def discover_custom_provider_models(
+    payload: CustomProviderModelsRequest,
+    _context: ProviderManager,
+) -> list[str]:
+    """Validate an owner-supplied endpoint and return only its model IDs."""
+
+    try:
+        return await discover_custom_models(payload.base_url, payload.api_key)
+    except CustomEndpointSecurityError as exc:
+        raise _domain_error(exc) from None
 
 
 @router.post(
@@ -107,7 +124,7 @@ async def create_credential(
 ) -> ProviderCredentialResponse:
     try:
         credential = await _service(session, context, cipher).create(payload)
-    except DuplicateProviderCredentialError as exc:
+    except (DuplicateProviderCredentialError, CustomEndpointSecurityError, ValueError) as exc:
         raise _domain_error(exc) from None
     return ProviderCredentialResponse.model_validate(credential)
 

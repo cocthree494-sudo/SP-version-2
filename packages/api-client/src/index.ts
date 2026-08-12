@@ -239,6 +239,7 @@ export interface ProviderCredentialResponse {
   id: string;
   provider: GenerationProvider;
   label: string;
+  base_url: string | null;
   masked_secret: string;
   low_cost_model_id: string;
   strong_model_id: string | null;
@@ -254,6 +255,7 @@ export interface ProviderCredentialCreateInput {
   provider: GenerationProvider;
   label: string;
   api_key: string;
+  base_url?: string | null;
   low_cost_model_id: string;
   strong_model_id?: string | null;
 }

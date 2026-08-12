@@ -57,6 +57,7 @@ class ProviderCredential(TenantScopedModel):
         nullable=False,
     )
     label: Mapped[str] = mapped_column(String(100), nullable=False)
+    base_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     encrypted_secret: Mapped[str] = mapped_column(Text, nullable=False)
     wrapped_data_key: Mapped[str] = mapped_column(Text, nullable=False)
     key_version: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -79,9 +80,7 @@ class ProviderPolicy(TenantScopedModel):
     """One explicit generation routing policy per tenant."""
 
     __tablename__ = "provider_policies"
-    __table_args__ = (
-        UniqueConstraint("tenant_id", name="uq_provider_policies_tenant_id"),
-    )
+    __table_args__ = (UniqueConstraint("tenant_id", name="uq_provider_policies_tenant_id"),)
 
     tenant_id: Mapped[UUID] = mapped_column(
         ForeignKey("tenants.id", ondelete="CASCADE"),

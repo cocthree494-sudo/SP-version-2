@@ -32,6 +32,7 @@ from app.domains.provider_access.schemas import (
     ProviderCredentialCreateRequest,
     ProviderPolicyUpdateRequest,
 )
+from app.providers.custom_endpoint import validate_custom_base_url
 from app.providers.types import ProviderError
 
 
@@ -103,6 +104,11 @@ class ProviderAccessService:
         )
 
     async def create(self, payload: ProviderCredentialCreateRequest) -> ProviderCredential:
+        safe_base_url = (
+            validate_custom_base_url(payload.base_url)
+            if payload.provider.value == "custom" and payload.base_url
+            else None
+        )
         credential_id = uuid4()
         envelope = self.cipher.encrypt(
             payload.api_key,
@@ -113,6 +119,7 @@ class ProviderAccessService:
                 credential_id=credential_id,
                 provider=payload.provider,
                 label=payload.label,
+                base_url=safe_base_url,
                 encrypted_secret=envelope.ciphertext,
                 wrapped_data_key=envelope.wrapped_data_key,
                 key_version=envelope.key_version,
@@ -148,11 +155,23 @@ class ProviderAccessService:
             raise ProviderCredentialRevokedError("A revoked provider credential cannot be verified")
         secret = self.decrypt(credential)
         try:
-            await verifier.verify(
-                provider=credential.provider,
-                model_id=credential.low_cost_model_id,
-                secret=secret,
-            )
+            custom_verify = getattr(verifier, "verify_custom", None)
+            if credential.provider.value == "custom":
+                if credential.base_url is None or custom_verify is None:
+                    raise ProviderCredentialVerificationError(
+                        "Custom provider verification is unavailable"
+                    )
+                await custom_verify(
+                    base_url=credential.base_url,
+                    model_id=credential.low_cost_model_id,
+                    secret=secret,
+                )
+            else:
+                await verifier.verify(
+                    provider=credential.provider,
+                    model_id=credential.low_cost_model_id,
+                    secret=secret,
+                )
         except ProviderError as exc:
             credential.status = ProviderCredentialStatus.INVALID
             credential.verified_at = None
@@ -222,9 +241,7 @@ class ProviderAccessService:
                 raise InvalidProviderPolicyError(
                     "Routing policy contains a provider credential that was not found"
                 )
-            if any(
-                item.status is not ProviderCredentialStatus.VERIFIED for item in credentials
-            ):
+            if any(item.status is not ProviderCredentialStatus.VERIFIED for item in credentials):
                 raise InvalidProviderPolicyError(
                     "Only verified, active provider credentials can be routed"
                 )

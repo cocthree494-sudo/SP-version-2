@@ -20,6 +20,7 @@ from app.domains.provider_access.repositories import (
 )
 from app.domains.provider_access.service import ProviderAccessService
 from app.providers.adapters import adapter_for, adapter_specs
+from app.providers.custom_endpoint import custom_provider
 from app.providers.factory import build_llm_targets
 from app.providers.openai_compatible import OpenAICompatibleLLMProvider
 from app.providers.router import ModelTarget, ModelTier
@@ -38,7 +39,12 @@ def _provider(
     provider_id: str,
     model_id: str,
     secret: SecretStr,
+    base_url: str | None = None,
 ) -> OpenAICompatibleLLMProvider:
+    if provider is GenerationProvider.CUSTOM:
+        if base_url is None:
+            raise TenantProviderUnavailableError("Custom provider endpoint is missing")
+        return custom_provider(base_url, model_id, secret)
     spec = adapter_for(provider)
     return OpenAICompatibleLLMProvider(
         provider_id=provider_id,
@@ -79,6 +85,24 @@ class LiveCredentialVerifier:
         finally:
             await adapter.aclose()
 
+    async def verify_custom(self, *, base_url: str, model_id: str, secret: SecretStr) -> None:
+        adapter = custom_provider(base_url, model_id, secret)
+        try:
+            await adapter.generate(
+                GenerationRequest(
+                    messages=[
+                        ChatMessage(
+                            role=MessageRole.USER,
+                            content="Reply with OK to verify this provider credential.",
+                        )
+                    ],
+                    max_output_tokens=2,
+                    temperature=0,
+                )
+            )
+        finally:
+            await adapter.aclose()
+
 
 async def build_tenant_llm_targets(
     session: AsyncSession,
@@ -93,14 +117,11 @@ async def build_tenant_llm_targets(
         return build_llm_targets()
 
     credential_ids = [UUID(item) for item in policy.credential_order]
-    credentials = await ProviderCredentialRepository(session, tenant_id).get_ordered(
-        credential_ids
-    )
+    credentials = await ProviderCredentialRepository(session, tenant_id).get_ordered(credential_ids)
     active = [
         credential
         for credential in credentials
-        if credential.status is ProviderCredentialStatus.VERIFIED
-        and credential.revoked_at is None
+        if credential.status is ProviderCredentialStatus.VERIFIED and credential.revoked_at is None
     ]
     tenant_targets: list[ModelTarget] = []
     if active:
@@ -111,9 +132,7 @@ async def build_tenant_llm_targets(
         )
         for credential in active:
             secret = access.decrypt(credential)
-            provider_id = (
-                f"tenant:{tenant_id}:{credential.provider.value}:{credential.id}"
-            )
+            provider_id = f"tenant:{tenant_id}:{credential.provider.value}:{credential.id}"
             tenant_targets.append(
                 ModelTarget(
                     provider=_provider(
@@ -121,6 +140,7 @@ async def build_tenant_llm_targets(
                         provider_id=provider_id,
                         model_id=credential.low_cost_model_id,
                         secret=secret,
+                        base_url=credential.base_url,
                     ),
                     tier=ModelTier.LOW_COST,
                 )
@@ -133,6 +153,7 @@ async def build_tenant_llm_targets(
                             provider_id=provider_id,
                             model_id=credential.strong_model_id,
                             secret=secret,
+                            base_url=credential.base_url,
                         ),
                         tier=ModelTier.STRONG,
                     )

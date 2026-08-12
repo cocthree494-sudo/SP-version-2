@@ -82,6 +82,7 @@ class _OpenAICompatibleBase:
         self.client = client or httpx.AsyncClient(
             base_url=f"{base_url.rstrip('/')}/",
             timeout=httpx.Timeout(timeout_seconds),
+            follow_redirects=False,
         )
 
     def _error(

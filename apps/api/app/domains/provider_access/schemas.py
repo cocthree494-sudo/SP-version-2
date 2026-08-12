@@ -31,6 +31,7 @@ class ProviderCredentialCreateRequest(BaseModel):
     provider: GenerationProvider
     label: str = Field(min_length=1, max_length=100)
     api_key: SecretStr = Field(min_length=16, max_length=2048)
+    base_url: str | None = Field(default=None, max_length=2048)
     low_cost_model_id: str
     strong_model_id: str | None = None
 
@@ -42,8 +43,12 @@ class ProviderCredentialCreateRequest(BaseModel):
     @model_validator(mode="after")
     def validate_catalog_model(self) -> ProviderCredentialCreateRequest:
         entry = next((item for item in provider_catalog() if item.id == self.provider.value), None)
-        if entry is None or not entry.enabled:
+        if (entry is None or not entry.enabled) and self.provider.value != "custom":
             raise ValueError("This provider is not currently available")
+        if self.provider.value == "custom" and not self.base_url:
+            raise ValueError("A verified HTTPS base URL is required for a custom provider")
+        if self.provider.value != "custom" and self.base_url is not None:
+            raise ValueError("A base URL is only accepted for custom providers")
         valid_models = {item.id for item in entry.models}
         if self.low_cost_model_id not in valid_models:
             raise ValueError("Select a supported low-cost model from the provider catalog")
@@ -96,6 +101,7 @@ class ProviderPolicyResponse(BaseModel):
 class ProviderCatalogModelResponse(BaseModel):
     id: str
     label: str
+    base_url: str | None
 
 
 class ProviderCatalogEntryResponse(BaseModel):
@@ -127,7 +133,13 @@ class ProviderCatalogEntryResponse(BaseModel):
         )
 
 
+class CustomProviderModelsRequest(BaseModel):
+    base_url: str = Field(min_length=8, max_length=2048)
+    api_key: SecretStr = Field(min_length=16, max_length=2048)
+
+
 __all__ = [
+    "CustomProviderModelsRequest",
     "ProviderCatalogEntryResponse",
     "ProviderCatalogModelResponse",
     "ProviderCredentialCreateRequest",
