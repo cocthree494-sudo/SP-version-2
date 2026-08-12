@@ -70,7 +70,7 @@ This file is the source of truth for Phase 2 planning and implementation order. 
 
   Add write-only credential/session handling, webhook signature verification, idempotency, retry/dead-letter behavior, connection health, usage/cost visibility, least-privilege scopes, secret redaction, rate limits, and explicit disconnect cleanup. Add tests for QR/OTP/2FA success and failure, expired/revoked sessions, wrong-tenant access, selected-chat scope, session redaction, Telegram reconnect, WhatsApp API billing/permission failures, Messenger Page-token/webhook validation, duplicate events, channel-specific reply identity, and full tenant isolation. Do not enable a channel in the UI until its connection contract and verification tests pass.
 
-- [ ] **T-077 — Add a tenant-scoped real-time voice call agent**  
+- [x] **T-077 — Add a tenant-scoped real-time voice call agent**  
   Depends on: T-055, T-071, T-076  
   Add a voice-agent installation surface where a tenant connects an approved telephony/SIP provider and assigns a phone number to one of its logical agents. The connection must be tenant-scoped and store only encrypted provider references, number ownership, call policy, language/voice settings, operating hours, escalation rules, usage limits, and audit metadata. Reuse the channel-neutral conversation contract so voice conversations receive the same tenant-scoped knowledge, provider policy, memory consent, and routing safeguards as web and messaging channels.
 
