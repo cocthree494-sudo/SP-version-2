@@ -3,7 +3,7 @@ import {
   createApiClient,
   type TokenPairResponse,
 } from "@support-agent/api-client";
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 
 export const ACCESS_COOKIE = "sa_access_token";
 export const REFRESH_COOKIE = "sa_refresh_token";
@@ -14,6 +14,19 @@ export const apiBaseUrl =
   "http://127.0.0.1:8000";
 
 export const serverApi = createApiClient(apiBaseUrl);
+
+/** Build redirects from the browser-facing host, not the container bind host. */
+export function publicRequestUrl(request: NextRequest, pathname: string): URL {
+  const forwardedHost = request.headers.get("x-forwarded-host")?.split(",", 1)[0]?.trim();
+  const host = forwardedHost || request.headers.get("host");
+  if (!host) return new URL(pathname, request.url);
+
+  const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",", 1)[0]?.trim();
+  const protocol = forwardedProto === "http" || forwardedProto === "https"
+    ? forwardedProto
+    : new URL(request.url).protocol.replace(":", "");
+  return new URL(pathname, `${protocol}://${host}`);
+}
 
 const secureCookies = process.env.NODE_ENV === "production";
 

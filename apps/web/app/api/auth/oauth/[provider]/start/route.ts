@@ -1,7 +1,7 @@
 import { ApiError, type SocialProvider } from "@support-agent/api-client";
 import { NextResponse, type NextRequest } from "next/server";
 
-import { apiErrorResponse, serverApi } from "@/lib/server-auth";
+import { apiErrorResponse, publicRequestUrl, serverApi } from "@/lib/server-auth";
 
 const providers = new Set<SocialProvider>(["google", "microsoft", "github"]);
 
@@ -23,7 +23,7 @@ export async function GET(
     return NextResponse.redirect(result.authorization_url);
   } catch (error) {
     if (error instanceof ApiError && error.status === 503) {
-      const loginUrl = new URL("/login", request.url);
+      const loginUrl = publicRequestUrl(request, "/login");
       loginUrl.searchParams.set("oauth_error", "provider_unavailable");
       loginUrl.searchParams.set("provider", provider);
       return NextResponse.redirect(loginUrl);
