@@ -25,6 +25,11 @@ from app.core.security import create_access_token
 from app.db.base import Base
 from app.db.session import get_db_session
 from app.domains.auth.models import RefreshToken
+from app.domains.provider_access.catalog import (
+    HERMES_PROVIDER_SOURCE_REVISION,
+    PROVIDER_CATALOG,
+    provider_catalog,
+)
 from app.domains.provider_access.enums import GenerationProvider, ProviderRoutingMode
 from app.domains.provider_access.models import ProviderCredential, ProviderPolicy
 from app.domains.tenancy.enums import MembershipRole
@@ -34,6 +39,7 @@ from app.main import app
 from app.providers.openai_compatible import OpenAICompatibleLLMProvider
 from app.providers.router import ModelTier
 from app.providers.tenant_factory import (
+    _APPROVED_BASE_URLS,
     TenantProviderUnavailableError,
     build_tenant_llm_targets,
 )
@@ -41,6 +47,92 @@ from app.providers.types import ProviderError, ProviderErrorCategory
 
 RAW_KEY = "sk-test-tenant-secret-never-exposed-1234"
 ROTATED_KEY = "sk-test-rotated-secret-never-exposed-5678"
+
+
+@pytest.mark.asyncio
+async def test_provider_catalog_is_complete_and_only_ready_adapters_are_selectable(
+    provider_client: tuple[AsyncClient, EnvelopeCipher, RecordingVerifier],
+) -> None:
+    client, _cipher, _verifier = provider_client
+    tokens = await register_owner(client)
+
+    response = await client.get("/v1/providers/catalog", headers=bearer(tokens))
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload) == len(PROVIDER_CATALOG)
+    assert {entry["id"] for entry in payload} >= {
+        "openai",
+        "gemini",
+        "anthropic",
+        "deepseek",
+        "custom",
+    }
+    assert HERMES_PROVIDER_SOURCE_REVISION
+    ready = [entry for entry in payload if entry["enabled"]]
+    assert {entry["id"] for entry in ready} >= {
+        "openai",
+        "openrouter",
+        "deepseek",
+        "xai",
+    }
+    assert next(entry for entry in payload if entry["id"] == "custom")["enabled"] is False
+    assert all("api_key" not in entry for entry in payload)
+    assert all(entry["models"] for entry in ready)
+    assert all(
+        entry["id"] in {provider.value for provider in _APPROVED_BASE_URLS}
+        for entry in ready
+    )
+
+
+@pytest.mark.asyncio
+async def test_ready_catalog_providers_build_routable_targets(
+    provider_client: tuple[AsyncClient, EnvelopeCipher, RecordingVerifier],
+    provider_session: AsyncSession,
+) -> None:
+    client, cipher, verifier = provider_client
+    tokens = await register_owner(client)
+    ready = [entry for entry in provider_catalog() if entry.enabled]
+    routed = ready[:10]
+    credential_ids: list[str] = []
+
+    for index, entry in enumerate(routed):
+        response = await client.post(
+            "/v1/providers/credentials",
+            headers=bearer(tokens),
+            json={
+                "provider": entry.id,
+                "label": f"{entry.label} test",
+                "api_key": f"sk-{entry.id}-tenant-secret-{index:04d}",
+                "low_cost_model_id": entry.models[0].id,
+                "strong_model_id": entry.models[1].id if len(entry.models) > 1 else None,
+            },
+        )
+        assert response.status_code == 201
+        credential_id = response.json()["id"]
+        credential_ids.append(credential_id)
+        verified = await client.post(
+            f"/v1/providers/credentials/{credential_id}/verify",
+            headers=bearer(tokens),
+        )
+        assert verified.status_code == 200
+
+    updated = await client.patch(
+        "/v1/providers/policy",
+        headers=bearer(tokens),
+        json={"mode": "tenant_only", "credential_order": credential_ids},
+    )
+    assert updated.status_code == 200
+    targets = await build_tenant_llm_targets(
+        provider_session,
+        UUID((await client.get("/v1/me", headers=bearer(tokens))).json()["tenant"]["id"]),
+        cipher=cipher,
+    )
+    assert len(targets) >= len(routed)
+    assert len(verifier.seen) == len(routed)
+    for target in targets:
+        if isinstance(target.provider, OpenAICompatibleLLMProvider):
+            await target.provider.aclose()
 
 
 class RecordingVerifier:

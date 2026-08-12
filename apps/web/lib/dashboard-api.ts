@@ -9,6 +9,7 @@ import type {
   ManualSourceCreateInput,
   ManualSourceUpdateInput,
   PlaygroundSessionResponse,
+  ProviderCatalogEntry,
   ProviderCredentialCreateInput,
   ProviderCredentialResponse,
   ProviderPolicyResponse,
@@ -144,6 +145,8 @@ export const dashboardApi = {
     dashboardRequest<UsageSummaryResponse>(
       `/usage/summary${botId ? `?bot_id=${encodeURIComponent(botId)}` : ""}`,
     ),
+  listProviderCatalog: () =>
+    dashboardRequest<ProviderCatalogEntry[]>("/providers/catalog"),
   listProviderCredentials: () =>
     dashboardRequest<ProviderCredentialResponse[]>("/providers/credentials"),
   createProviderCredential: (payload: ProviderCredentialCreateInput) =>

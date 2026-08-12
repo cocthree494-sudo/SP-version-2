@@ -15,7 +15,9 @@ from app.core.envelope import (
     configured_envelope_cipher,
 )
 from app.db.session import get_db_session
+from app.domains.provider_access.catalog import provider_catalog
 from app.domains.provider_access.schemas import (
+    ProviderCatalogEntryResponse,
     ProviderCredentialCreateRequest,
     ProviderCredentialResponse,
     ProviderCredentialRotateRequest,
@@ -80,6 +82,16 @@ def _domain_error(exc: Exception) -> HTTPException:
     if isinstance(exc, ProviderCredentialVerificationError):
         return HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
     return HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+
+
+@router.get("/catalog", response_model=list[ProviderCatalogEntryResponse])
+async def list_provider_catalog(
+    context: ProviderManager,
+) -> list[ProviderCatalogEntryResponse]:
+    """Return the provider setup map without exposing any credential material."""
+
+    del context
+    return [ProviderCatalogEntryResponse.from_catalog(entry) for entry in provider_catalog()]
 
 
 @router.post(

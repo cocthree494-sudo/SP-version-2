@@ -1,8 +1,10 @@
 "use client";
 
 import type {
+  ProviderCatalogEntry,
   ProviderCredentialResponse,
   ProviderRoutingMode,
+  GenerationProvider,
 } from "@support-agent/api-client";
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
@@ -33,12 +35,14 @@ export function ProviderSettings() {
   const { user } = useAuth();
   const canManage = user?.role === "owner" || user?.role === "admin";
   const [credentials, setCredentials] = useState<ProviderCredentialResponse[]>([]);
+  const [catalog, setCatalog] = useState<ProviderCatalogEntry[]>([]);
   const [mode, setMode] = useState<ProviderRoutingMode>("platform_only");
   const [credentialOrder, setCredentialOrder] = useState<string[]>([]);
-  const [label, setLabel] = useState("Production OpenAI");
   const [apiKey, setApiKey] = useState("");
+  const [selectedProviderId, setSelectedProviderId] = useState("openai");
   const [lowModel, setLowModel] = useState("gpt-4.1-mini");
   const [strongModel, setStrongModel] = useState("gpt-4.1");
+  const [providerSearch, setProviderSearch] = useState("");
   const [rotating, setRotating] = useState<ProviderCredentialResponse | null>(null);
   const [rotateKey, setRotateKey] = useState("");
   const [revoking, setRevoking] = useState<ProviderCredentialResponse | null>(null);
@@ -54,6 +58,30 @@ export function ProviderSettings() {
     () => credentials.filter((item) => item.status === "verified" && item.revoked_at === null),
     [credentials],
   );
+  const selectedProvider = useMemo(
+    () => catalog.find((item) => item.id === selectedProviderId) ?? null,
+    [catalog, selectedProviderId],
+  );
+  const filteredCatalog = useMemo(() => {
+    const query = providerSearch.trim().toLowerCase();
+    if (!query) return catalog;
+    const matches = catalog.filter((item) =>
+      [item.label, item.id, ...item.aliases].some((value) => value.toLowerCase().includes(query)),
+    );
+    const selected = catalog.find((item) => item.id === selectedProviderId);
+    return selected && !matches.some((item) => item.id === selected.id) ? [selected, ...matches] : matches;
+  }, [catalog, providerSearch, selectedProviderId]);
+  const catalogGroups = useMemo(() => {
+    const groups = new Map<string, ProviderCatalogEntry[]>();
+    filteredCatalog.forEach((item) => {
+      const current = groups.get(item.setup_method) ?? [];
+      current.push(item);
+      groups.set(item.setup_method, current);
+    });
+    return groups;
+  }, [filteredCatalog]);
+  const catalogReadyCount = catalog.filter((item) => item.enabled).length;
+  const catalogComingSoonCount = Math.max(catalog.length - catalogReadyCount, 0);
 
   useEffect(() => {
     if (!canManage) {
@@ -62,11 +90,13 @@ export function ProviderSettings() {
     }
     let cancelled = false;
     Promise.all([
+      dashboardApi.listProviderCatalog(),
       dashboardApi.listProviderCredentials(),
       dashboardApi.getProviderPolicy(),
     ])
-      .then(([items, policy]) => {
+      .then(([providerCatalog, items, policy]) => {
         if (cancelled) return;
+        setCatalog(providerCatalog);
         setCredentials(items);
         setMode(policy.mode);
         setCredentialOrder(policy.credential_order);
@@ -83,6 +113,14 @@ export function ProviderSettings() {
   }, [canManage]);
 
   useEffect(() => {
+    if (!selectedProvider) return;
+    const firstModel = selectedProvider.models[0]?.id ?? "";
+    const secondModel = selectedProvider.models[1]?.id ?? "";
+    setLowModel((current) => selectedProvider.models.some((model) => model.id === current) ? current : firstModel);
+    setStrongModel((current) => current && selectedProvider.models.some((model) => model.id === current) ? current : secondModel);
+  }, [selectedProvider]);
+
+  useEffect(() => {
     if (rotating) rotateInputRef.current?.focus();
   }, [rotating]);
 
@@ -96,15 +134,15 @@ export function ProviderSettings() {
 
   async function addCredential(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!canManage || saving) return;
+    if (!canManage || saving || !selectedProvider?.enabled) return;
     const submittedKey = apiKey;
     setSaving(true);
     setError(null);
     setNotice(null);
     try {
       const created = await dashboardApi.createProviderCredential({
-        provider: "openai",
-        label: label.trim(),
+        provider: selectedProviderId as GenerationProvider,
+        label: `${selectedProvider?.label ?? "Provider"} · ${lowModel}`,
         api_key: submittedKey,
         low_cost_model_id: lowModel.trim(),
         strong_model_id: strongModel.trim() || null,
@@ -233,6 +271,20 @@ export function ProviderSettings() {
       {error ? <div className="workspace-alert workspace-alert-error" role="alert">{error}</div> : null}
       {notice ? <div className="workspace-alert workspace-alert-success" role="status">{notice}</div> : null}
 
+      <section className="provider-catalog-panel" aria-labelledby="provider-catalog-title">
+        <div className="provider-catalog-heading">
+          <div><span className="eyebrow">Provider map</span><h2 id="provider-catalog-title">Every backend, one setup path.</h2><p>Choose a provider below. Ready adapters can be connected now; planned adapters stay visible so your workspace is ready for what comes next.</p></div>
+          <div className="provider-catalog-counts" aria-label="Provider availability"><span><strong>{catalogReadyCount}</strong> ready</span><span><strong>{catalogComingSoonCount}</strong> coming soon</span></div>
+        </div>
+        <div className="provider-catalog-tools">
+          <label className="provider-search">Find a provider<input type="search" value={providerSearch} onChange={(event) => setProviderSearch(event.target.value)} placeholder="Search OpenAI, Gemini, Claude…" /></label>
+          <label className="provider-picker">Provider<select value={selectedProviderId} onChange={(event) => setSelectedProviderId(event.target.value)} disabled={loading || !catalog.length}>
+            {[...catalogGroups.entries()].map(([method, entries]) => <optgroup label={method.replaceAll("_", " ")} key={method}>{entries.map((item) => <option value={item.id} disabled={!item.enabled} key={item.id}>{item.label}{item.enabled ? "" : " · coming soon"}</option>)}</optgroup>)}
+          </select></label>
+        </div>
+        {selectedProvider && !selectedProvider.enabled ? <div className="provider-unavailable" role="status"><span className="provider-mark">{selectedProvider.label.slice(0, 2).toUpperCase()}</span><span><strong>{selectedProvider.label} is planned.</strong><small>{selectedProvider.availability_reason}</small></span></div> : null}
+      </section>
+
       <div className="provider-layout">
         <div className="provider-stack">
           <section className="config-card">
@@ -252,10 +304,10 @@ export function ProviderSettings() {
           <section className="config-card">
             <div className="config-card-heading"><div><span className="eyebrow">Add key</span><h2>Write-only credential form</h2></div></div>
             <form className="workspace-form" onSubmit={addCredential} autoComplete="off">
-              <div className="form-row"><label>Label<input value={label} onChange={(event) => setLabel(event.target.value)} minLength={1} maxLength={100} required/></label><label>Provider<select value="openai" disabled><option value="openai">OpenAI</option></select></label></div>
+              <div className="provider-selected-summary"><span className="provider-mark">{(selectedProvider?.label ?? "Provider").slice(0, 2).toUpperCase()}</span><span><strong>{selectedProvider?.label ?? "Choose a provider"}</strong><small>{selectedProvider?.enabled ? "API key setup · models are selected below" : "This adapter is not ready yet"}</small></span></div>
               <label>API key<input type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} minLength={16} maxLength={2048} required autoComplete="new-password" spellCheck={false}/><small>Cleared from this form after every submission attempt. It is never stored in browser storage.</small></label>
-              <div className="form-row"><label>Low-cost model ID<input value={lowModel} onChange={(event) => setLowModel(event.target.value)} required maxLength={200}/></label><label>Strong model ID (optional)<input value={strongModel} onChange={(event) => setStrongModel(event.target.value)} maxLength={200}/></label></div>
-              <div className="builder-submit"><button className="button button-primary" type="submit" disabled={saving || !apiKey}><PlusIcon width={15} height={15}/> Encrypt and add</button></div>
+              <div className="form-row"><label>Low-cost model<select value={lowModel} onChange={(event) => setLowModel(event.target.value)} required disabled={!selectedProvider?.enabled}>{selectedProvider?.models.map((model) => <option value={model.id} key={model.id}>{model.label} · {model.id}</option>)}</select></label><label>Strong model (optional)<select value={strongModel} onChange={(event) => setStrongModel(event.target.value)} disabled={!selectedProvider?.enabled}><option value="">No strong-model promotion</option>{selectedProvider?.models.map((model) => <option value={model.id} key={model.id}>{model.label} · {model.id}</option>)}</select></label></div>
+              <div className="builder-submit"><button className="button button-primary" type="submit" disabled={saving || !apiKey || !selectedProvider?.enabled}><PlusIcon width={15} height={15}/> Encrypt and add</button></div>
             </form>
           </section>
         </div>

@@ -221,7 +221,14 @@ export interface UsageSummaryResponse {
   by_model: UsageBreakdownResponse[];
 }
 
-export type GenerationProvider = "openai";
+export type GenerationProvider =
+  | "ai-gateway" | "alibaba" | "alibaba-coding-plan" | "anthropic" | "arcee" | "actual"
+  | "azure-foundry" | "bedrock" | "copilot" | "copilot-acp" | "custom" | "deepseek"
+  | "fireworks" | "gmi" | "gemini" | "huggingface" | "kilocode" | "kimi" | "kimi-cn"
+  | "lmstudio" | "minimax" | "minimax-cn" | "minimax-oauth" | "novita" | "nvidia"
+  | "nous-portal" | "openai" | "openai-codex" | "openrouter" | "opencode-go" | "opencode-zen"
+  | "ollama-cloud" | "qwen-oauth" | "stepfun" | "tencent-tokenhub" | "xai" | "xai-oauth"
+  | "xiaomi" | "vertex" | "zai";
 export type ProviderCredentialStatus = "unverified" | "verified" | "invalid" | "revoked";
 export type ProviderRoutingMode =
   | "platform_only"
@@ -249,6 +256,23 @@ export interface ProviderCredentialCreateInput {
   api_key: string;
   low_cost_model_id: string;
   strong_model_id?: string | null;
+}
+
+export interface ProviderCatalogModel {
+  id: string;
+  label: string;
+}
+
+export interface ProviderCatalogEntry {
+  id: string;
+  label: string;
+  aliases: string[];
+  setup_method: "api_key" | "oauth" | "cloud_account" | "local_endpoint" | "custom_endpoint";
+  credential_env: string | null;
+  model_discovery: "live" | "maintained" | "oauth" | "local";
+  enabled: boolean;
+  availability_reason: string | null;
+  models: ProviderCatalogModel[];
 }
 
 export interface ProviderPolicyResponse {

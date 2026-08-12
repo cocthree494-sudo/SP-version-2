@@ -8,13 +8,14 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, model_validator
 
+from app.domains.provider_access.catalog import ProviderCatalogEntry
 from app.domains.provider_access.enums import (
     GenerationProvider,
     ProviderCredentialStatus,
     ProviderRoutingMode,
 )
 
-_MODEL_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$")
+_MODEL_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,199}$")
 
 
 def _model_id(value: str) -> str:
@@ -80,7 +81,43 @@ class ProviderPolicyResponse(BaseModel):
     credential_order: list[UUID]
 
 
+class ProviderCatalogModelResponse(BaseModel):
+    id: str
+    label: str
+
+
+class ProviderCatalogEntryResponse(BaseModel):
+    id: str
+    label: str
+    aliases: list[str]
+    setup_method: str
+    credential_env: str | None
+    model_discovery: str
+    enabled: bool
+    availability_reason: str | None
+    models: list[ProviderCatalogModelResponse]
+
+    @classmethod
+    def from_catalog(cls, entry: ProviderCatalogEntry) -> ProviderCatalogEntryResponse:
+        return cls(
+            id=entry.id,
+            label=entry.label,
+            aliases=list(entry.aliases),
+            setup_method=entry.setup_method,
+            credential_env=entry.credential_env,
+            model_discovery=entry.model_discovery,
+            enabled=entry.enabled,
+            availability_reason=entry.availability_reason,
+            models=[
+                ProviderCatalogModelResponse(id=model.id, label=model.label)
+                for model in entry.models
+            ],
+        )
+
+
 __all__ = [
+    "ProviderCatalogEntryResponse",
+    "ProviderCatalogModelResponse",
     "ProviderCredentialCreateRequest",
     "ProviderCredentialResponse",
     "ProviderCredentialRotateRequest",
