@@ -301,6 +301,13 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 - User confirmed that Phase 2 is not complete and requested sequential completion of the remaining provider, account-menu, channel, and voice tasks.
 - Added approved task T-078 for secure account deletion. The design releases the normalized email/provider identity after finalization so the same Gmail address can register a new account, while preventing orphaned workspaces, revoking sessions, and cleaning tenant-owned data safely.
 
+### Session 22 - Codex
+
+- Implemented T-071's Hermes-aligned provider catalog/setup experience. The catalog records the official source URL and captured Hermes `main` revision `6aaa181f0eb4dd517d9cf163733e7e41a8e126e1`, includes every listed provider, groups setup methods, exposes searchable provider/model dropdowns, and keeps OAuth/cloud/local/custom entries visibly unavailable until their secure adapters are ready.
+- Added API catalog contracts, owner/admin isolation, maintained model entries, provider-specific approved OpenAI-compatible endpoints, expanded provider enum/migration `0014_provider_catalog_values`, and shared encrypted credential verification/routing for the ready API-key providers. Custom endpoint security remains in T-073; native OAuth/cloud/local adapters remain in T-072.
+- Added catalog integrity, ready-provider credential lifecycle/routing, migration-head, Ruff/mypy, web lint/typecheck, and production-build coverage. Local focused suite passes 7 tests; the web lint/typecheck/build passes.
+- Pushed commits `39f5f47` and `7f5886d` to `origin/main`. Test VPS pulled the commits, applied migration `0014_provider_catalog_values`, rebuilt with cache bypass, preserved existing volumes, and is healthy at `relay.npcautomators.com`. Live browser verification confirmed 20 ready providers, 20 clear coming-soon entries, provider/model switching, encrypted add, masked-only inventory, invalid-key status, and revoke cleanup. A stable test-only `BYOK_MASTER_KEY` was added to the VPS secret file and was not committed.
+
 ## 7. Open items
 
 | ID | Item | Handling now |
@@ -311,6 +318,8 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 | O4 | Visual brand/design direction | Do not block backend/foundation work |
 
 ## HANDOFF STATE
+
+**Session 22 handoff override:** T-071 is complete. Continue with T-072/T-073: finish native OAuth/cloud/local adapters and the hardened custom endpoint path; only shared API-key adapters are currently enabled. Pushed HEAD is `7f5886d`; local checks and live provider-page verification pass.
 
 **Last completed:** T-062 — MVP acceptance review.
 **Current task:** T-070 — social sign-in implementation is in progress; source and local verification are complete, but live provider callbacks remain.

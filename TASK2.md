@@ -32,7 +32,7 @@ This file is the source of truth for Phase 2 planning and implementation order. 
 
   Add the required migration, API/callback contracts, typed web client behavior, provider configuration documentation, and tests for new registration, returning login, organization selection, invalid/replayed state, PKCE/nonce/token validation, callback failure, missing/changed email, cross-tenant isolation, explicit account linking, secret redaction, and disabled/misconfigured providers. Inspect login and registration behavior at desktop and mobile sizes before completion.
 
-- [ ] **T-071 — Build the Hermes-aligned provider catalog and setup experience**  
+- [x] **T-071 — Build the Hermes-aligned provider catalog and setup experience**  
   Depends on: T-046, T-055  
   Create a versioned, provider-neutral generation-provider catalog from the current [Nous Research Hermes Agent inference-provider reference](https://hermes-agent.nousresearch.com/docs/integrations/providers). At task start, capture the exact upstream revision and every listed provider in repository documentation; do not silently omit a provider or present an unsupported provider as usable. Categorize each entry by setup method: API key, OAuth, cloud account/role, local/self-hosted endpoint, or custom endpoint. Record the required configuration fields, supported generation capabilities, model discovery method, tenant eligibility, and implementation status.
 
