@@ -40,7 +40,7 @@ This file is the source of truth for Phase 2 planning and implementation order. 
 
   Add catalog contracts, admin APIs, migration/data model changes only where required, masked credential inventory behavior, documentation, and tests for catalog integrity, role/tenant isolation, UI selection, disabled entries, model/config validation, secret redaction, and backwards compatibility for existing OpenAI credentials. Inspect the dropdown and setup flow on desktop and mobile before completion.
 
-- [ ] **T-072 — Implement all vetted Hermes-catalog generation adapters**  
+- [x] **T-072 — Implement all vetted Hermes-catalog generation adapters**  
   Depends on: T-071  
   Implement and verify every inference provider in the versioned Hermes catalog captured by T-071, using shared transports where protocol-compatible and dedicated adapters where a provider requires a native API, cloud identity, or OAuth flow. Include tenant-owned credential lifecycle, live connection verification, automatic model discovery or a maintained model catalog, normalized streaming/usage/error handling, timeout/retry/circuit integration, and explicit tenant routing/fallback behavior. The completed setup flow must require no typed value beyond the API key for API-key providers; OAuth/cloud providers use their secure connection flow instead. Provider terms, supported account types, and OAuth token-refresh rules must be documented before each OAuth/subscription provider becomes available.
 

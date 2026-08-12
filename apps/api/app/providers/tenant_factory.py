@@ -19,33 +19,13 @@ from app.domains.provider_access.repositories import (
     ProviderPolicyRepository,
 )
 from app.domains.provider_access.service import ProviderAccessService
+from app.providers.adapters import adapter_for, adapter_specs
 from app.providers.factory import build_llm_targets
 from app.providers.openai_compatible import OpenAICompatibleLLMProvider
 from app.providers.router import ModelTarget, ModelTier
 from app.providers.types import ChatMessage, GenerationRequest, MessageRole
 
-_APPROVED_BASE_URLS = {
-    GenerationProvider.AI_GATEWAY: "https://ai-gateway.vercel.sh/v1",
-    GenerationProvider.ALIBABA: "https://dashscope.aliyuncs.com/compatible-mode/v1",
-    GenerationProvider.ALIBABA_CODING_PLAN: "https://dashscope.aliyuncs.com/compatible-mode/v1",
-    GenerationProvider.ARCEE: "https://api.arcee.ai/api/v1",
-    GenerationProvider.DEEPSEEK: "https://api.deepseek.com/v1",
-    GenerationProvider.FIREWORKS: "https://api.fireworks.ai/inference/v1",
-    GenerationProvider.GMI: "https://api.gmi-serving.com/v1",
-    GenerationProvider.HUGGINGFACE: "https://router.huggingface.co/v1",
-    GenerationProvider.KIMI: "https://api.moonshot.ai/v1",
-    GenerationProvider.KIMI_CN: "https://api.moonshot.cn/v1",
-    GenerationProvider.MINIMAX: "https://api.minimax.io/v1",
-    GenerationProvider.MINIMAX_CN: "https://api.minimaxi.com/v1",
-    GenerationProvider.OPENAI: "https://api.openai.com/v1",
-    GenerationProvider.OPENROUTER: "https://openrouter.ai/api/v1",
-    GenerationProvider.NOVITA: "https://api.novita.ai/openai/v1",
-    GenerationProvider.NVIDIA: "https://integrate.api.nvidia.com/v1",
-    GenerationProvider.OLLAMA_CLOUD: "https://ollama.com/v1",
-    GenerationProvider.STEP_FUN: "https://api.stepfun.com/v1",
-    GenerationProvider.XAI: "https://api.x.ai/v1",
-    GenerationProvider.ZAI: "https://open.bigmodel.cn/api/paas/v4",
-}
+_APPROVED_BASE_URLS = {item.provider: item.base_url for item in adapter_specs()}
 
 
 class TenantProviderUnavailableError(RuntimeError):
@@ -59,10 +39,11 @@ def _provider(
     model_id: str,
     secret: SecretStr,
 ) -> OpenAICompatibleLLMProvider:
+    spec = adapter_for(provider)
     return OpenAICompatibleLLMProvider(
         provider_id=provider_id,
         model_id=model_id,
-        base_url=_APPROVED_BASE_URLS[provider],
+        base_url=spec.base_url,
         api_key=secret,
         timeout_seconds=settings.AI_REQUEST_TIMEOUT_SECONDS,
     )

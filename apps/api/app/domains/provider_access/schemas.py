@@ -8,7 +8,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, model_validator
 
-from app.domains.provider_access.catalog import ProviderCatalogEntry
+from app.domains.provider_access.catalog import ProviderCatalogEntry, provider_catalog
 from app.domains.provider_access.enums import (
     GenerationProvider,
     ProviderCredentialStatus,
@@ -38,6 +38,18 @@ class ProviderCredentialCreateRequest(BaseModel):
     @classmethod
     def validate_model_id(cls, value: str | None) -> str | None:
         return None if value is None else _model_id(value)
+
+    @model_validator(mode="after")
+    def validate_catalog_model(self) -> ProviderCredentialCreateRequest:
+        entry = next((item for item in provider_catalog() if item.id == self.provider.value), None)
+        if entry is None or not entry.enabled:
+            raise ValueError("This provider is not currently available")
+        valid_models = {item.id for item in entry.models}
+        if self.low_cost_model_id not in valid_models:
+            raise ValueError("Select a supported low-cost model from the provider catalog")
+        if self.strong_model_id is not None and self.strong_model_id not in valid_models:
+            raise ValueError("Select a supported strong model from the provider catalog")
+        return self
 
 
 class ProviderCredentialRotateRequest(BaseModel):
