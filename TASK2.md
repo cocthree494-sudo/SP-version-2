@@ -52,7 +52,7 @@ This file is the source of truth for Phase 2 planning and implementation order. 
 
   Treat every tenant-supplied URL as an untrusted egress destination: reject non-HTTPS, loopback, private, link-local, multicast, metadata, and unsafe redirect targets; resolve and re-check DNS addresses on every connection; block redirect escapes; enforce strict allowlisted request paths, method/header policy, response-size limits, TLS validation, timeouts, and per-tenant rate limits. Add SSRF/DNS-rebinding, cross-tenant, role, redaction, verification, rotation/revocation, routing, and failure tests. This task changes the prior Phase 1 restriction on arbitrary provider base URLs; custom embedding endpoints remain out of scope.
 
-- [ ] **T-074 — Verify multi-provider routing and provider-management release readiness**  
+- [x] **T-074 — Verify multi-provider routing and provider-management release readiness**  
   Depends on: T-072, T-073  
   Run the full provider matrix against configured test accounts/endpoints and deterministic fakes: setup, model selection, health state, normal routing, failover before first streamed text, tenant-only failure, explicit platform fallback, credential rotation/revocation, and custom-provider egress protection. Add provider-visible routing/audit metadata without exposing secrets or message content; measure setup and chat latency/error budgets; update operations, security, and user-facing setup documentation. Perform desktop/mobile browser inspection and production-like integration verification before marking the provider expansion ready.
 
