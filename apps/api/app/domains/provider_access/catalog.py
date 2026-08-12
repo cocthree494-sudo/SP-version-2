@@ -423,8 +423,8 @@ PROVIDER_CATALOG: tuple[ProviderCatalogEntry, ...] = (
         setup_method="custom_endpoint",
         credential_env=None,
         model_discovery="local",
-        enabled=False,
-        availability_reason="Custom endpoints unlock after URL verification and model discovery.",
+        enabled=True,
+        availability_reason="Requires a verified public HTTPS endpoint and model discovery.",
         models=_models(("custom-model", "Discovered after verification")),
     ),
 )

@@ -76,7 +76,7 @@ async def test_provider_catalog_is_complete_and_only_ready_adapters_are_selectab
         "deepseek",
         "xai",
     }
-    assert next(entry for entry in payload if entry["id"] == "custom")["enabled"] is False
+    assert next(entry for entry in payload if entry["id"] == "custom")["enabled"] is True
     assert all("api_key" not in entry for entry in payload)
     assert all(entry["models"] for entry in ready)
     assert all(

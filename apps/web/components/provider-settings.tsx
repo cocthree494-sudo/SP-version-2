@@ -43,6 +43,9 @@ export function ProviderSettings() {
   const [lowModel, setLowModel] = useState("gpt-4.1-mini");
   const [strongModel, setStrongModel] = useState("gpt-4.1");
   const [providerSearch, setProviderSearch] = useState("");
+  const [customBaseUrl, setCustomBaseUrl] = useState("");
+  const [customModels, setCustomModels] = useState<{ id: string; label: string }[]>([]);
+  const [discoveringCustom, setDiscoveringCustom] = useState(false);
   const [rotating, setRotating] = useState<ProviderCredentialResponse | null>(null);
   const [rotateKey, setRotateKey] = useState("");
   const [revoking, setRevoking] = useState<ProviderCredentialResponse | null>(null);
@@ -62,6 +65,7 @@ export function ProviderSettings() {
     () => catalog.find((item) => item.id === selectedProviderId) ?? null,
     [catalog, selectedProviderId],
   );
+  const selectedModels = selectedProviderId === "custom" ? customModels : (selectedProvider?.models ?? []);
   const filteredCatalog = useMemo(() => {
     const query = providerSearch.trim().toLowerCase();
     if (!query) return catalog;
@@ -115,11 +119,12 @@ export function ProviderSettings() {
 
   useEffect(() => {
     if (!selectedProvider) return;
-    const firstModel = selectedProvider.models[0]?.id ?? "";
-    const secondModel = selectedProvider.models[1]?.id ?? "";
-    setLowModel((current) => selectedProvider.models.some((model) => model.id === current) ? current : firstModel);
-    setStrongModel((current) => current && selectedProvider.models.some((model) => model.id === current) ? current : secondModel);
-  }, [selectedProvider]);
+    const models = selectedProviderId === "custom" ? customModels : selectedProvider.models;
+    const firstModel = models[0]?.id ?? "";
+    const secondModel = models[1]?.id ?? "";
+    setLowModel((current) => models.some((model) => model.id === current) ? current : firstModel);
+    setStrongModel((current) => current && models.some((model) => model.id === current) ? current : secondModel);
+  }, [customModels, selectedProvider, selectedProviderId]);
 
   useEffect(() => {
     if (rotating) rotateInputRef.current?.focus();
@@ -157,6 +162,7 @@ export function ProviderSettings() {
         provider: selectedProviderId as GenerationProvider,
         label: `${selectedProvider?.label ?? "Provider"} · ${lowModel}`,
         api_key: submittedKey,
+        base_url: selectedProviderId === "custom" ? customBaseUrl : null,
         low_cost_model_id: lowModel.trim(),
         strong_model_id: strongModel.trim() || null,
       });
@@ -168,6 +174,19 @@ export function ProviderSettings() {
       setApiKey("");
       setSaving(false);
     }
+  }
+
+  async function discoverCustomModels() {
+    if (!customBaseUrl.trim() || !apiKey || discoveringCustom) return;
+    setDiscoveringCustom(true); setError(null); setNotice(null);
+    try {
+      const models = await dashboardApi.discoverCustomProviderModels(customBaseUrl, apiKey);
+      setCustomModels(models.map((id) => ({ id, label: id })));
+      setNotice(`${models.length} models discovered. Select one before adding the credential.`);
+    } catch (caught) {
+      setCustomModels([]);
+      setError(caught instanceof Error ? caught.message : "Custom endpoint discovery failed.");
+    } finally { setDiscoveringCustom(false); }
   }
 
   async function verifyCredential(credential: ProviderCredentialResponse) {
@@ -321,8 +340,10 @@ export function ProviderSettings() {
             <div className="config-card-heading"><div><span className="eyebrow">Add key</span><h2>Write-only credential form</h2></div></div>
             <form className="workspace-form" onSubmit={addCredential} autoComplete="off">
               <div className="provider-selected-summary"><span className="provider-mark">{(selectedProvider?.label ?? "Provider").slice(0, 2).toUpperCase()}</span><span><strong>{selectedProvider?.label ?? "Choose a provider"}</strong><small>{selectedProvider?.enabled ? "API key setup · models are selected below" : "This adapter is not ready yet"}</small></span></div>
+              {selectedProviderId === "custom" ? <label>HTTPS base URL<input type="url" value={customBaseUrl} onChange={(event) => setCustomBaseUrl(event.target.value)} placeholder="https://ai.example.com/v1" required /><small>Public HTTPS only. Private, local, metadata, and redirect targets are blocked.</small></label> : null}
               <label>API key<input type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} minLength={16} maxLength={2048} required autoComplete="new-password" spellCheck={false}/><small>Cleared from this form after every submission attempt. It is never stored in browser storage.</small></label>
-              <div className="form-row"><label>Low-cost model<select value={lowModel} onChange={(event) => setLowModel(event.target.value)} required disabled={!selectedProvider?.enabled}>{selectedProvider?.models.map((model) => <option value={model.id} key={model.id}>{model.label} · {model.id}</option>)}</select></label><label>Strong model (optional)<select value={strongModel} onChange={(event) => setStrongModel(event.target.value)} disabled={!selectedProvider?.enabled}><option value="">No strong-model promotion</option>{selectedProvider?.models.map((model) => <option value={model.id} key={model.id}>{model.label} · {model.id}</option>)}</select></label></div>
+              {selectedProviderId === "custom" ? <button className="button button-quiet" type="button" onClick={() => void discoverCustomModels()} disabled={!customBaseUrl || !apiKey || discoveringCustom}>{discoveringCustom ? "Discovering models…" : "Discover models"}</button> : null}
+              <div className="form-row"><label>Low-cost model<select value={lowModel} onChange={(event) => setLowModel(event.target.value)} required disabled={!selectedProvider?.enabled || !selectedModels.length}>{selectedModels.map((model) => <option value={model.id} key={model.id}>{model.label} · {model.id}</option>)}</select></label><label>Strong model (optional)<select value={strongModel} onChange={(event) => setStrongModel(event.target.value)} disabled={!selectedProvider?.enabled || !selectedModels.length}><option value="">No strong-model promotion</option>{selectedModels.map((model) => <option value={model.id} key={model.id}>{model.label} · {model.id}</option>)}</select></label></div>
               <div className="builder-submit"><button className="button button-primary" type="submit" disabled={saving || !apiKey || !selectedProvider?.enabled}><PlusIcon width={15} height={15}/> Encrypt and add</button></div>
             </form>
           </section>

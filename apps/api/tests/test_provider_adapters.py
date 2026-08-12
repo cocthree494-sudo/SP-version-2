@@ -9,7 +9,10 @@ def test_every_enabled_catalog_provider_has_one_explicit_adapter() -> None:
     specs = {item.provider.value: item for item in adapter_specs()}
     enabled = {item.id for item in provider_catalog() if item.enabled}
     assert enabled == set(specs)
-    assert all(item.base_url.startswith("https://") for item in specs.values())
+    assert all(
+        item.provider.value == "custom" or item.base_url.startswith("https://")
+        for item in specs.values()
+    )
     assert all(item.kind == "openai_compatible" for item in specs.values())
 
 

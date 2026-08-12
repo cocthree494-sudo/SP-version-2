@@ -26,6 +26,7 @@ class ProviderAdapterSpec:
 
 
 _BASE_URLS: dict[GenerationProvider, str] = {
+    GenerationProvider.CUSTOM: "",
     GenerationProvider.AI_GATEWAY: "https://ai-gateway.vercel.sh/v1",
     GenerationProvider.ALIBABA: "https://dashscope.aliyuncs.com/compatible-mode/v1",
     GenerationProvider.ALIBABA_CODING_PLAN: "https://dashscope.aliyuncs.com/compatible-mode/v1",

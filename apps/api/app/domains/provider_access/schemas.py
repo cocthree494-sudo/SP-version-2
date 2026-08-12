@@ -50,9 +50,17 @@ class ProviderCredentialCreateRequest(BaseModel):
         if self.provider.value != "custom" and self.base_url is not None:
             raise ValueError("A base URL is only accepted for custom providers")
         valid_models = {item.id for item in entry.models}
-        if self.low_cost_model_id not in valid_models:
+        if self.provider.value == "custom":
+            _model_id(self.low_cost_model_id)
+            if self.strong_model_id is not None:
+                _model_id(self.strong_model_id)
+        elif self.low_cost_model_id not in valid_models:
             raise ValueError("Select a supported low-cost model from the provider catalog")
-        if self.strong_model_id is not None and self.strong_model_id not in valid_models:
+        if (
+            self.provider.value != "custom"
+            and self.strong_model_id is not None
+            and self.strong_model_id not in valid_models
+        ):
             raise ValueError("Select a supported strong model from the provider catalog")
         return self
 
@@ -67,6 +75,7 @@ class ProviderCredentialResponse(BaseModel):
     id: UUID
     provider: GenerationProvider
     label: str
+    base_url: str | None
     masked_secret: str
     low_cost_model_id: str
     strong_model_id: str | None
@@ -101,7 +110,6 @@ class ProviderPolicyResponse(BaseModel):
 class ProviderCatalogModelResponse(BaseModel):
     id: str
     label: str
-    base_url: str | None
 
 
 class ProviderCatalogEntryResponse(BaseModel):
