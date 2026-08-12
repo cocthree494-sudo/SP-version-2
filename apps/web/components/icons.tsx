@@ -123,6 +123,10 @@ export function GlobeIcon(props: IconProps) {
   );
 }
 
+export function SearchIcon(props: IconProps) {
+  return <IconFrame {...props}><circle cx="11" cy="11" r="6.5" /><path d="m16 16 5 5" /></IconFrame>;
+}
+
 export function GoogleIcon(props: IconProps) {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24" {...props}>

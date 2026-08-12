@@ -86,6 +86,10 @@ This file is the source of truth for Phase 2 planning and implementation order. 
 
   Add owner/member authorization, step-up, idempotency, deletion-status, purge/retry, audit-redaction, cross-tenant isolation, provider-identity removal, same-email re-registration, orphan-workspace prevention, and session-revocation tests. Inspect the account-settings and confirmation flow on desktop and mobile before completion.
 
+- [ ] **T-079 — Add a searchable product documentation center**
+  Depends on: T-071, T-075, T-076, T-077, T-078
+  Add a public documentation surface and an authenticated in-app Help / Docs page explaining account/login, workspace roles, provider setup and routing, bot/knowledge/widget configuration, channel connections, Telegram QR/OTP session safety, WhatsApp/Facebook approval requirements, voice consent and costs, account deletion, and troubleshooting. Documentation must be versioned from repository source, searchable with keyboard-accessible results, linkable to specific sections, responsive on desktop/mobile, and avoid exposing secrets or internal implementation details. Include a release checklist, provider/channel availability matrix, security and privacy notes, support contact path, and automated link/content smoke tests; update it whenever a completed task changes user-visible behavior.
+
 ## Deferred / out of scope
 
 - Phase 3: billing/quotas, platform administration, and human handoff/inbox.

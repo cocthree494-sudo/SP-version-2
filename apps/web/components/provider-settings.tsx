@@ -8,7 +8,7 @@ import type {
 } from "@support-agent/api-client";
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
-import { PlusIcon, TrashIcon } from "@/components/icons";
+import { PlusIcon, SearchIcon, TrashIcon } from "@/components/icons";
 import { useAuth } from "@/lib/auth-context";
 import { dashboardApi } from "@/lib/dashboard-api";
 
@@ -65,12 +65,10 @@ export function ProviderSettings() {
   const filteredCatalog = useMemo(() => {
     const query = providerSearch.trim().toLowerCase();
     if (!query) return catalog;
-    const matches = catalog.filter((item) =>
+    return catalog.filter((item) =>
       [item.label, item.id, ...item.aliases].some((value) => value.toLowerCase().includes(query)),
     );
-    const selected = catalog.find((item) => item.id === selectedProviderId);
-    return selected && !matches.some((item) => item.id === selected.id) ? [selected, ...matches] : matches;
-  }, [catalog, providerSearch, selectedProviderId]);
+  }, [catalog, providerSearch]);
   const catalogGroups = useMemo(() => {
     const groups = new Map<string, ProviderCatalogEntry[]>();
     filteredCatalog.forEach((item) => {
@@ -126,6 +124,18 @@ export function ProviderSettings() {
   useEffect(() => {
     if (rotating) rotateInputRef.current?.focus();
   }, [rotating]);
+
+  useEffect(() => {
+    if (!providerSearch.trim() || !filteredCatalog.length) return;
+    if (!filteredCatalog.some((item) => item.id === selectedProviderId)) {
+      setSelectedProviderId(filteredCatalog[0].id);
+    }
+  }, [filteredCatalog, providerSearch, selectedProviderId]);
+
+  function submitProviderSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (filteredCatalog[0]) setSelectedProviderId(filteredCatalog[0].id);
+  }
 
   useEffect(() => {
     if (revoking) keepCredentialRef.current?.focus();
@@ -280,8 +290,11 @@ export function ProviderSettings() {
           <div className="provider-catalog-counts" aria-label="Provider availability"><span><strong>{catalogReadyCount}</strong> ready</span><span><strong>{catalogComingSoonCount}</strong> coming soon</span></div>
         </div>
         <div className="provider-catalog-tools">
+          <form className="provider-search-form" onSubmit={submitProviderSearch}>
           <label className="provider-search">Find a provider<input type="search" value={providerSearch} onChange={(event) => setProviderSearch(event.target.value)} placeholder="Search OpenAI, Gemini, Claude…" /></label>
-          <label className="provider-picker">Provider<select value={selectedProviderId} onChange={(event) => setSelectedProviderId(event.target.value)} disabled={loading || !catalog.length}>
+            <button className="provider-search-button" type="submit" aria-label="Search providers" title="Search providers"><SearchIcon width={16} height={16} /></button>
+          </form>
+          <label className="provider-picker">Provider<select id="provider-picker" value={selectedProviderId} onChange={(event) => setSelectedProviderId(event.target.value)} disabled={loading || !catalog.length}>
             {[...catalogGroups.entries()].map(([method, entries]) => <optgroup label={method.replaceAll("_", " ")} key={method}>{entries.map((item) => <option value={item.id} disabled={!item.enabled} key={item.id}>{item.label}{item.enabled ? "" : " · coming soon"}</option>)}</optgroup>)}
           </select></label>
         </div>
