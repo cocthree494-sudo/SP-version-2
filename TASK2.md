@@ -46,7 +46,7 @@ This file is the source of truth for Phase 2 planning and implementation order. 
 
   Each provider must pass the same adapter contract, tenant-isolation, redaction, revocation, routing, and failure tests as the existing provider integration. Do not expose a provider in the enabled dropdown until its adapter and tests pass; retain it as clearly unavailable with a reason rather than implying support. Embedding BYOK remains out of scope.
 
-- [ ] **T-073 — Add hardened custom generation-provider setup**  
+- [x] **T-073 — Add hardened custom generation-provider setup**  
   Depends on: T-071  
   Add a distinct “Custom provider” path for tenant-owned, OpenAI-compatible generation endpoints. Unlike the predefined catalog, custom setup necessarily requires an HTTPS base URL in addition to a write-only API key or approved no-key mode; derive a safe display label from the verified endpoint and discover models into a dropdown so the user never types a model ID. Show the custom entry in the same catalog and routing controls after verification. Never send custom credentials to the browser after submission or place them in logs, prompts, queues, telemetry, or error bodies.
 
