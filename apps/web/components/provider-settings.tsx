@@ -157,7 +157,6 @@ export function ProviderSettings() {
         provider: selectedProviderId as GenerationProvider,
         label: `${selectedProvider?.label ?? "Provider"} · ${lowModel}`,
         api_key: submittedKey,
-        base_url: selectedProviderId === "custom" ? customBaseUrl : null,
         low_cost_model_id: lowModel.trim(),
         strong_model_id: strongModel.trim() || null,
       });
