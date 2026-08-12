@@ -33,6 +33,7 @@ TENANT_TABLES = (
     "messages",
     "provider_credentials",
     "provider_policies",
+    "channel_installations",
 )
 
 

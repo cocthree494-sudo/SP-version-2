@@ -7,6 +7,7 @@ boundaries before SQLAlchemy first configures its mappers.
 
 from app.domains.auth import models as _auth_models
 from app.domains.bots import models as _bot_models
+from app.domains.channels import models as _channel_models
 from app.domains.chat import models as _chat_models
 from app.domains.knowledge import models as _knowledge_models
 from app.domains.provider_access import models as _provider_access_models
@@ -17,6 +18,7 @@ _REGISTERED_MODULES = (
     _auth_models,
     _bot_models,
     _chat_models,
+    _channel_models,
     _knowledge_models,
     _provider_access_models,
     _tenancy_models,
@@ -27,7 +29,7 @@ _REGISTERED_MODULES = (
 def register_model_mappings() -> None:
     """Provide an explicit, testable worker/bootstrap registration hook."""
 
-    if len(_REGISTERED_MODULES) != 7:  # pragma: no cover - import invariant
+    if len(_REGISTERED_MODULES) != 8:  # pragma: no cover - import invariant
         raise RuntimeError("Application ORM model registry is incomplete")
 
 

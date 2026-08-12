@@ -25,6 +25,7 @@ const buildNav = [
   { href: "/dashboard/playground", label: "Playground", icon: MessageIcon, available: true },
   { href: "/dashboard/widget", label: "Widget", icon: SparkIcon, available: true },
   { href: "/dashboard/providers", label: "Providers", icon: UserIcon, available: true },
+  { href: "/dashboard/channels", label: "Channels", icon: MessageIcon, available: true },
 ];
 
 function routeLabel(pathname: string): string {
@@ -33,6 +34,7 @@ function routeLabel(pathname: string): string {
   if (pathname.startsWith("/dashboard/playground")) return "Playground";
   if (pathname.startsWith("/dashboard/widget")) return "Widget";
   if (pathname.startsWith("/dashboard/providers")) return "Providers";
+  if (pathname.startsWith("/dashboard/channels")) return "Channels";
   return "Overview";
 }
 

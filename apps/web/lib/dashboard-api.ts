@@ -5,6 +5,9 @@ import type {
   BotKeyUpdateInput,
   BotResponse,
   BotUpdateInput,
+  ChannelInstallInput,
+  ChannelInstallationResponse,
+  ChannelStatus,
   KnowledgeSourceResponse,
   ManualSourceCreateInput,
   ManualSourceUpdateInput,
@@ -176,6 +179,19 @@ export const dashboardApi = {
     ),
   getProviderPolicy: () => dashboardRequest<ProviderPolicyResponse>("/providers/policy"),
   deleteAccount: (password: string) => dashboardRequest<void>("/account/delete", { method: "POST", body: JSON.stringify({ password, confirmation: "DELETE MY ACCOUNT" }) }),
+  listChannels: () => dashboardRequest<ChannelInstallationResponse[]>("/channels"),
+  installChannel: (payload: ChannelInstallInput) =>
+    dashboardRequest<ChannelInstallationResponse>("/channels", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateChannel: (channelId: string, status: ChannelStatus) =>
+    dashboardRequest<ChannelInstallationResponse>(`/channels/${encodeURIComponent(channelId)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    }),
+  revokeChannel: (channelId: string) =>
+    dashboardRequest<void>(`/channels/${encodeURIComponent(channelId)}`, { method: "DELETE" }),
   updateProviderPolicy: (mode: ProviderRoutingMode, credentialOrder: string[]) =>
     dashboardRequest<ProviderPolicyResponse>("/providers/policy", {
       method: "PATCH",

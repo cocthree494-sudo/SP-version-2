@@ -260,6 +260,32 @@ export interface ProviderCredentialCreateInput {
   strong_model_id?: string | null;
 }
 
+export type ChannelType =
+  | "telegram_personal"
+  | "whatsapp_business"
+  | "facebook_page"
+  | "email";
+export type ChannelStatus = "pending" | "connected" | "paused" | "revoked" | "error";
+
+export interface ChannelInstallationResponse {
+  id: string;
+  channel_type: ChannelType;
+  external_identity: string;
+  status: ChannelStatus;
+  conversation_scope: string[];
+  consent_record: Record<string, unknown>;
+  expires_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChannelInstallInput {
+  channel_type: ChannelType;
+  external_identity: string;
+  conversation_scope?: string[];
+  consent_acknowledged: boolean;
+}
+
 export interface ProviderCatalogModel {
   id: string;
   label: string;
