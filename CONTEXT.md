@@ -296,6 +296,11 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 - Added migration `0013_runtime_identity_grant`, kept its revision ID within PostgreSQL/Alembic's 32-character version limit, and added migration-head/grant assertions. Local Alembic, Ruff, mypy, and auth tests pass.
 - Pushed commits `33ce90d` and `660e2a4`; the test VPS pulled `660e2a4`, applied the migration successfully, and restarted API/worker without replacing database volumes. Browser retest now reaches verified-social workspace setup; no API permission error remains.
 
+### Session 21 - Codex
+
+- User confirmed that Phase 2 is not complete and requested sequential completion of the remaining provider, account-menu, channel, and voice tasks.
+- Added approved task T-078 for secure account deletion. The design releases the normalized email/provider identity after finalization so the same Gmail address can register a new account, while preventing orphaned workspaces, revoking sessions, and cleaning tenant-owned data safely.
+
 ## 7. Open items
 
 | ID | Item | Handling now |
