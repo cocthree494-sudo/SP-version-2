@@ -89,21 +89,24 @@ export function ProviderSettings() {
       return;
     }
     let cancelled = false;
-    Promise.all([
+    Promise.allSettled([
       dashboardApi.listProviderCatalog(),
       dashboardApi.listProviderCredentials(),
       dashboardApi.getProviderPolicy(),
     ])
-      .then(([providerCatalog, items, policy]) => {
+      .then(([catalogResult, credentialsResult, policyResult]) => {
         if (cancelled) return;
-        setCatalog(providerCatalog);
-        setCredentials(items);
-        setMode(policy.mode);
-        setCredentialOrder(policy.credential_order);
-      })
-      .catch((caught: unknown) => {
-        if (!cancelled) {
-          setError(caught instanceof Error ? caught.message : "Provider settings could not be loaded.");
+        if (catalogResult.status === "fulfilled") setCatalog(catalogResult.value);
+        if (credentialsResult.status === "fulfilled") setCredentials(credentialsResult.value);
+        if (policyResult.status === "fulfilled") {
+          setMode(policyResult.value.mode);
+          setCredentialOrder(policyResult.value.credential_order);
+        }
+        const failures = [catalogResult, credentialsResult, policyResult]
+          .filter((result): result is PromiseRejectedResult => result.status === "rejected");
+        if (failures.length) {
+          const first = failures[0].reason;
+          setError(first instanceof Error ? first.message : "Some provider settings could not be loaded.");
         }
       })
       .finally(() => {
