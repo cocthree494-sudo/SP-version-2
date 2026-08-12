@@ -11,6 +11,19 @@ branch_labels = None
 depends_on = None
 
 
+def _force_tenant_rls(table: str, policy: str) -> None:
+    op.execute(sa.text(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY"))
+    op.execute(sa.text(f"ALTER TABLE {table} FORCE ROW LEVEL SECURITY"))
+    op.execute(
+        sa.text(f"""
+        CREATE POLICY {policy}
+        ON {table}
+        USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid)
+        WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid)
+    """)
+    )
+
+
 def upgrade() -> None:
     op.create_table(
         "voice_agent_installations",
@@ -77,6 +90,8 @@ def upgrade() -> None:
     op.create_index(
         "ix_voice_webhook_events_installation_id", "voice_webhook_events", ["installation_id"]
     )
+    _force_tenant_rls("voice_agent_installations", "voice_agent_installations_tenant_isolation")
+    _force_tenant_rls("voice_webhook_events", "voice_webhook_events_tenant_isolation")
     op.execute(
         "GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE voice_agent_installations, "
         "voice_webhook_events TO support_agent_app"
@@ -84,6 +99,13 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    for table, policy in (
+        ("voice_webhook_events", "voice_webhook_events_tenant_isolation"),
+        ("voice_agent_installations", "voice_agent_installations_tenant_isolation"),
+    ):
+        op.execute(sa.text(f"DROP POLICY IF EXISTS {policy} ON {table}"))
+        op.execute(sa.text(f"ALTER TABLE {table} NO FORCE ROW LEVEL SECURITY"))
+        op.execute(sa.text(f"ALTER TABLE {table} DISABLE ROW LEVEL SECURITY"))
     op.execute(
         "REVOKE SELECT, INSERT, UPDATE, DELETE ON TABLE voice_agent_installations, "
         "voice_webhook_events FROM support_agent_app"

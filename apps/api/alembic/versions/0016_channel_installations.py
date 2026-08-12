@@ -11,6 +11,19 @@ branch_labels = None
 depends_on = None
 
 
+def _force_tenant_rls() -> None:
+    op.execute(sa.text("ALTER TABLE channel_installations ENABLE ROW LEVEL SECURITY"))
+    op.execute(sa.text("ALTER TABLE channel_installations FORCE ROW LEVEL SECURITY"))
+    op.execute(
+        sa.text("""
+        CREATE POLICY channel_installations_tenant_isolation
+        ON channel_installations
+        USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid)
+        WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid)
+    """)
+    )
+
+
 def upgrade() -> None:
     op.create_table(
         "channel_installations",
@@ -44,12 +57,20 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_channel_installations_tenant_id", "channel_installations", ["tenant_id"])
+    _force_tenant_rls()
     op.execute(
         "GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE channel_installations TO support_agent_app"
     )
 
 
 def downgrade() -> None:
+    op.execute(
+        sa.text(
+            "DROP POLICY IF EXISTS channel_installations_tenant_isolation ON channel_installations"
+        )
+    )
+    op.execute(sa.text("ALTER TABLE channel_installations NO FORCE ROW LEVEL SECURITY"))
+    op.execute(sa.text("ALTER TABLE channel_installations DISABLE ROW LEVEL SECURITY"))
     op.execute(
         "REVOKE SELECT, INSERT, UPDATE, DELETE ON TABLE channel_installations "
         "FROM support_agent_app"

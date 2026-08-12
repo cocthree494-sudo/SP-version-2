@@ -18,11 +18,13 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from app.db.base import Base, utc_now
 from app.domains.auth import models as _auth_models  # noqa: F401
 from app.domains.bots import models as _bot_models  # noqa: F401
+from app.domains.channels import models as _channel_models  # noqa: F401
 from app.domains.chat import models as _chat_models  # noqa: F401
 from app.domains.knowledge import models as _knowledge_models  # noqa: F401
 from app.domains.provider_access import models as _provider_access_models  # noqa: F401
 from app.domains.tenancy import models as _tenancy_models  # noqa: F401
 from app.domains.usage import models as _usage_models  # noqa: F401
+from app.domains.voice import models as _voice_models  # noqa: F401
 
 TENANT_TABLES = (
     "tenant_memberships",
@@ -38,6 +40,9 @@ TENANT_TABLES = (
     "messages",
     "provider_credentials",
     "provider_policies",
+    "channel_installations",
+    "voice_agent_installations",
+    "voice_webhook_events",
 )
 
 
@@ -229,6 +234,47 @@ def _insert_sql(table: str, row_id: UUID, seed: SeedRows) -> tuple[str, dict[str
             "VALUES (:id, :tenant_id, :mode, CAST(:credential_order AS json))",
             params,
         )
+    if table == "channel_installations":
+        params.update(
+            channel_type="email",
+            external_identity="cross@example.test",
+            status="pending",
+            conversation_scope="[]",
+            consent_record='{"acknowledged": true}',
+        )
+        return (
+            "INSERT INTO channel_installations "
+            "(id, tenant_id, channel_type, external_identity, status, "
+            "conversation_scope, consent_record) "
+            "VALUES (:id, :tenant_id, :channel_type, :external_identity, :status, "
+            "CAST(:conversation_scope AS json), CAST(:consent_record AS json))",
+            params,
+        )
+    if table == "voice_agent_installations":
+        params.update(phone_number=f"+1555{str(row_id.int)[-7:]}")
+        return (
+            "INSERT INTO voice_agent_installations "
+            "(id, tenant_id, phone_number, provider, language, voice, business_hours, "
+            "outbound_enabled, recording_enabled, retention_days, monthly_cost_limit_usd, status) "
+            "VALUES (:id, :tenant_id, :phone_number, 'twilio', 'auto', 'alloy', "
+            "CAST('{}' AS json), "
+            "false, false, 0, 100, 'pending')",
+            params,
+        )
+    if table == "voice_webhook_events":
+        params.update(
+            installation_id=seed.row_ids["voice_agent_installations"],
+            event_id=f"cross-{row_id}",
+            event_type="call.started",
+            payload="{}",
+        )
+        return (
+            "INSERT INTO voice_webhook_events "
+            "(id, tenant_id, installation_id, event_id, event_type, payload) "
+            "VALUES (:id, :tenant_id, :installation_id, :event_id, :event_type, "
+            "CAST(:payload AS json))",
+            params,
+        )
     raise AssertionError(f"Missing RLS insert fixture for {table}")
 
 
@@ -330,6 +376,41 @@ async def seeded_rows(admin_postgres_engine: AsyncEngine) -> AsyncIterator[SeedR
                 "id": row_ids["knowledge_sources"],
                 "tenant_b": tenant_b,
                 "bot": row_ids["bots"],
+            },
+        )
+        await connection.execute(
+            text(
+                "INSERT INTO channel_installations "
+                "(id, tenant_id, channel_type, external_identity, status, "
+                "conversation_scope, consent_record) "
+                "VALUES (:id, :tenant_b, 'email', 'rls-b@example.test', 'pending', "
+                "CAST('[]' AS json), CAST('{\"acknowledged\": true}' AS json))"
+            ),
+            {"id": row_ids["channel_installations"], "tenant_b": tenant_b},
+        )
+        await connection.execute(
+            text(
+                "INSERT INTO voice_agent_installations "
+                "(id, tenant_id, phone_number, provider, language, voice, business_hours, "
+                "outbound_enabled, recording_enabled, retention_days, "
+                "monthly_cost_limit_usd, status) "
+                "VALUES (:id, :tenant_b, '+15550199', 'twilio', 'auto', 'alloy', "
+                "CAST('{}' AS json), "
+                "false, false, 0, 100, 'pending')"
+            ),
+            {"id": row_ids["voice_agent_installations"], "tenant_b": tenant_b},
+        )
+        await connection.execute(
+            text(
+                "INSERT INTO voice_webhook_events "
+                "(id, tenant_id, installation_id, event_id, event_type, payload) "
+                "VALUES (:id, :tenant_b, :installation, 'rls-event', 'call.started', "
+                "CAST('{}' AS json))"
+            ),
+            {
+                "id": row_ids["voice_webhook_events"],
+                "tenant_b": tenant_b,
+                "installation": row_ids["voice_agent_installations"],
             },
         )
         await connection.execute(
