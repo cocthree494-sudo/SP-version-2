@@ -108,6 +108,12 @@ export function AuthForm({ mode }: Readonly<{ mode: AuthMode }>) {
   const socialToken = searchParams.get("social_token");
   const socialSelectToken = searchParams.get("social_select");
   const socialLinkToken = searchParams.get("social_link");
+  const oauthError = searchParams.get("oauth_error");
+  const oauthProvider = searchParams.get("provider");
+  const oauthErrorMessage =
+    oauthError === "provider_unavailable"
+      ? `${oauthProvider === "microsoft" ? "Microsoft" : oauthProvider === "github" ? "GitHub" : "Google"} sign-in is not configured yet. Ask the workspace administrator to enable it.`
+      : null;
   const socialRegistration = isRegister && Boolean(socialToken);
   const socialOrganizationSelection = !isRegister && Boolean(socialSelectToken);
 
@@ -252,10 +258,10 @@ export function AuthForm({ mode }: Readonly<{ mode: AuthMode }>) {
               autoComplete="organization"
             />
 
-            {error ? (
+            {error || oauthErrorMessage ? (
               <div className="form-alert" role="alert">
                 <span className="form-alert-mark">!</span>
-                <span>{error}</span>
+                <span>{error ?? oauthErrorMessage}</span>
               </div>
             ) : null}
 

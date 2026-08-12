@@ -1,4 +1,4 @@
-import type { SocialProvider } from "@support-agent/api-client";
+import { ApiError, type SocialProvider } from "@support-agent/api-client";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { apiErrorResponse, serverApi } from "@/lib/server-auth";
@@ -22,6 +22,12 @@ export async function GET(
     });
     return NextResponse.redirect(result.authorization_url);
   } catch (error) {
+    if (error instanceof ApiError && error.status === 503) {
+      const loginUrl = new URL("/login", request.url);
+      loginUrl.searchParams.set("oauth_error", "provider_unavailable");
+      loginUrl.searchParams.set("provider", provider);
+      return NextResponse.redirect(loginUrl);
+    }
     return apiErrorResponse(error);
   }
 }
