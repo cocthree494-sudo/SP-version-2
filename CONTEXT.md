@@ -290,6 +290,12 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 - Targeted Ruff, strict mypy, web lint/typecheck, 71 API tests (16 live-only skips), PostgreSQL offline migration SQL generation through `0012_social_auth`, and a production Next build all pass. Playwright inspected login at 1440×900 and 390×844; all three icon-only providers render with no horizontal overflow.
 - T-070 remains unchecked until real provider credentials are configured and the live Google/Microsoft/GitHub callback paths are exercised in the joint acceptance environment.
 
+### Session 20 - Codex
+
+- Exercised the public Google callback on `relay.npcautomators.com` through the real OAuth consent flow. The callback initially exposed a missing `support_agent_app` grant on `provider_identities`.
+- Added migration `0013_runtime_identity_grant`, kept its revision ID within PostgreSQL/Alembic's 32-character version limit, and added migration-head/grant assertions. Local Alembic, Ruff, mypy, and auth tests pass.
+- Pushed commits `33ce90d` and `660e2a4`; the test VPS pulled `660e2a4`, applied the migration successfully, and restarted API/worker without replacing database volumes. Browser retest now reaches verified-social workspace setup; no API permission error remains.
+
 ## 7. Open items
 
 | ID | Item | Handling now |
@@ -306,7 +312,7 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 **Next task:** T-071 — build the Hermes-aligned provider catalog after T-070 is accepted. Phase 2 planning and task tracking are in `TASK2.md`.
 **Blocked on:** No implementation blocker. Production traffic remains blocked on hosting/budget selection and named release-owner/security approval of the prerequisites in `docs/mvp-acceptance.md`.
 
-**Pushed state:** `origin/main` includes the T-062 acceptance baseline and this 27-slide presentation delivery at the current handoff.
-**Uncommitted work:** T-070 social sign-in implementation plus the user's existing Phase 2 planning/documentation edits.
-**Verification:** T-070 local gate: Ruff, strict mypy over 115 files, 71 API tests with 16 live-only skips, web ESLint/typecheck, production web build, PostgreSQL-dialect migration SQL through `0012_social_auth`, and Playwright login inspection at desktop/mobile sizes. Live provider callback and real PostgreSQL upgrade remain acceptance gates.
+**Pushed state:** `origin/main` includes the T-062 acceptance baseline, the T-070 social sign-in implementation, and the `0013_runtime_identity_grant` production fix through commit `660e2a4`.
+**Uncommitted work:** None in the working tree; T-070 remains open for the remaining provider acceptance checks.
+**Verification:** T-070 local gate: Ruff, strict mypy over 115 files, 71 API tests with 16 live-only skips, web ESLint/typecheck, production web build, PostgreSQL-dialect migration SQL through `0013_runtime_identity_grant`, and live Google callback/smoke tests on `relay.npcautomators.com`. Microsoft/GitHub credentials and final workspace-creation acceptance remain pending.
 **Gotchas:** This workstation still lacks Docker/PostgreSQL/pgvector, so live database checks run in CI. Plaintext tenant keys must never be stored, logged, cached, queued, or re-displayed; platform fallback stays explicit; arbitrary provider URLs and embedding BYOK are excluded.
