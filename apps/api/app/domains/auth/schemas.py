@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 import unicodedata
 from datetime import datetime
+from typing import Literal
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, SecretStr, field_validator
@@ -72,18 +73,74 @@ class RefreshRequest(BaseModel):
     refresh_token: SecretStr = Field(min_length=32, max_length=256)
 
 
-class TokenPairResponse(BaseModel):
-    access_token: str
-    refresh_token: str
-    token_type: str = "bearer"  # noqa: S105 - OAuth token type, not a credential
-    expires_in: int
-
-
 class CurrentTenantResponse(BaseModel):
     id: UUID
     name: str
     slug: str
     status: TenantStatus
+
+
+class SocialAuthStartRequest(BaseModel):
+    mode: Literal["login", "register"] = "login"
+    organization_slug: str | None = None
+
+    @field_validator("organization_slug")
+    @classmethod
+    def validate_slug(cls, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            return None
+        return normalize_organization_slug(value)
+
+
+class SocialAuthStartResponse(BaseModel):
+    provider: Literal["google", "microsoft", "github"]
+    authorization_url: str
+
+
+class SocialAuthCallbackRequest(BaseModel):
+    code: str = Field(min_length=1, max_length=4096)
+    state: str = Field(min_length=20, max_length=512)
+
+
+class SocialAuthCompleteRequest(BaseModel):
+    continuation_token: SecretStr = Field(min_length=20, max_length=512)
+    organization_name: str | None = Field(default=None, min_length=2, max_length=200)
+    organization_slug: str | None = None
+
+    @field_validator("organization_slug")
+    @classmethod
+    def validate_slug(cls, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            return None
+        return normalize_organization_slug(value)
+
+
+class SocialAuthLinkRequest(BaseModel):
+    continuation_token: SecretStr = Field(min_length=20, max_length=512)
+
+
+class SocialAuthResponse(BaseModel):
+    status: Literal[
+        "authenticated",
+        "organization_required",
+        "organization_selection_required",
+        "account_link_required",
+    ]
+    access_token: str | None = None
+    refresh_token: str | None = None
+    token_type: str = "bearer"  # noqa: S105 - OAuth token type, not a credential
+    expires_in: int | None = None
+    continuation_token: str | None = None
+    email: EmailStr | None = None
+    display_name: str | None = None
+    organizations: list[CurrentTenantResponse] = Field(default_factory=list)
+
+
+class TokenPairResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"  # noqa: S105 - OAuth token type, not a credential
+    expires_in: int
 
 
 class MeResponse(BaseModel):
@@ -102,6 +159,12 @@ __all__ = [
     "MeResponse",
     "RefreshRequest",
     "RegisterRequest",
+    "SocialAuthCallbackRequest",
+    "SocialAuthCompleteRequest",
+    "SocialAuthLinkRequest",
+    "SocialAuthResponse",
+    "SocialAuthStartRequest",
+    "SocialAuthStartResponse",
     "TokenPairResponse",
     "create_organization_slug",
     "normalize_organization_slug",

@@ -54,6 +54,18 @@ class AuthMembershipRepository:
             return None
         return row[0], row[1]
 
+    async def list_for_login(self, *, user_id: UUID) -> list[tuple[TenantMembership, Tenant]]:
+        """List only the verified user's own organizations before selection."""
+
+        await set_database_user(self.session, user_id)
+        statement = (
+            select(TenantMembership, Tenant)
+            .join(Tenant, Tenant.id == TenantMembership.tenant_id)
+            .where(TenantMembership.user_id == user_id)
+            .order_by(TenantMembership.created_at, TenantMembership.id)
+        )
+        return [(row[0], row[1]) for row in (await self.session.execute(statement)).all()]
+
 
 class RefreshTokenRepository:
     """Store only hashes and perform refresh rotation under a row lock."""

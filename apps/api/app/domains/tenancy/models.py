@@ -39,7 +39,9 @@ class User(UUIDTimestampModel):
     )
 
     email: Mapped[str] = mapped_column(String(320), nullable=False)
-    password_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    # Social-only identities intentionally have no password hash. Password
+    # login rejects those users until they explicitly set a password.
+    password_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[UserStatus] = mapped_column(
         _enum_type(UserStatus, "user_status", 16),
         default=UserStatus.ACTIVE,
@@ -51,6 +53,40 @@ class User(UUIDTimestampModel):
     memberships: Mapped[list[TenantMembership]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
+    )
+
+
+class ProviderIdentity(UUIDTimestampModel):
+    """Stable external identity binding for an OAuth/OIDC provider."""
+
+    __tablename__ = "provider_identities"
+    __table_args__ = (
+        UniqueConstraint(
+            "provider",
+            "issuer",
+            "subject",
+            name="uq_provider_identities_provider_issuer_subject",
+        ),
+        UniqueConstraint(
+            "user_id",
+            "provider",
+            name="uq_provider_identities_user_provider",
+        ),
+    )
+
+    provider: Mapped[str] = mapped_column(String(32), nullable=False)
+    issuer: Mapped[str] = mapped_column(String(255), nullable=False)
+    subject: Mapped[str] = mapped_column(String(255), nullable=False)
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    email: Mapped[str] = mapped_column(String(320), nullable=False)
+    email_verified: Mapped[bool] = mapped_column(
+        nullable=False,
+        default=False,
+        server_default="false",
     )
 
 
@@ -120,4 +156,4 @@ class TenantMembership(TenantScopedModel):
     user: Mapped[User] = relationship(back_populates="memberships")
 
 
-__all__ = ["Tenant", "TenantMembership", "User"]
+__all__ = ["ProviderIdentity", "Tenant", "TenantMembership", "User"]

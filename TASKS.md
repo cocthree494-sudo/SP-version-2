@@ -160,7 +160,7 @@ Completion means implementation, proportionate tests/checks, documentation/hando
 
 ## Later task buckets — not yet scheduled
 
-- Phase 2: real multi-provider redundancy, channel adapters, analytics, consent-aware durable memory.
+- Phase 2 planning and task tracking has moved to `TASK2.md`.
 - Phase 3: Stripe/business layer, platform admin, human handoff.
 - Phase 4: growth analytics, voice, approved auto-learning.
 

@@ -9,6 +9,7 @@ from uuid import UUID
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from pydantic import SecretStr
 from sqlalchemy import Table, select
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -27,8 +28,9 @@ from app.core.security import (
 from app.db.base import Base
 from app.db.session import get_db_session
 from app.domains.auth.models import RefreshToken
+from app.domains.auth.oauth import OAuthProfile
 from app.domains.auth.repositories import RefreshTokenRepository
-from app.domains.tenancy.models import Tenant, TenantMembership, User
+from app.domains.tenancy.models import ProviderIdentity, Tenant, TenantMembership, User
 from app.domains.tenancy.repositories import UserRepository
 from app.main import app
 
@@ -43,6 +45,7 @@ async def auth_session() -> AsyncGenerator[AsyncSession, None]:
         cast(Table, User.__table__),
         cast(Table, Tenant.__table__),
         cast(Table, TenantMembership.__table__),
+        cast(Table, ProviderIdentity.__table__),
         cast(Table, RefreshToken.__table__),
     ]
     async with engine.begin() as connection:
@@ -121,6 +124,7 @@ async def test_register_bootstraps_owner_and_me_context(
 
     user = await UserRepository(auth_session).get_by_email("owner@example.com")
     assert user is not None
+    assert user.password_hash is not None
     assert user.password_hash.startswith("$argon2id$")
     assert verify_password("correct horse battery staple", user.password_hash)
 
@@ -271,3 +275,72 @@ async def test_me_and_refresh_reject_missing_or_unknown_credentials(
     assert me_response.status_code == 401
     assert invalid_me_response.status_code == 401
     assert refresh_response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_social_registration_uses_one_time_pkce_state_and_creates_passwordless_identity(
+    auth_client: AsyncClient,
+    auth_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import app.domains.auth.service as auth_service
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "OAUTH_GOOGLE_CLIENT_ID", "google-client")
+    monkeypatch.setattr(settings, "OAUTH_GOOGLE_CLIENT_SECRET", SecretStr("google-secret"))
+
+    async def fake_exchange(provider: str, *, code: str, oauth_state: object) -> OAuthProfile:
+        assert provider == "google"
+        assert code == "provider-code"
+        return OAuthProfile(
+            provider="google",
+            issuer="https://accounts.google.com",
+            subject="google-subject-1",
+            email="social@example.com",
+            email_verified=True,
+            display_name="Social Owner",
+        )
+
+    monkeypatch.setattr(auth_service, "exchange_code", fake_exchange)
+    start = await auth_client.post(
+        "/v1/auth/oauth/google/start",
+        json={"mode": "register"},
+    )
+    assert start.status_code == 200
+    assert "code_challenge=" in start.json()["authorization_url"]
+    from urllib.parse import parse_qs, urlparse
+
+    state = parse_qs(urlparse(start.json()["authorization_url"]).query)["state"][0]
+    callback = await auth_client.post(
+        "/v1/auth/oauth/google/callback",
+        json={"code": "provider-code", "state": state},
+    )
+    assert callback.status_code == 200
+    callback_data = callback.json()
+    assert callback_data["status"] == "organization_required"
+    assert callback_data["continuation_token"]
+
+    replay = await auth_client.post(
+        "/v1/auth/oauth/google/callback",
+        json={"code": "provider-code", "state": state},
+    )
+    assert replay.status_code == 401
+
+    complete = await auth_client.post(
+        "/v1/auth/oauth/register",
+        json={
+            "continuation_token": callback_data["continuation_token"],
+            "organization_name": "Social Workspace",
+        },
+    )
+    assert complete.status_code == 200
+    assert complete.json()["access_token"]
+    me = await auth_client.get(
+        "/v1/me",
+        headers={"Authorization": f"Bearer {complete.json()['access_token']}"},
+    )
+    assert me.status_code == 200
+    assert me.json()["email"] == "social@example.com"
+    social_user = await UserRepository(auth_session).get_by_email("social@example.com")
+    assert social_user is not None
+    assert social_user.password_hash is None

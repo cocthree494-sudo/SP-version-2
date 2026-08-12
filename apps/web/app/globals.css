@@ -125,6 +125,17 @@ h1, h2, h3, p { margin: 0; }
 .auth-heading h1 { margin: 17px 0 11px; color: var(--navy-deep); font-size: clamp(33px, 4vw, 47px); font-weight: 710; letter-spacing: -.065em; line-height: 1; }
 .auth-heading p { color: var(--ink-soft); font-size: 14px; line-height: 1.65; }
 .auth-form { display: grid; gap: 17px; }
+.auth-divider { display: flex; align-items: center; gap: 12px; margin: 22px 0 13px; color: var(--ink-faint); font-size: 10px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+.auth-divider::before, .auth-divider::after { height: 1px; flex: 1; background: var(--line); content: ""; }
+.social-buttons { display: flex; justify-content: center; gap: 12px; }
+.social-button { display: grid; place-items: center; width: 48px; height: 48px; border: 1px solid var(--line-strong); border-radius: 50%; background: var(--white); color: var(--navy); transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
+.social-button:hover { transform: translateY(-2px); border-color: #7ab99f; box-shadow: 0 8px 18px rgba(23, 59, 67, .09); }
+.social-button:focus-visible { outline: 3px solid rgba(145,227,190,.75); outline-offset: 3px; }
+.social-glyph { display: grid; place-items: center; width: 22px; height: 22px; font-size: 17px; font-weight: 850; line-height: 1; }
+.social-glyph-google { color: #4285f4; font-family: Arial, sans-serif; }
+.social-glyph-microsoft { color: #107c10; font-size: 25px; }
+.social-glyph-github { color: #24292f; font-size: 23px; transform: rotate(-25deg); }
+.social-continuation-note { padding: 13px 14px; border: 1px solid var(--line); border-radius: 9px; background: var(--soft, #edf5f1); color: var(--ink-soft); font-size: 12px; line-height: 1.5; }
 .field { display: grid; gap: 8px; }
 .field label { color: var(--ink); font-size: 11px; font-weight: 800; letter-spacing: .02em; }
 .field input { width: 100%; min-height: 49px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: 8px; outline: none; background: var(--white); color: var(--ink); font-size: 14px; transition: border .18s ease, box-shadow .18s ease; }

@@ -124,6 +124,19 @@ class Settings(BaseSettings):
     AUTH_ACCESS_TOKEN_TTL_SECONDS: int = Field(default=900, ge=60, le=3600)
     AUTH_REFRESH_TOKEN_TTL_DAYS: int = Field(default=30, ge=1, le=90)
 
+    # Social authentication. Providers are disabled until all required
+    # credentials are supplied through the deployment secret manager.
+    OAUTH_WEB_BASE_URL: str = "http://127.0.0.1:3000"
+    OAUTH_STATE_TTL_SECONDS: int = Field(default=600, ge=60, le=900)
+    OAUTH_HTTP_TIMEOUT_SECONDS: float = Field(default=10.0, ge=2.0, le=60.0)
+    OAUTH_GOOGLE_CLIENT_ID: str | None = None
+    OAUTH_GOOGLE_CLIENT_SECRET: SecretStr | None = None
+    OAUTH_MICROSOFT_CLIENT_ID: str | None = None
+    OAUTH_MICROSOFT_CLIENT_SECRET: SecretStr | None = None
+    OAUTH_MICROSOFT_TENANT_ID: str = "common"
+    OAUTH_GITHUB_CLIENT_ID: str | None = None
+    OAUTH_GITHUB_CLIENT_SECRET: SecretStr | None = None
+
     @model_validator(mode="after")
     def require_production_auth_secret(self) -> "Settings":
         if not self.is_local and self.AUTH_JWT_SECRET is None:

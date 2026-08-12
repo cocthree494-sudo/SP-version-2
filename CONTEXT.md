@@ -278,6 +278,18 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 - Added the self-contained HTML source, an actual Relay product screenshot, a 27-page PDF, a 27-slide 16:9 PPTX, a reproducible PPTX builder, and a Bengali presenter guide with timing, demo checklist, and Q&A anchors.
 - Rendered every slide in Microsoft Edge through Playwright, visually inspected all 27 slides in contact sheets plus a full-resolution clipping correction, and structurally verified both deliverables. The final PDF has 27 pages; the PPTX has 27 slides at 13.333 × 7.5 inches.
 
+### Session 18 — Codex
+
+- User promoted a Phase 2 provider-management expansion: a Hermes Agent-aligned provider catalog, guided dropdown setup, and custom generation-provider support. The work is split into T-071 through T-074 in `TASK2.md`; custom endpoints require explicit SSRF and secret-exfiltration defenses, while embedding BYOK remains excluded.
+- User requested an account-info menu in place of the current direct logout controls. T-075 specifies an explicit sign-out action and accessible header/sidebar menu behavior.
+
+### Session 19 — Codex
+
+- Implemented T-070 social sign-in groundwork for Google, Microsoft, and GitHub while preserving email/password authentication. The server owns authorization-code exchange, PKCE, one-time Redis-backed state/continuations, OIDC nonce and issuer/audience validation, verified-email checks, provider/issuer/subject identity keys, organization setup/selection, and explicit authenticated account linking.
+- Added the nullable password migration and global `provider_identities` table, typed API-client/BFF contracts, login/registration continuation UX, official inline provider marks, environment configuration, and authentication documentation. Apple and magic-link options remain excluded.
+- Targeted Ruff, strict mypy, web lint/typecheck, 71 API tests (16 live-only skips), PostgreSQL offline migration SQL generation through `0012_social_auth`, and a production Next build all pass. Playwright inspected login at 1440×900 and 390×844; all three icon-only providers render with no horizontal overflow.
+- T-070 remains unchecked until real provider credentials are configured and the live Google/Microsoft/GitHub callback paths are exercised in the joint acceptance environment.
+
 ## 7. Open items
 
 | ID | Item | Handling now |
@@ -290,10 +302,11 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 ## HANDOFF STATE
 
 **Last completed:** T-062 — MVP acceptance review.
-**Next task:** None scheduled. The user must promote and split a Later task bucket before Phase 2 implementation starts.
+**Current task:** T-070 — social sign-in implementation is in progress; source and local verification are complete, but live provider callbacks remain.
+**Next task:** T-071 — build the Hermes-aligned provider catalog after T-070 is accepted. Phase 2 planning and task tracking are in `TASK2.md`.
 **Blocked on:** No implementation blocker. Production traffic remains blocked on hosting/budget selection and named release-owner/security approval of the prerequisites in `docs/mvp-acceptance.md`.
 
 **Pushed state:** `origin/main` includes the T-062 acceptance baseline and this 27-slide presentation delivery at the current handoff.
-**Uncommitted work:** None known at handoff.
-**Verification:** The presentation was rendered in Microsoft Edge with Playwright and visually inspected across all 27 slides. Structural checks confirm 27 PDF pages and 27 PPTX slides at 16:9. The established product baseline remains run `31212237732`: 86 live tests, 6/6 evaluation, 3/3 browser flows, production Compose health, performance measurement, backup/restore, and recovery.
+**Uncommitted work:** T-070 social sign-in implementation plus the user's existing Phase 2 planning/documentation edits.
+**Verification:** T-070 local gate: Ruff, strict mypy over 115 files, 71 API tests with 16 live-only skips, web ESLint/typecheck, production web build, PostgreSQL-dialect migration SQL through `0012_social_auth`, and Playwright login inspection at desktop/mobile sizes. Live provider callback and real PostgreSQL upgrade remain acceptance gates.
 **Gotchas:** This workstation still lacks Docker/PostgreSQL/pgvector, so live database checks run in CI. Plaintext tenant keys must never be stored, logged, cached, queued, or re-displayed; platform fallback stays explicit; arbitrary provider URLs and embedding BYOK are excluded.

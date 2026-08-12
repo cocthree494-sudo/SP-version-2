@@ -3,9 +3,9 @@
 import type { FormEvent } from "react";
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
-import { ArrowIcon, SparkIcon } from "@/components/icons";
+import { ArrowIcon, GitHubIcon, GoogleIcon, MicrosoftIcon, SparkIcon } from "@/components/icons";
 import { useAuth } from "@/lib/auth-context";
 
 type AuthMode = "login" | "register";
@@ -94,7 +94,8 @@ function AuthAside({ mode }: Readonly<{ mode: AuthMode }>) {
 
 export function AuthForm({ mode }: Readonly<{ mode: AuthMode }>) {
   const router = useRouter();
-  const { login, register } = useAuth();
+  const searchParams = useSearchParams();
+  const { login, register, socialRegister, socialSelect, linkSocial } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -104,13 +105,35 @@ export function AuthForm({ mode }: Readonly<{ mode: AuthMode }>) {
   const [submitting, setSubmitting] = useState(false);
 
   const isRegister = mode === "register";
+  const socialToken = searchParams.get("social_token");
+  const socialSelectToken = searchParams.get("social_select");
+  const socialLinkToken = searchParams.get("social_link");
+  const socialRegistration = isRegister && Boolean(socialToken);
+  const socialOrganizationSelection = !isRegister && Boolean(socialSelectToken);
+
+  function beginSocial(provider: "google" | "microsoft" | "github") {
+    const params = new URLSearchParams({ mode: isRegister ? "register" : "login" });
+    if (organizationSlug) params.set("organization_slug", organizationSlug);
+    window.location.assign(`/api/auth/oauth/${provider}/start?${params.toString()}`);
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setSubmitting(true);
     try {
-      if (isRegister) {
+      if (socialRegistration && socialToken) {
+        await socialRegister({
+          continuation_token: socialToken,
+          organization_name: organizationName,
+          ...(organizationSlug ? { organization_slug: organizationSlug } : {}),
+        });
+      } else if (socialOrganizationSelection && socialSelectToken) {
+        await socialSelect({
+          continuation_token: socialSelectToken,
+          organization_slug: organizationSlug,
+        });
+      } else if (isRegister) {
         await register({
           email,
           password,
@@ -124,6 +147,7 @@ export function AuthForm({ mode }: Readonly<{ mode: AuthMode }>) {
           password,
           ...(organizationSlug ? { organization_slug: organizationSlug } : {}),
         });
+        if (socialLinkToken) await linkSocial(socialLinkToken);
       }
       const requestedPath = new URLSearchParams(window.location.search).get("next");
       const safeNext =
@@ -163,7 +187,7 @@ export function AuthForm({ mode }: Readonly<{ mode: AuthMode }>) {
           </div>
 
           <form className="auth-form" onSubmit={submit}>
-            {isRegister ? (
+            {isRegister && !socialRegistration ? (
               <Field
                 id="display-name"
                 label="Your name"
@@ -174,25 +198,39 @@ export function AuthForm({ mode }: Readonly<{ mode: AuthMode }>) {
                 autoComplete="name"
               />
             ) : null}
-            <Field
-              id="email"
-              label="Work email"
-              type="email"
-              value={email}
-              onChange={setEmail}
-              placeholder="you@company.com"
-              autoComplete="email"
-            />
-            <Field
-              id="password"
-              label="Password"
-              type="password"
-              value={password}
-              onChange={setPassword}
-              placeholder={isRegister ? "At least 8 characters" : "Your password"}
-              hint={isRegister ? "Use 8 or more characters." : undefined}
-              autoComplete={isRegister ? "new-password" : "current-password"}
-            />
+            {!socialRegistration && !socialOrganizationSelection ? (
+              <>
+                <Field
+                  id="email"
+                  label="Work email"
+                  type="email"
+                  value={email}
+                  onChange={setEmail}
+                  placeholder="you@company.com"
+                  autoComplete="email"
+                />
+                <Field
+                  id="password"
+                  label="Password"
+                  type="password"
+                  value={password}
+                  onChange={setPassword}
+                  placeholder={isRegister ? "At least 8 characters" : "Your password"}
+                  hint={isRegister ? "Use 8 or more characters." : undefined}
+                  autoComplete={isRegister ? "new-password" : "current-password"}
+                />
+              </>
+            ) : null}
+            {socialRegistration ? (
+              <div className="social-continuation-note">
+                Your verified social account is ready. Choose a workspace name to finish setup.
+              </div>
+            ) : null}
+            {socialOrganizationSelection ? (
+              <div className="social-continuation-note">
+                Choose the organization where you want to continue.
+              </div>
+            ) : null}
             {isRegister ? (
               <Field
                 id="organization-name"
@@ -222,10 +260,37 @@ export function AuthForm({ mode }: Readonly<{ mode: AuthMode }>) {
             ) : null}
 
             <button className="button button-primary button-wide" type="submit" disabled={submitting}>
-              <span>{submitting ? "Connecting…" : isRegister ? "Create workspace" : "Sign in"}</span>
+              <span>
+                {submitting
+                  ? "Connecting…"
+                  : socialRegistration
+                    ? "Create workspace"
+                    : socialOrganizationSelection
+                      ? "Continue"
+                      : isRegister
+                        ? "Create workspace"
+                        : "Sign in"}
+              </span>
               {!submitting ? <ArrowIcon width={18} height={18} /> : <span className="button-spinner" aria-hidden="true" />}
             </button>
           </form>
+
+          {!socialRegistration && !socialOrganizationSelection ? (
+            <>
+              <div className="auth-divider"><span>or continue with</span></div>
+              <div className="social-buttons" aria-label="Social sign-in providers">
+                <button className="social-button" type="button" aria-label="Continue with Google" title="Continue with Google" onClick={() => beginSocial("google")}>
+                  <GoogleIcon className="social-glyph" width={22} height={22} />
+                </button>
+                <button className="social-button" type="button" aria-label="Continue with Microsoft" title="Continue with Microsoft" onClick={() => beginSocial("microsoft")}>
+                  <MicrosoftIcon className="social-glyph" width={22} height={22} />
+                </button>
+                <button className="social-button" type="button" aria-label="Continue with GitHub" title="Continue with GitHub" onClick={() => beginSocial("github")}>
+                  <GitHubIcon className="social-glyph" width={22} height={22} />
+                </button>
+              </div>
+            </>
+          ) : null}
 
           <p className="auth-switch">
             {isRegister ? "Already have an account?" : "New to Relay?"}{" "}

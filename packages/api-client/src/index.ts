@@ -27,6 +27,52 @@ export interface LoginInput {
   organization_slug?: string;
 }
 
+export type SocialProvider = "google" | "microsoft" | "github";
+export type SocialAuthMode = "login" | "register";
+
+export interface SocialAuthStartInput {
+  mode: SocialAuthMode;
+  organization_slug?: string;
+}
+
+export interface SocialAuthStartResponse {
+  provider: SocialProvider;
+  authorization_url: string;
+}
+
+export interface SocialAuthCallbackInput {
+  code: string;
+  state: string;
+}
+
+export type SocialAuthStatus =
+  | "authenticated"
+  | "organization_required"
+  | "organization_selection_required"
+  | "account_link_required";
+
+export interface SocialAuthResponse {
+  status: SocialAuthStatus;
+  access_token: string | null;
+  refresh_token: string | null;
+  token_type: "bearer";
+  expires_in: number | null;
+  continuation_token: string | null;
+  email: string | null;
+  display_name: string | null;
+  organizations: CurrentTenant[];
+}
+
+export interface SocialAuthCompleteInput {
+  continuation_token: string;
+  organization_name?: string;
+  organization_slug?: string;
+}
+
+export interface SocialAuthLinkInput {
+  continuation_token: string;
+}
+
 export interface CurrentTenant {
   id: string;
   name: string;
@@ -283,6 +329,51 @@ export class SupportAgentApiClient {
       method: "POST",
       body: JSON.stringify(payload),
     });
+  }
+
+  socialStart(
+    provider: SocialProvider,
+    payload: SocialAuthStartInput,
+  ): Promise<SocialAuthStartResponse> {
+    return this.request<SocialAuthStartResponse>(
+      `/auth/oauth/${encodeURIComponent(provider)}/start`,
+      { method: "POST", body: JSON.stringify(payload) },
+    );
+  }
+
+  socialCallback(
+    provider: SocialProvider,
+    payload: SocialAuthCallbackInput,
+  ): Promise<SocialAuthResponse> {
+    return this.request<SocialAuthResponse>(
+      `/auth/oauth/${encodeURIComponent(provider)}/callback`,
+      { method: "POST", body: JSON.stringify(payload) },
+    );
+  }
+
+  socialRegister(payload: SocialAuthCompleteInput): Promise<TokenPairResponse> {
+    return this.request<TokenPairResponse>(
+      "/auth/oauth/register",
+      { method: "POST", body: JSON.stringify(payload) },
+    );
+  }
+
+  socialSelect(payload: SocialAuthCompleteInput): Promise<TokenPairResponse> {
+    return this.request<TokenPairResponse>(
+      "/auth/oauth/select",
+      { method: "POST", body: JSON.stringify(payload) },
+    );
+  }
+
+  socialLink(
+    accessToken: string,
+    payload: SocialAuthLinkInput,
+  ): Promise<void> {
+    return this.request<void>(
+      "/auth/oauth/link",
+      { method: "POST", body: JSON.stringify(payload) },
+      accessToken,
+    );
   }
 
   refresh(refreshToken: string): Promise<TokenPairResponse> {

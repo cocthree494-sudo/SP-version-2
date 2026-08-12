@@ -33,7 +33,7 @@ def test_alembic_has_conversation_revision_after_knowledge() -> None:
     config = Config(str(api_root / "alembic.ini"))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_current_head() == "0011_widget_configuration"
+    assert scripts.get_current_head() == "0012_social_auth"
     revision = scripts.get_revision("0002_tenancy")
     assert revision is not None
     assert revision.down_revision == "0001_enable_pgvector"
@@ -142,3 +142,12 @@ def test_alembic_has_conversation_revision_after_knowledge() -> None:
     assert '"widget_welcome_text"' in widget_migration_text
     assert '"widget_accent_color"' in widget_migration_text
     assert '"widget_position"' in widget_migration_text
+
+    social_revision = scripts.get_revision("0012_social_auth")
+    assert social_revision is not None
+    assert social_revision.down_revision == "0011_widget_configuration"
+    social_migration = api_root / "alembic" / "versions" / "0012_social_auth.py"
+    social_migration_text = social_migration.read_text(encoding="utf-8")
+    assert '"provider_identities"' in social_migration_text
+    assert "uq_provider_identities_provider_issuer_subject" in social_migration_text
+    assert "nullable=True" in social_migration_text

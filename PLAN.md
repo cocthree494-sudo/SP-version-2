@@ -42,7 +42,7 @@ Billing, a live-agent inbox, and non-web channels are intentionally not required
 | Streaming | HTTP Server-Sent Events over `fetch` | Simple infrastructure, proxy-friendly, adequate for one-way token streaming |
 | API contract | Versioned REST under `/v1`; OpenAPI generates frontend types | Keeps Python and TypeScript contracts synchronized |
 | Deployment | Docker-first and environment-configured | Can move between VPS and managed cloud without code changes |
-| Provider ownership | Platform-managed model targets are the default; a tenant may optionally bring its own generation-provider credentials (BYOK) through approved adapters | Keeps onboarding simple while allowing customer-controlled spend, limits, and provider access without accepting arbitrary secret-exfiltration endpoints |
+| Provider ownership | Platform-managed model targets are the default; a tenant may optionally bring its own generation-provider credentials (BYOK) through approved adapters or the Phase 2 hardened custom-provider path | Keeps onboarding simple while allowing customer-controlled spend, limits, and provider access; custom endpoints require egress controls to prevent secret exfiltration |
 | BYOK secret custody | Provider-neutral envelope-encryption/KMS or Vault adapter; plaintext exists only briefly at submission and provider-call boundaries | Tenant API keys must never become ordinary database, browser, log, prompt, or support-visible data |
 
 Model names and provider credentials must be configuration, not hard-coded business logic. The initial policy can use a low-cost model for normal turns and promote difficult turns to a stronger model. BYOK extends the same provider-neutral interfaces; it must not fork the agent into tenant-specific processes or deployments.
@@ -203,7 +203,7 @@ Provider-level Claude redundancy through direct API, Bedrock, or Vertex is a lat
 - `tenant_only` must fail safely when its targets are unavailable or revoked; it must not spend platform credentials behind the tenant's back.
 - Credential resolution occurs after authenticated tenant scope is established and immediately before adapter execution. Router traces contain credential IDs/status and routing reasons, never raw keys.
 - Revocation invalidates in-process credential/target caches immediately; a revoked target cannot wait for a general cache TTL to expire.
-- Phase 1 BYOK covers answer-generation providers only and uses approved provider adapters/endpoints. Arbitrary tenant-supplied base URLs create SSRF/key-exfiltration risk, while embedding BYOK additionally requires vector-model/dimension compatibility and re-indexing rules; both require separate tasks.
+- Phase 1 BYOK covers answer-generation providers only and uses approved provider adapters/endpoints. Phase 2 tasks T-071 through T-074 add a Hermes-aligned provider catalog and a hardened custom OpenAI-compatible generation-endpoint path; embedding BYOK still requires vector-model/dimension compatibility and re-indexing rules and remains separate.
 - Credentials for later external integrations require separate scopes, storage rules, and tasks.
 
 ## 9. API surface draft

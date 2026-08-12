@@ -8,12 +8,13 @@ Before changing code or project files, read completely:
 
 1. `CONTEXT.md`
 2. `TASKS.md`
-3. the relevant sections of `PLAN.md`
-4. `FEATURES.md` when scope or product behavior is involved
+3. `TASK2.md` when Phase 2 work is in scope
+4. the relevant sections of `PLAN.md`
+5. `FEATURES.md` when scope or product behavior is involved
 
 ## Continue protocol
 
-- If the user says only “continue”, select the first unchecked task in `TASKS.md` whose dependencies are complete.
+- If the user says only “continue”, select the first unchecked task in the active task file whose dependencies are complete. Phase 2 work uses `TASK2.md`.
 - A direct user request overrides the automatic next task. Record any durable scope/architecture change in the docs.
 - Keep work to one task at a time unless the user explicitly asks for a batch.
 - Do not implement deferred features merely because the schema might support them later.

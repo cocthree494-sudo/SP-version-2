@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from typing import cast
 from uuid import UUID, uuid4
 
 from anyio import to_thread
@@ -22,12 +23,29 @@ from app.core.security import (
     verify_password,
 )
 from app.core.tenancy import tenant_session_scope
+from app.domains.auth.oauth import (
+    OAuthProfile,
+    OAuthProviderDisabledError,
+    OAuthStateStore,
+    SocialContinuation,
+    SocialContinuationStore,
+    SocialProvider,
+    build_authorization_request,
+    exchange_code,
+    redirect_uri,
+)
 from app.domains.auth.repositories import AuthMembershipRepository, RefreshTokenRepository
-from app.domains.auth.schemas import LoginRequest, RegisterRequest, create_organization_slug
+from app.domains.auth.schemas import (
+    LoginRequest,
+    RegisterRequest,
+    SocialAuthStartRequest,
+    create_organization_slug,
+)
 from app.domains.tenancy.enums import MembershipRole, TenantStatus, UserStatus
 from app.domains.tenancy.models import Tenant, TenantMembership, User
 from app.domains.tenancy.repositories import (
     MembershipRepository,
+    ProviderIdentityRepository,
     TenantRepository,
     UserRepository,
 )
@@ -62,6 +80,15 @@ class AuthTokens:
     access_token: str
     refresh_token: str
     expires_in: int
+
+
+@dataclass(frozen=True, slots=True)
+class SocialAuthResult:
+    status: str
+    tokens: AuthTokens | None = None
+    continuation_token: str | None = None
+    profile: OAuthProfile | None = None
+    organizations: list[tuple[TenantMembership, Tenant]] | None = None
 
 
 def _ensure_utc(value: datetime) -> datetime:
@@ -125,7 +152,10 @@ class AuthService:
             await to_thread.run_sync(_verify_against_dummy, password)
             raise InvalidCredentialsError("Invalid email, password, or organization")
 
-        verified = await to_thread.run_sync(verify_password, password, user.password_hash)
+        verified = (
+            user.password_hash is not None
+            and await to_thread.run_sync(verify_password, password, user.password_hash)
+        )
         if not verified or user.status is not UserStatus.ACTIVE:
             raise InvalidCredentialsError("Invalid email, password, or organization")
 
@@ -139,7 +169,7 @@ class AuthService:
         if tenant.status is not TenantStatus.ACTIVE:
             raise AccountUnavailableError("Organization is not active")
 
-        if password_needs_rehash(user.password_hash):
+        if user.password_hash is not None and password_needs_rehash(user.password_hash):
             user.password_hash = await to_thread.run_sync(hash_password, password)
 
         result = await self._create_session(user_id=user.id, tenant_id=tenant.id)
@@ -189,6 +219,234 @@ class AuthService:
                 refresh_token=replacement_raw,
                 expires_in=expires_in,
             )
+
+    async def begin_social(
+        self,
+        provider: str,
+        request: SocialAuthStartRequest,
+        state_store: OAuthStateStore,
+        *,
+        user_id: str | None = None,
+        tenant_id: str | None = None,
+    ) -> str:
+        """Create a one-time PKCE state and return the provider URL."""
+
+        if provider not in {"google", "microsoft", "github"}:
+            raise OAuthProviderDisabledError("This sign-in provider is not available")
+        social_provider = cast(SocialProvider, provider)
+        authorization_url, state, oauth_state = build_authorization_request(
+            social_provider,
+            mode=request.mode,
+            redirect=redirect_uri(social_provider),
+            user_id=user_id,
+            tenant_id=tenant_id,
+            organization_slug=request.organization_slug,
+        )
+        await state_store.put(state, oauth_state, settings.OAUTH_STATE_TTL_SECONDS)
+        return authorization_url
+
+    async def complete_social(
+        self,
+        provider: str,
+        *,
+        code: str,
+        state: str,
+        state_store: OAuthStateStore,
+        continuation_store: SocialContinuationStore,
+    ) -> SocialAuthResult:
+        """Validate a provider callback and either sign in or issue one next step."""
+
+        oauth_state = await state_store.consume(state)
+        if oauth_state is None:
+            raise InvalidCredentialsError("The social sign-in request expired or was already used")
+        if provider not in {"google", "microsoft", "github"}:
+            raise OAuthProviderDisabledError("This sign-in provider is not available")
+        profile = await exchange_code(
+            cast(SocialProvider, provider),
+            code=code,
+            oauth_state=oauth_state,
+        )
+        identity_repo = ProviderIdentityRepository(self.session)
+        identity = await identity_repo.get_by_subject(
+            provider=profile.provider,
+            issuer=profile.issuer,
+            subject=profile.subject,
+        )
+        if identity is None:
+            existing_user = await self.users.get_by_email(profile.email)
+            if existing_user is not None:
+                token = await self._store_social_continuation(
+                    continuation_store,
+                    SocialContinuation(kind="link", profile=profile, user_id=str(existing_user.id)),
+                )
+                return SocialAuthResult(
+                    status="account_link_required",
+                    continuation_token=token,
+                    profile=profile,
+                )
+            token = await self._store_social_continuation(
+                continuation_store,
+                SocialContinuation(kind="register", profile=profile),
+            )
+            return SocialAuthResult(
+                status="organization_required",
+                continuation_token=token,
+                profile=profile,
+            )
+
+        user = await self.users.get_by_id(identity.user_id)
+        if user is None or user.status is not UserStatus.ACTIVE:
+            raise AccountUnavailableError("Account is not active")
+        memberships = await AuthMembershipRepository(self.session).list_for_login(user_id=user.id)
+        if not memberships:
+            raise AccountUnavailableError("No active organization is available")
+        selected = None
+        if oauth_state.organization_slug is not None:
+            selected = next(
+                (item for item in memberships if item[1].slug == oauth_state.organization_slug),
+                None,
+            )
+            if selected is None:
+                raise InvalidCredentialsError("Invalid organization selection")
+        elif len(memberships) == 1:
+            selected = memberships[0]
+        if selected is None:
+            token = await self._store_social_continuation(
+                continuation_store,
+                SocialContinuation(kind="select", profile=profile, user_id=str(user.id)),
+            )
+            return SocialAuthResult(
+                status="organization_selection_required",
+                continuation_token=token,
+                profile=profile,
+                organizations=memberships,
+            )
+        _membership, tenant = selected
+        if tenant.status is not TenantStatus.ACTIVE:
+            raise AccountUnavailableError("Organization is not active")
+        tokens = await self._create_session(user_id=user.id, tenant_id=tenant.id)
+        await self.session.commit()
+        return SocialAuthResult(status="authenticated", tokens=tokens, profile=profile)
+
+    async def complete_social_registration(
+        self,
+        *,
+        continuation_token: str,
+        organization_name: str | None,
+        organization_slug: str | None,
+        continuation_store: SocialContinuationStore,
+    ) -> AuthTokens:
+        continuation = await continuation_store.consume_continuation(continuation_token)
+        if continuation is None or continuation.kind != "register":
+            raise InvalidCredentialsError(
+                "The social registration request expired or was already used"
+            )
+        profile = continuation.profile
+        if not profile.email_verified:
+            raise InvalidCredentialsError("The provider email is not verified")
+        if await self.users.get_by_email(profile.email) is not None:
+            raise RegistrationConflictError("Email is already registered")
+        name = organization_name or (
+            f"{profile.display_name or profile.email.split('@', 1)[0]}'s workspace"
+        )
+        slug = organization_slug or create_organization_slug(name)
+        if await self.tenants.get_by_slug(slug) is not None:
+            if organization_slug is not None:
+                raise RegistrationConflictError("Organization slug is already in use")
+            slug = f"{slug[:50].rstrip('-')}-{uuid4().hex[:8]}"
+        try:
+            user = await self.users.create(
+                email=profile.email,
+                password_hash=None,
+                display_name=profile.display_name,
+            )
+            tenant = await self.tenants.create(name=name, slug=slug)
+            await MembershipRepository(self.session, tenant.id).create(
+                user_id=user.id,
+                role=MembershipRole.OWNER,
+            )
+            await ProviderIdentityRepository(self.session).create(
+                provider=profile.provider,
+                issuer=profile.issuer,
+                subject=profile.subject,
+                user_id=user.id,
+                email=profile.email,
+                email_verified=profile.email_verified,
+            )
+            tokens = await self._create_session(user_id=user.id, tenant_id=tenant.id)
+            await self.session.commit()
+            return tokens
+        except IntegrityError as exc:
+            await self.session.rollback()
+            raise RegistrationConflictError("Email or organization slug is already in use") from exc
+
+    async def complete_social_selection(
+        self,
+        *,
+        continuation_token: str,
+        organization_slug: str,
+        continuation_store: SocialContinuationStore,
+    ) -> AuthTokens:
+        continuation = await continuation_store.consume_continuation(continuation_token)
+        if continuation is None or continuation.kind != "select" or continuation.user_id is None:
+            raise InvalidCredentialsError(
+                "The organization selection request expired or was already used"
+            )
+        try:
+            user_id = UUID(continuation.user_id)
+        except ValueError as exc:
+            raise InvalidCredentialsError("Invalid organization selection") from exc
+        selection = await AuthMembershipRepository(self.session).select_for_login(
+            user_id=user_id,
+            tenant_slug=organization_slug,
+        )
+        if selection is None:
+            raise InvalidCredentialsError("Invalid organization selection")
+        _membership, tenant = selection
+        if tenant.status is not TenantStatus.ACTIVE:
+            raise AccountUnavailableError("Organization is not active")
+        tokens = await self._create_session(user_id=user_id, tenant_id=tenant.id)
+        await self.session.commit()
+        return tokens
+
+    async def link_social_identity(
+        self,
+        *,
+        continuation_token: str,
+        current_user_id: UUID,
+        continuation_store: SocialContinuationStore,
+    ) -> None:
+        continuation = await continuation_store.consume_continuation(continuation_token)
+        if continuation is None or continuation.kind != "link" or continuation.user_id is None:
+            raise InvalidCredentialsError("The account-link request expired or was already used")
+        if continuation.user_id != str(current_user_id):
+            raise InvalidCredentialsError("The social identity belongs to a different account")
+        profile = continuation.profile
+        identity_repo = ProviderIdentityRepository(self.session)
+        if await identity_repo.get_by_subject(
+            provider=profile.provider,
+            issuer=profile.issuer,
+            subject=profile.subject,
+        ) is not None:
+            raise RegistrationConflictError("This social identity is already linked")
+        await identity_repo.create(
+            provider=profile.provider,
+            issuer=profile.issuer,
+            subject=profile.subject,
+            user_id=current_user_id,
+            email=profile.email,
+            email_verified=profile.email_verified,
+        )
+        await self.session.commit()
+
+    @staticmethod
+    async def _store_social_continuation(
+        store: SocialContinuationStore,
+        value: SocialContinuation,
+    ) -> str:
+        token = uuid4().hex + uuid4().hex
+        await store.put_continuation(token, value, settings.OAUTH_STATE_TTL_SECONDS)
+        return token
 
     async def _create_session(self, *, user_id: UUID, tenant_id: UUID) -> AuthTokens:
         refresh_token = generate_refresh_token(tenant_id)

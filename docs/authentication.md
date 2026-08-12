@@ -1,8 +1,8 @@
 # Authentication
 
-T-022 provides first-party dashboard authentication under `/v1`. It is a
-JSON API; password reset, email verification, OAuth, and UI are intentionally
-outside this task.
+T-022 provides first-party dashboard authentication under `/v1`. Social
+sign-in is available for Google, Microsoft, and GitHub when their server-side
+credentials are configured; Apple and magic links are not enabled.
 
 ## Endpoints
 
@@ -16,6 +16,15 @@ outside this task.
   and refresh pair. A refresh credential can be used only once.
 - `GET /v1/me` requires `Authorization: Bearer <access_token>` and returns the
   current user, selected organization, and live membership role.
+- `POST /v1/auth/oauth/{provider}/start` creates a short-lived, one-time PKCE
+  state and returns the provider authorization URL.
+- `POST /v1/auth/oauth/{provider}/callback` validates the state, exchanges the
+  code on the server, verifies the provider identity, and either creates a
+  normal session or returns a one-time organization/account-link continuation.
+- `POST /v1/auth/oauth/register` completes a new social user's workspace setup.
+- `POST /v1/auth/oauth/select` selects an organization for a linked social user.
+- `POST /v1/auth/oauth/link` links a verified provider identity only from an
+  already authenticated password account; matching email alone never links.
 
 Register returns HTTP 201. Login and refresh return HTTP 200. Token responses
 contain `access_token`, `refresh_token`, `token_type: "bearer"`, and the access
@@ -45,6 +54,14 @@ verification, a transaction-local `app.user_id` permits a SELECT-only policy
 to read that user's own membership rows. It grants no membership writes or
 access to another user's memberships.
 
+Social identity records are keyed by `(provider, issuer, subject)`, never by
+email alone. Google and Microsoft use authorization-code + PKCE with an OIDC
+nonce and server-side identity-token validation; GitHub uses the server-side
+authorization-code exchange and a verified primary email. OAuth state and
+continuation tokens are one-time values stored in Redis with a short TTL. They
+are not session cookies and are never logged. Client secrets and provider
+tokens never reach the browser.
+
 ## Configuration
 
 Set `AUTH_JWT_SECRET` to a random value of at least 32 characters. Production
@@ -54,3 +71,15 @@ tokens remain valid across application restarts and multiple workers.
 
 The access and refresh lifetimes can be configured with
 `AUTH_ACCESS_TOKEN_TTL_SECONDS` and `AUTH_REFRESH_TOKEN_TTL_DAYS`.
+
+Set `OAUTH_WEB_BASE_URL` to the public dashboard origin. Register these exact
+callback URLs with each provider:
+
+- `https://<dashboard>/api/auth/oauth/google/callback`
+- `https://<dashboard>/api/auth/oauth/microsoft/callback`
+- `https://<dashboard>/api/auth/oauth/github/callback`
+
+Set the matching `OAUTH_*_CLIENT_ID` and `OAUTH_*_CLIENT_SECRET` values only in
+the server environment or secret manager. A provider stays disabled until both
+values exist. The Microsoft tenant setting defaults to `common`; use a tenant
+ID when the deployment is restricted to one Entra tenant.

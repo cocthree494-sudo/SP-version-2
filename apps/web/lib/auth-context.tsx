@@ -22,6 +22,13 @@ interface AuthContextValue {
   user: MeResponse | null;
   login: (payload: LoginInput) => Promise<void>;
   register: (payload: RegisterInput) => Promise<void>;
+  socialRegister: (payload: {
+    continuation_token: string;
+    organization_name: string;
+    organization_slug?: string;
+  }) => Promise<void>;
+  socialSelect: (payload: { continuation_token: string; organization_slug: string }) => Promise<void>;
+  linkSocial: (continuation_token: string) => Promise<void>;
   logout: () => Promise<void>;
   reload: () => Promise<void>;
 }
@@ -94,6 +101,41 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
     (payload: RegisterInput) => authenticate("register", payload),
     [authenticate],
   );
+  const socialComplete = useCallback(
+    async (endpoint: "register" | "select", payload: Record<string, string>) => {
+      const response = await fetch(`/api/auth/social/${endpoint}`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) throw new BrowserAuthError(await responseDetail(response));
+      await reload();
+    },
+    [reload],
+  );
+  const socialRegister = useCallback(
+    (payload: { continuation_token: string; organization_name: string; organization_slug?: string }) =>
+      socialComplete("register", payload),
+    [socialComplete],
+  );
+  const socialSelect = useCallback(
+    (payload: { continuation_token: string; organization_slug: string }) =>
+      socialComplete("select", payload),
+    [socialComplete],
+  );
+  const linkSocial = useCallback(
+    async (continuation_token: string) => {
+      const response = await fetch("/api/auth/social/link", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ continuation_token }),
+      });
+      if (!response.ok) throw new BrowserAuthError(await responseDetail(response));
+    },
+    [],
+  );
   const logout = useCallback(async () => {
     await fetch("/api/auth/logout", {
       method: "POST",
@@ -104,8 +146,8 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
   }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ status, user, login, register, logout, reload }),
-    [status, user, login, register, logout, reload],
+    () => ({ status, user, login, register, socialRegister, socialSelect, linkSocial, logout, reload }),
+    [status, user, login, register, socialRegister, socialSelect, linkSocial, logout, reload],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

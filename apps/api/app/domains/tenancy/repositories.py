@@ -15,7 +15,7 @@ from app.core.tenancy import (
     set_database_tenant,
 )
 from app.domains.tenancy.enums import MembershipRole, TenantStatus, UserStatus
-from app.domains.tenancy.models import Tenant, TenantMembership, User
+from app.domains.tenancy.models import ProviderIdentity, Tenant, TenantMembership, User
 
 
 def normalize_email(email: str) -> str:
@@ -40,7 +40,7 @@ class UserRepository:
         self,
         *,
         email: str,
-        password_hash: str,
+        password_hash: str | None,
         display_name: str | None = None,
         status: UserStatus = UserStatus.ACTIVE,
     ) -> User:
@@ -59,6 +59,50 @@ class UserRepository:
 
     async def get_by_email(self, email: str) -> User | None:
         return await self.session.scalar(select(User).where(User.email == normalize_email(email)))
+
+
+class ProviderIdentityRepository:
+    """Global external-identity bindings with stable provider subjects."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def get_by_subject(
+        self,
+        *,
+        provider: str,
+        issuer: str,
+        subject: str,
+    ) -> ProviderIdentity | None:
+        return await self.session.scalar(
+            select(ProviderIdentity).where(
+                ProviderIdentity.provider == provider,
+                ProviderIdentity.issuer == issuer,
+                ProviderIdentity.subject == subject,
+            )
+        )
+
+    async def create(
+        self,
+        *,
+        provider: str,
+        issuer: str,
+        subject: str,
+        user_id: UUID,
+        email: str,
+        email_verified: bool,
+    ) -> ProviderIdentity:
+        identity = ProviderIdentity(
+            provider=provider,
+            issuer=issuer,
+            subject=subject,
+            user_id=user_id,
+            email=normalize_email(email),
+            email_verified=email_verified,
+        )
+        self.session.add(identity)
+        await self.session.flush()
+        return identity
 
 
 class TenantRepository:
@@ -174,6 +218,7 @@ class MembershipRepository:
 
 __all__ = [
     "MembershipRepository",
+    "ProviderIdentityRepository",
     "TenantRepository",
     "UserRepository",
     "normalize_email",

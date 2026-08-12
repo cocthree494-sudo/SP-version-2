@@ -12,6 +12,7 @@ from app.api import auth, bots, health, knowledge, playground, providers, usage,
 from app.core.config import settings
 from app.core.logger import setup_logging
 from app.db.session import dispose_engine
+from app.domains.auth.oauth import RedisOAuthStateStore
 from app.domains.chat.rate_limit import RedisRateLimiter
 from app.providers.router import RedisCircuitStore
 from app.workers.queue import create_ingestion_queue
@@ -23,6 +24,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     setup_logging()
     app.state.ingestion_queue = await create_ingestion_queue()
     app.state.widget_redis = Redis.from_url(settings.REDIS_URL, decode_responses=True)
+    app.state.oauth_state_store = RedisOAuthStateStore(app.state.widget_redis)
     app.state.widget_rate_limiter = RedisRateLimiter(app.state.widget_redis)
     app.state.model_circuit_store = RedisCircuitStore(app.state.widget_redis)
     try:
