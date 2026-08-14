@@ -11,7 +11,7 @@ import {
 } from "@/lib/server-auth";
 
 function unauthenticated(): NextResponse {
-  const response = NextResponse.json({ detail: "No active session" }, { status: 401 });
+  const response = new NextResponse(null, { status: 204 });
   clearAuthCookies(response);
   return response;
 }

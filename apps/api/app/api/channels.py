@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import AuthContext, CurrentAuth
 from app.db.session import get_db_session
+from app.domains.bots.models import Bot
 from app.domains.channels.models import ChannelInstallation, ChannelStatus
 from app.domains.channels.schemas import (
     ChannelInstallationResponse,
@@ -61,6 +62,11 @@ async def install_channel(
     session: DbSession,
     context: ChannelManager,
 ) -> ChannelInstallationResponse:
+    bot = await session.scalar(
+        select(Bot).where(Bot.id == payload.bot_id, Bot.tenant_id == context.tenant.id)
+    )
+    if bot is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bot not found")
     duplicate = await session.scalar(
         select(ChannelInstallation).where(
             ChannelInstallation.tenant_id == context.tenant.id,
@@ -75,6 +81,7 @@ async def install_channel(
         )
     item = ChannelInstallation(
         tenant_id=context.tenant.id,
+        bot_id=bot.id,
         channel_type=payload.channel_type,
         external_identity=payload.external_identity,
         status=ChannelStatus.PENDING,
@@ -105,11 +112,31 @@ async def update_channel(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Channel installation not found"
         )
-    if item.status is ChannelStatus.REVOKED and payload.status is not ChannelStatus.REVOKED:
+    if (
+        item.status is ChannelStatus.REVOKED
+        and payload.status is not None
+        and payload.status is not ChannelStatus.REVOKED
+    ):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Revoked channels cannot be resumed"
         )
-    item.status = payload.status
+    if payload.bot_id is not None:
+        bot = await session.scalar(
+            select(Bot).where(Bot.id == payload.bot_id, Bot.tenant_id == context.tenant.id)
+        )
+        if bot is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bot not found")
+        item.bot_id = bot.id
+    if payload.status is not None:
+        # A connector, not a dashboard button, proves that its authorization
+        # completed.  The UI may pause/revoke a connection, but cannot fake a
+        # live external integration by marking a pending connector connected.
+        if item.status is ChannelStatus.PENDING and payload.status is ChannelStatus.CONNECTED:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Complete provider authorization before this channel can be connected",
+            )
+        item.status = payload.status
     await session.commit()
     await session.refresh(item)
     return _response(item)

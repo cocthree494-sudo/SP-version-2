@@ -48,6 +48,12 @@ class ChannelInstallation(TenantScopedModel):
     tenant_id: Mapped[UUID] = mapped_column(
         ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
     )
+    # A channel is a delivery surface for one tenant bot.  Keeping this
+    # explicit avoids a workspace-wide channel unexpectedly replying with the
+    # wrong bot's knowledge or tone.
+    bot_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("bots.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     channel_type: Mapped[ChannelType] = mapped_column(
         _enum_type(ChannelType, "channel_type", 32), nullable=False
     )

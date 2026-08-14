@@ -19,6 +19,7 @@ class ChannelInstallRequest(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
     channel_type: ChannelType
+    bot_id: UUID
     external_identity: str = Field(min_length=1, max_length=255)
     conversation_scope: list[str] = Field(default_factory=list, max_length=100)
     consent_acknowledged: bool = False
@@ -60,13 +61,21 @@ class ChannelInstallRequest(BaseModel):
 
 
 class ChannelStatusUpdateRequest(BaseModel):
-    status: ChannelStatus
+    status: ChannelStatus | None = None
+    bot_id: UUID | None = None
+
+    @model_validator(mode="after")
+    def require_a_change(self) -> ChannelStatusUpdateRequest:
+        if self.status is None and self.bot_id is None:
+            raise ValueError("Choose a bot or status to update")
+        return self
 
 
 class ChannelInstallationResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
+    bot_id: UUID | None
     channel_type: ChannelType
     external_identity: str
     status: ChannelStatus

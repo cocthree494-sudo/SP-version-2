@@ -269,6 +269,7 @@ export type ChannelStatus = "pending" | "connected" | "paused" | "revoked" | "er
 
 export interface ChannelInstallationResponse {
   id: string;
+  bot_id: string | null;
   channel_type: ChannelType;
   external_identity: string;
   status: ChannelStatus;
@@ -281,6 +282,7 @@ export interface ChannelInstallationResponse {
 
 export interface ChannelInstallInput {
   channel_type: ChannelType;
+  bot_id: string;
   external_identity: string;
   conversation_scope?: string[];
   consent_acknowledged: boolean;

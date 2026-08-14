@@ -5,6 +5,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
+import { Brand } from "@/components/brand";
 import { ArrowIcon, GitHubIcon, GoogleIcon, MicrosoftIcon, SparkIcon } from "@/components/icons";
 import { useAuth } from "@/lib/auth-context";
 
@@ -57,6 +58,7 @@ function Field({
 function AuthAside({ mode }: Readonly<{ mode: AuthMode }>) {
   return (
     <aside className="auth-aside">
+      <Brand />
       <div className="auth-aside-orbit orbit-one" />
       <div className="auth-aside-orbit orbit-two" />
       <div className="auth-aside-content">
@@ -64,7 +66,7 @@ function AuthAside({ mode }: Readonly<{ mode: AuthMode }>) {
           <SparkIcon width={15} height={15} />
           Support, in sync
         </span>
-        <h2>Make every answer feel like your best teammate wrote it.</h2>
+        <p className="auth-aside-title">Make every answer feel like your best teammate wrote it.</p>
         <p>
           Relay brings your team&apos;s knowledge, tone, and customer conversations into one
           calm workspace.
@@ -225,6 +227,12 @@ export function AuthForm({ mode }: Readonly<{ mode: AuthMode }>) {
                   hint={isRegister ? "Use 8 or more characters." : undefined}
                   autoComplete={isRegister ? "new-password" : "current-password"}
                 />
+                {!isRegister ? (
+                  <p className="auth-recovery">
+                    <Link href="/docs#account-security">Can&apos;t access your account?</Link>
+                    <span> Review sign-in and account guidance.</span>
+                  </p>
+                ) : null}
               </>
             ) : null}
             {socialRegistration ? (
@@ -304,7 +312,10 @@ export function AuthForm({ mode }: Readonly<{ mode: AuthMode }>) {
               {isRegister ? "Sign in" : "Create your workspace"}
             </Link>
           </p>
-          <p className="auth-legal">By continuing, you agree to keep customer data private and your workspace secure.</p>
+          <p className="auth-legal">
+            Customer data stays private to your workspace. Review the{" "}
+            <Link href="/docs#account-security">account and security guide</Link>.
+          </p>
         </div>
       </section>
     </main>

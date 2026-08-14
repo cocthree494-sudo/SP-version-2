@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import AuthContext, CurrentAuth
 from app.db.session import get_db_session
+from app.domains.bots.models import Bot
 from app.domains.tenancy.enums import MembershipRole
 from app.domains.voice.models import VoiceAgentInstallation, VoiceStatus, VoiceWebhookEvent
 from app.domains.voice.schemas import (
@@ -50,6 +51,12 @@ async def list_voice_agents(session: DbSession, context: CurrentAuth) -> list[Vo
 async def install_voice_agent(
     payload: VoiceInstallRequest, session: DbSession, context: VoiceManager
 ) -> VoiceAgentResponse:
+    if payload.bot_id is not None:
+        bot = await session.scalar(
+            select(Bot).where(Bot.id == payload.bot_id, Bot.tenant_id == context.tenant.id)
+        )
+        if bot is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bot not found")
     existing = await session.scalar(
         select(VoiceAgentInstallation).where(
             VoiceAgentInstallation.tenant_id == context.tenant.id,

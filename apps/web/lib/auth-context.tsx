@@ -57,7 +57,7 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
         cache: "no-store",
         credentials: "same-origin",
       });
-      if (response.status === 401) {
+      if (response.status === 204) {
         setUser(null);
         setStatus("anonymous");
         return;

@@ -188,10 +188,10 @@ export const dashboardApi = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
-  updateChannel: (channelId: string, status: ChannelStatus) =>
+  updateChannel: (channelId: string, payload: { status?: ChannelStatus; bot_id?: string }) =>
     dashboardRequest<ChannelInstallationResponse>(`/channels/${encodeURIComponent(channelId)}`, {
       method: "PATCH",
-      body: JSON.stringify({ status }),
+      body: JSON.stringify(payload),
     }),
   revokeChannel: (channelId: string) =>
     dashboardRequest<void>(`/channels/${encodeURIComponent(channelId)}`, { method: "DELETE" }),

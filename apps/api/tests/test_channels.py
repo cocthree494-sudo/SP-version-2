@@ -20,6 +20,7 @@ from sqlalchemy.pool import StaticPool
 from app.db.base import Base
 from app.db.session import get_db_session
 from app.domains.auth.models import RefreshToken
+from app.domains.bots.models import Bot
 from app.domains.channels.models import ChannelInstallation
 from app.domains.tenancy.enums import MembershipRole
 from app.domains.tenancy.models import Tenant, TenantMembership, User
@@ -34,6 +35,7 @@ async def channel_session() -> AsyncGenerator[AsyncSession, None]:
         cast(Table, Tenant.__table__),
         cast(Table, TenantMembership.__table__),
         cast(Table, RefreshToken.__table__),
+        cast(Table, Bot.__table__),
         cast(Table, ChannelInstallation.__table__),
     ]
     async with engine.begin() as connection:
@@ -74,18 +76,30 @@ async def register(client: AsyncClient, email: str, organization_slug: str) -> d
     return cast(dict[str, Any], response.json())
 
 
+async def create_bot(client: AsyncClient, tokens: dict[str, Any], name: str = "Channel Bot") -> str:
+    response = await client.post(
+        "/v1/bots",
+        headers=bearer(tokens),
+        json={"name": name},
+    )
+    assert response.status_code == 201
+    return cast(str, response.json()["id"])
+
+
 @pytest.mark.asyncio
 async def test_channel_installation_requires_consent_and_approved_identity(
     channel_client: AsyncClient,
 ) -> None:
     tokens = await register(channel_client, "owner@example.com", "channel-co")
     headers = bearer(tokens)
+    bot_id = await create_bot(channel_client, tokens)
 
     missing_consent = await channel_client.post(
         "/v1/channels",
         headers=headers,
         json={
             "channel_type": "telegram_personal",
+            "bot_id": bot_id,
             "external_identity": "telegram:123",
         },
     )
@@ -97,6 +111,7 @@ async def test_channel_installation_requires_consent_and_approved_identity(
         headers=headers,
         json={
             "channel_type": "whatsapp_business",
+            "bot_id": bot_id,
             "external_identity": "personal:123",
             "consent_acknowledged": True,
         },
@@ -108,6 +123,7 @@ async def test_channel_installation_requires_consent_and_approved_identity(
         headers=headers,
         json={
             "channel_type": "telegram_personal",
+            "bot_id": bot_id,
             "external_identity": "telegram:123",
             "conversation_scope": ["dm:456"],
             "consent_acknowledged": True,
@@ -116,6 +132,7 @@ async def test_channel_installation_requires_consent_and_approved_identity(
     assert created.status_code == 201
     body = created.json()
     assert body["status"] == "pending"
+    assert body["bot_id"] == bot_id
     assert body["consent_record"]["acknowledged"] is True
     assert "credential_reference" not in body
 
@@ -132,12 +149,15 @@ async def test_channel_isolation_and_revoke_clears_connection(
     second = await register(channel_client, "second@example.com", "second-co")
     first_headers = bearer(first)
     second_headers = bearer(second)
+    first_bot_id = await create_bot(channel_client, first, "First Bot")
+    second_bot_id = await create_bot(channel_client, second, "Second Bot")
 
     created = await channel_client.post(
         "/v1/channels",
         headers=first_headers,
         json={
             "channel_type": "facebook_page",
+            "bot_id": first_bot_id,
             "external_identity": "page:789",
             "consent_acknowledged": True,
         },
@@ -156,6 +176,13 @@ async def test_channel_isolation_and_revoke_clears_connection(
     )
     assert cross_tenant.status_code == 404
 
+    foreign_bot = await channel_client.patch(
+        f"/v1/channels/{channel_id}",
+        headers=first_headers,
+        json={"bot_id": second_bot_id},
+    )
+    assert foreign_bot.status_code == 404
+
     revoked = await channel_client.delete(f"/v1/channels/{channel_id}", headers=first_headers)
     assert revoked.status_code == 204
     assert (await channel_client.get("/v1/channels", headers=first_headers)).json()[0][
@@ -169,6 +196,7 @@ async def test_member_cannot_install_channels(
     channel_session: AsyncSession,
 ) -> None:
     tokens = await register(channel_client, "owner@example.com", "member-co")
+    bot_id = await create_bot(channel_client, tokens)
     user = await channel_session.scalar(select(User).where(User.email == "owner@example.com"))
     assert user is not None
     membership = await channel_session.scalar(
@@ -182,6 +210,7 @@ async def test_member_cannot_install_channels(
         headers=bearer(tokens),
         json={
             "channel_type": "email",
+            "bot_id": bot_id,
             "external_identity": "support@example.com",
             "consent_acknowledged": True,
         },

@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 
-import type { ChannelInstallationResponse, ChannelStatus, ChannelType } from "@support-agent/api-client";
+import type { BotResponse, ChannelInstallationResponse, ChannelStatus, ChannelType } from "@support-agent/api-client";
 
 import { ArrowIcon, MessageIcon, PlusIcon } from "@/components/icons";
 import { DashboardApiError, dashboardApi } from "@/lib/dashboard-api";
@@ -58,6 +59,8 @@ function channelLabel(type: ChannelType): string {
 
 export function ChannelSettings() {
   const [channels, setChannels] = useState<ChannelInstallationResponse[]>([]);
+  const [bots, setBots] = useState<BotResponse[]>([]);
+  const [selectedBotId, setSelectedBotId] = useState("");
   const [selectedType, setSelectedType] = useState<ChannelType>("telegram_personal");
   const [identity, setIdentity] = useState("");
   const [scope, setScope] = useState("");
@@ -71,11 +74,18 @@ export function ChannelSettings() {
     () => channelOptions.find((option) => option.type === selectedType) ?? channelOptions[0],
     [selectedType],
   );
+  const activeBots = useMemo(() => bots.filter((bot) => bot.status === "active"), [bots]);
 
   async function refresh() {
     try {
       setError(null);
-      setChannels(await dashboardApi.listChannels());
+      const [nextChannels, nextBots] = await Promise.all([
+        dashboardApi.listChannels(),
+        dashboardApi.listBots(),
+      ]);
+      setChannels(nextChannels);
+      setBots(nextBots);
+      setSelectedBotId((current) => current || nextBots.find((bot) => bot.status === "active")?.id || "");
     } catch (cause) {
       setError(cause instanceof DashboardApiError ? cause.message : "Channels could not be loaded.");
     } finally {
@@ -91,8 +101,13 @@ export function ChannelSettings() {
     setError(null);
     setNotice(null);
     try {
+      if (!selectedBotId) {
+        setError("Create or activate a bot before installing a channel.");
+        return;
+      }
       const created = await dashboardApi.installChannel({
         channel_type: selectedType,
+        bot_id: selectedBotId,
         external_identity: identity,
         conversation_scope: scope.split(",").map((item) => item.trim()).filter(Boolean),
         consent_acknowledged: consent,
@@ -111,10 +126,19 @@ export function ChannelSettings() {
 
   async function setStatus(channel: ChannelInstallationResponse, status: ChannelStatus) {
     try {
-      const updated = await dashboardApi.updateChannel(channel.id, status);
+      const updated = await dashboardApi.updateChannel(channel.id, { status });
       setChannels((current) => current.map((item) => item.id === updated.id ? updated : item));
     } catch (cause) {
       setError(cause instanceof DashboardApiError ? cause.message : "The channel status could not be updated.");
+    }
+  }
+
+  async function assignBot(channel: ChannelInstallationResponse, botId: string) {
+    try {
+      const updated = await dashboardApi.updateChannel(channel.id, { bot_id: botId });
+      setChannels((current) => current.map((item) => item.id === updated.id ? updated : item));
+    } catch (cause) {
+      setError(cause instanceof DashboardApiError ? cause.message : "The assigned bot could not be updated.");
     }
   }
 
@@ -149,15 +173,24 @@ export function ChannelSettings() {
                 </label>
               ))}
             </div>
+            <div className="field">
+              <label htmlFor="channel-bot">Bot allowed to answer</label>
+              <select id="channel-bot" required value={selectedBotId} onChange={(event) => setSelectedBotId(event.target.value)}>
+                <option value="">Choose an active bot</option>
+                {activeBots.map((bot) => <option key={bot.id} value={bot.id}>{bot.name}</option>)}
+              </select>
+              <span className="field-hint">Only the selected bot may answer conversations received through this channel.</span>
+            </div>
+            {activeBots.length === 0 ? <div className="workspace-alert">No active bot is available. <Link href="/dashboard/bots">Create or activate a bot first.</Link></div> : null}
             <div className="field"><label htmlFor="channel-identity">Account or page identity</label><input id="channel-identity" required value={identity} onChange={(event) => setIdentity(event.target.value)} placeholder={selected.identityHint} /><span className="field-hint">Use the prefix shown in the placeholder. Secrets, OTPs, and access tokens are never entered here.</span></div>
             <div className="field"><label htmlFor="channel-scope">Conversation scope (optional)</label><input id="channel-scope" value={scope} onChange={(event) => setScope(event.target.value)} placeholder="dm:123, page-inbox:456" /><span className="field-hint">Comma-separated IDs limit what the connector may read and reply to.</span></div>
             <label className="consent-check"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} required /><span>I authorize this tenant to read and reply within the selected account/page and scope.</span></label>
-            <button className="button button-primary" type="submit" disabled={saving}>{saving ? "Saving…" : <><PlusIcon width={16} height={16} />Start secure setup</>}</button>
+            <button className="button button-primary" type="submit" disabled={saving || activeBots.length === 0}>{saving ? "Saving…" : <><PlusIcon width={16} height={16} />Start secure setup</>}</button>
           </form>
         </section>
         <aside className="config-card channel-safety-card"><div className="config-card-heading"><div><span className="eyebrow">Safety boundary</span><h2>Connector handoff</h2></div><ArrowIcon width={22} height={22} /></div><div className="channel-safety-copy"><p>Telegram personal accounts may show a QR/OTP step in the connector. WhatsApp requires Business API access. Facebook requires a tenant-owned Page.</p><p>This screen stores only status, identity, scope, consent, and an opaque provider reference.</p></div></aside>
       </div>
-      <section className="config-card"><div className="config-card-heading"><div><span className="eyebrow">Your workspace</span><h2>Installed channels</h2></div><span className="channel-count">{channels.length} total</span></div>{loading ? <div className="provider-list-skeleton skeleton" /> : channels.length === 0 ? <div className="empty-state"><strong>No channels connected yet.</strong><span>Start a secure setup above to add your first customer inbox.</span></div> : <div className="channel-list">{channels.map((channel) => <div className="channel-row" key={channel.id}><div><strong>{channelLabel(channel.channel_type)}</strong><span>{channel.external_identity}</span><small>{channel.conversation_scope.length ? `${channel.conversation_scope.length} scoped conversation(s)` : "All approved conversations"}</small></div><div className="channel-row-actions"><span className={`status-badge status-${channel.status}`}>{statusLabel[channel.status]}</span>{channel.status === "pending" ? <button className="button button-small button-dark" type="button" onClick={() => void setStatus(channel, "connected")}>Mark connected</button> : null}{channel.status === "connected" ? <button className="button button-small" type="button" onClick={() => void setStatus(channel, "paused")}>Pause</button> : null}{channel.status !== "revoked" ? <button className="button button-small button-danger" type="button" onClick={() => void revoke(channel)}>Revoke</button> : null}</div></div>)}</div>}</section>
+      <section className="config-card"><div className="config-card-heading"><div><span className="eyebrow">Your workspace</span><h2>Installed channels</h2></div><span className="channel-count">{channels.length} total</span></div>{loading ? <div className="provider-list-skeleton skeleton" /> : channels.length === 0 ? <div className="empty-state"><strong>No channels connected yet.</strong><span>Start a secure setup above to add your first customer inbox.</span></div> : <div className="channel-list">{channels.map((channel) => <div className="channel-row" key={channel.id}><div><strong>{channelLabel(channel.channel_type)}</strong><span>{channel.external_identity}</span><small>{channel.conversation_scope.length ? `${channel.conversation_scope.length} scoped conversation(s)` : "All approved conversations"}</small>{channel.status === "pending" ? <small>Waiting for the provider authorization flow to confirm this connection.</small> : null}<label className="channel-bot-select"><span>Assigned bot</span><select value={channel.bot_id ?? ""} onChange={(event) => void assignBot(channel, event.target.value)} disabled={channel.status === "revoked"}><option value="" disabled>Choose a bot</option>{activeBots.map((bot) => <option key={bot.id} value={bot.id}>{bot.name}</option>)}</select></label></div><div className="channel-row-actions"><span className={`status-badge status-${channel.status}`}>{statusLabel[channel.status]}</span>{channel.status === "connected" ? <button className="button button-small" type="button" onClick={() => void setStatus(channel, "paused")}>Pause</button> : null}{channel.status !== "revoked" ? <button className="button button-small button-danger" type="button" onClick={() => void revoke(channel)}>Revoke</button> : null}</div></div>)}</div>}</section>
     </div>
   );
 }
