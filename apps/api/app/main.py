@@ -23,7 +23,9 @@ from app.api import (
 from app.core.config import settings
 from app.core.logger import setup_logging
 from app.db.session import dispose_engine
+from app.domains.auth.email import configured_auth_email_sender
 from app.domains.auth.oauth import RedisOAuthStateStore
+from app.domains.auth.otp import RedisAuthOtpStore
 from app.domains.chat.rate_limit import RedisRateLimiter
 from app.providers.router import RedisCircuitStore
 from app.workers.queue import create_ingestion_queue
@@ -36,6 +38,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     app.state.ingestion_queue = await create_ingestion_queue()
     app.state.widget_redis = Redis.from_url(settings.REDIS_URL, decode_responses=True)
     app.state.oauth_state_store = RedisOAuthStateStore(app.state.widget_redis)
+    app.state.auth_otp_store = RedisAuthOtpStore(app.state.widget_redis)
+    app.state.auth_email_sender = configured_auth_email_sender()
     app.state.widget_rate_limiter = RedisRateLimiter(app.state.widget_redis)
     app.state.model_circuit_store = RedisCircuitStore(app.state.widget_redis)
     try:
@@ -66,7 +70,14 @@ async def secret_safe_validation_error(
 ) -> JSONResponse:
     """Keep write-only credentials out of otherwise useful validation errors."""
 
-    secret_fields = {"api_key", "password", "refresh_token"}
+    secret_fields = {
+        "api_key",
+        "challenge_id",
+        "code",
+        "continuation_token",
+        "password",
+        "refresh_token",
+    }
     errors: list[dict[str, object]] = []
     for error in exc.errors():
         sanitized = dict(error)

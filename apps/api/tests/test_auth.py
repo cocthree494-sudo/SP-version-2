@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncGenerator
 from typing import cast
 from uuid import UUID
@@ -29,10 +30,16 @@ from app.db.base import Base
 from app.db.session import get_db_session
 from app.domains.auth.models import RefreshToken
 from app.domains.auth.oauth import OAuthProfile
+from app.domains.auth.otp import AuthOtpExpiredError, AuthOtpService, PendingAuth
 from app.domains.auth.repositories import RefreshTokenRepository
 from app.domains.tenancy.models import ProviderIdentity, Tenant, TenantMembership, User
 from app.domains.tenancy.repositories import UserRepository
 from app.main import app
+from tests.auth_helpers import (
+    latest_otp,
+    register_with_otp,
+    verify_latest_otp,
+)
 
 
 @pytest_asyncio.fixture
@@ -102,9 +109,19 @@ async def test_register_bootstraps_owner_and_me_context(
     auth_client: AsyncClient,
     auth_session: AsyncSession,
 ) -> None:
-    response = await auth_client.post("/v1/auth/register", json=registration_payload())
+    started = await auth_client.post("/v1/auth/register", json=registration_payload())
 
-    assert response.status_code == 201
+    assert started.status_code == 202
+    assert started.json()["status"] == "otp_required"
+    assert await UserRepository(auth_session).get_by_email("owner@example.com") is None
+    assert await auth_session.scalar(select(RefreshToken)) is None
+
+    response = await verify_latest_otp(
+        auth_client,
+        started,
+        email="owner@example.com",
+    )
+    assert response.status_code == 200
     tokens = response.json()
     assert tokens["token_type"] == "bearer"  # noqa: S105 - OAuth token type
     assert tokens["expires_in"] > 0
@@ -135,11 +152,11 @@ async def test_register_bootstraps_owner_and_me_context(
 
 
 @pytest.mark.asyncio
-async def test_register_rejects_duplicate_identity_without_partial_bootstrap(
+async def test_register_duplicate_identity_does_not_enumerate_before_otp(
     auth_client: AsyncClient,
     auth_session: AsyncSession,
 ) -> None:
-    first = await auth_client.post("/v1/auth/register", json=registration_payload())
+    first = await register_with_otp(auth_client, registration_payload())
     duplicate = await auth_client.post(
         "/v1/auth/register",
         json=registration_payload(
@@ -149,8 +166,15 @@ async def test_register_rejects_duplicate_identity_without_partial_bootstrap(
         ),
     )
 
-    assert first.status_code == 201
-    assert duplicate.status_code == 409
+    assert first.status_code == 200
+    assert duplicate.status_code == 202
+    assert duplicate.json()["status"] == "otp_required"
+    duplicate_verified = await verify_latest_otp(
+        auth_client,
+        duplicate,
+        email="owner@example.com",
+    )
+    assert duplicate_verified.status_code == 409
     tenants = list(await auth_session.scalars(select(Tenant).order_by(Tenant.created_at)))
     assert [tenant.slug for tenant in tenants] == ["acme-support"]
 
@@ -159,13 +183,13 @@ async def test_register_rejects_duplicate_identity_without_partial_bootstrap(
 async def test_login_uses_generic_failure_and_accepts_normalized_email(
     auth_client: AsyncClient,
 ) -> None:
-    await auth_client.post("/v1/auth/register", json=registration_payload())
+    await register_with_otp(auth_client, registration_payload())
 
     bad_response = await auth_client.post(
         "/v1/auth/login",
         json={"email": "missing@example.com", "password": "wrong-password"},
     )
-    good_response = await auth_client.post(
+    good_start = await auth_client.post(
         "/v1/auth/login",
         json={
             "email": "  OWNER@example.com ",
@@ -177,18 +201,242 @@ async def test_login_uses_generic_failure_and_accepts_normalized_email(
     assert bad_response.status_code == 401
     assert bad_response.headers["www-authenticate"] == "Bearer"
     assert bad_response.json()["detail"] == "Invalid email, password, or organization"
+    assert good_start.status_code == 200
+    assert "access_token" not in good_start.json()
+    good_response = await verify_latest_otp(
+        auth_client,
+        good_start,
+        email="owner@example.com",
+    )
     assert good_response.status_code == 200
     assert good_response.json()["access_token"]
+
+
+@pytest.mark.asyncio
+async def test_otp_is_single_use_and_wrong_codes_never_create_a_session(
+    auth_client: AsyncClient,
+    auth_session: AsyncSession,
+) -> None:
+    started = await auth_client.post("/v1/auth/register", json=registration_payload())
+    challenge_id = started.json()["challenge_id"]
+    code = latest_otp("owner@example.com")
+
+    wrong = await auth_client.post(
+        "/v1/auth/otp/verify",
+        json={"challenge_id": challenge_id, "code": "000000" if code != "000000" else "999999"},
+    )
+    assert wrong.status_code == 400
+    assert await UserRepository(auth_session).get_by_email("owner@example.com") is None
+
+    verified = await auth_client.post(
+        "/v1/auth/otp/verify",
+        json={"challenge_id": challenge_id, "code": code},
+    )
+    assert verified.status_code == 200
+    replayed = await auth_client.post(
+        "/v1/auth/otp/verify",
+        json={"challenge_id": challenge_id, "code": code},
+    )
+    assert replayed.status_code == 410
+
+
+@pytest.mark.asyncio
+async def test_otp_attempt_exhaustion_locks_the_challenge(
+    auth_client: AsyncClient,
+) -> None:
+    started = await auth_client.post("/v1/auth/register", json=registration_payload())
+    challenge_id = started.json()["challenge_id"]
+    code = latest_otp("owner@example.com")
+    wrong_code = "000000" if code != "000000" else "999999"
+
+    for _ in range(4):
+        wrong = await auth_client.post(
+            "/v1/auth/otp/verify",
+            json={"challenge_id": challenge_id, "code": wrong_code},
+        )
+        assert wrong.status_code == 400
+    locked = await auth_client.post(
+        "/v1/auth/otp/verify",
+        json={"challenge_id": challenge_id, "code": wrong_code},
+    )
+    assert locked.status_code == 429
+    assert (
+        await auth_client.post(
+            "/v1/auth/otp/verify",
+            json={"challenge_id": challenge_id, "code": code},
+        )
+    ).status_code == 410
+
+
+@pytest.mark.asyncio
+async def test_otp_verification_is_atomic_under_concurrent_requests(
+    auth_client: AsyncClient,
+) -> None:
+    del auth_client
+    from app.core.config import settings
+
+    service = AuthOtpService(app.state.auth_otp_store, app.state.auth_email_sender)
+    challenge = await service.start(
+        PendingAuth(kind="password_login", email="owner@example.com", payload={}),
+        client_ip="127.0.0.1",
+    )
+    code = latest_otp("owner@example.com")
+    outcomes = await asyncio.gather(
+        service.verify(challenge.challenge_id, code),
+        service.verify(challenge.challenge_id, code),
+        return_exceptions=True,
+    )
+    assert sum(isinstance(item, PendingAuth) for item in outcomes) == 1
+    assert sum(isinstance(item, AuthOtpExpiredError) for item in outcomes) == 1
+    assert settings.AUTH_OTP_MAX_ATTEMPTS >= 3
+
+
+@pytest.mark.asyncio
+async def test_otp_redis_failure_returns_secret_safe_unavailable_response(
+    auth_client: AsyncClient,
+) -> None:
+    class BrokenOtpStore:
+        async def allow_rate(self, *_args: object) -> bool:
+            raise RuntimeError("redis is offline")
+
+    app.state.auth_otp_store = BrokenOtpStore()
+    response = await auth_client.post("/v1/auth/register", json=registration_payload())
+    assert response.status_code == 503
+    assert "redis is offline" not in response.text
+
+
+@pytest.mark.asyncio
+async def test_otp_email_failure_removes_challenge_and_leaks_no_provider_error(
+    auth_client: AsyncClient,
+    auth_session: AsyncSession,
+) -> None:
+    from app.domains.auth.email import AuthEmailDeliveryError
+
+    class BrokenEmailSender:
+        async def send_otp(self, **_kwargs: object) -> None:
+            raise AuthEmailDeliveryError("smtp account detail")
+
+    app.state.auth_email_sender = BrokenEmailSender()
+    response = await auth_client.post("/v1/auth/register", json=registration_payload())
+    assert response.status_code == 503
+    assert "smtp account detail" not in response.text
+    assert await UserRepository(auth_session).get_by_email("owner@example.com") is None
+
+
+@pytest.mark.asyncio
+async def test_otp_request_rate_limit_is_enforced_per_email(
+    auth_client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "AUTH_OTP_EMAIL_RATE_LIMIT", 1)
+    first = await auth_client.post("/v1/auth/register", json=registration_payload())
+    limited = await auth_client.post("/v1/auth/register", json=registration_payload())
+    assert first.status_code == 202
+    assert limited.status_code == 429
+    assert int(limited.headers["retry-after"]) > 0
+
+
+@pytest.mark.asyncio
+async def test_expired_otp_never_creates_registration(
+    auth_client: AsyncClient,
+    auth_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import app.domains.auth.otp as otp_module
+    from app.core.config import settings
+
+    started = await auth_client.post("/v1/auth/register", json=registration_payload())
+    challenge_id = started.json()["challenge_id"]
+    code = latest_otp("owner@example.com")
+    current_time = otp_module.time.time()
+    monkeypatch.setattr(
+        otp_module.time,
+        "time",
+        lambda: current_time + settings.AUTH_OTP_TTL_SECONDS + 1,
+    )
+    expired = await auth_client.post(
+        "/v1/auth/otp/verify",
+        json={"challenge_id": challenge_id, "code": code},
+    )
+    assert expired.status_code == 410
+    assert await UserRepository(auth_session).get_by_email("owner@example.com") is None
+
+
+def test_test_only_otp_code_is_rejected_outside_test_environment() -> None:
+    from app.core.config import Settings
+
+    with pytest.raises(ValueError, match="AUTH_OTP_TEST_CODE"):
+        Settings(
+            APP_ENV="production",
+            DATABASE_URL="sqlite+aiosqlite:///:memory:",
+            REDIS_URL="redis://127.0.0.1:6379/15",
+            AUTH_JWT_SECRET=SecretStr("a" * 40),
+            AUTH_OTP_SECRET=SecretStr("b" * 40),
+            AUTH_OTP_TEST_CODE=SecretStr("123456"),
+        )
+
+
+@pytest.mark.asyncio
+async def test_otp_cancel_removes_pending_registration(
+    auth_client: AsyncClient,
+    auth_session: AsyncSession,
+) -> None:
+    started = await auth_client.post("/v1/auth/register", json=registration_payload())
+    challenge_id = started.json()["challenge_id"]
+
+    cancelled = await auth_client.post(
+        "/v1/auth/otp/cancel",
+        json={"challenge_id": challenge_id},
+    )
+    assert cancelled.status_code == 204
+
+    expired = await auth_client.post(
+        "/v1/auth/otp/verify",
+        json={"challenge_id": challenge_id, "code": latest_otp("owner@example.com")},
+    )
+    assert expired.status_code == 410
+    assert await UserRepository(auth_session).get_by_email("owner@example.com") is None
+
+
+@pytest.mark.asyncio
+async def test_resend_replaces_the_previous_code(
+    auth_client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "AUTH_OTP_RESEND_COOLDOWN_SECONDS", 0)
+    started = await auth_client.post("/v1/auth/register", json=registration_payload())
+    challenge_id = started.json()["challenge_id"]
+    original_code = latest_otp("owner@example.com")
+
+    resent = await auth_client.post(
+        "/v1/auth/otp/resend",
+        json={"challenge_id": challenge_id},
+    )
+    assert resent.status_code == 200
+    replacement_code = latest_otp("owner@example.com")
+    assert replacement_code != original_code
+
+    old_code = await auth_client.post(
+        "/v1/auth/otp/verify",
+        json={"challenge_id": challenge_id, "code": original_code},
+    )
+    assert old_code.status_code == 400
+    replacement = await auth_client.post(
+        "/v1/auth/otp/verify",
+        json={"challenge_id": challenge_id, "code": replacement_code},
+    )
+    assert replacement.status_code == 200
 
 
 @pytest.mark.asyncio
 async def test_refresh_rotation_rejects_reuse_and_revokes_family(
     auth_client: AsyncClient,
 ) -> None:
-    register_response = await auth_client.post(
-        "/v1/auth/register",
-        json=registration_payload(),
-    )
+    register_response = await register_with_otp(auth_client, registration_payload())
     original_refresh = register_response.json()["refresh_token"]
 
     rotated_response = await auth_client.post(
@@ -218,13 +466,10 @@ async def test_access_token_cannot_switch_to_an_unowned_tenant(
     auth_client: AsyncClient,
     auth_session: AsyncSession,
 ) -> None:
-    first_response = await auth_client.post(
-        "/v1/auth/register",
-        json=registration_payload(),
-    )
-    second_response = await auth_client.post(
-        "/v1/auth/register",
-        json=registration_payload(
+    first_response = await register_with_otp(auth_client, registration_payload())
+    second_response = await register_with_otp(
+        auth_client,
+        registration_payload(
             email="second@example.com",
             organization_name="Second Tenant",
             organization_slug="second-tenant",
@@ -326,12 +571,20 @@ async def test_social_registration_uses_one_time_pkce_state_and_creates_password
     )
     assert replay.status_code == 401
 
-    complete = await auth_client.post(
+    complete_start = await auth_client.post(
         "/v1/auth/oauth/register",
         json={
             "continuation_token": callback_data["continuation_token"],
             "organization_name": "Social Workspace",
         },
+    )
+    assert complete_start.status_code == 200
+    assert complete_start.json()["status"] == "otp_required"
+    assert await UserRepository(auth_session).get_by_email("social@example.com") is None
+    complete = await verify_latest_otp(
+        auth_client,
+        complete_start,
+        email="social@example.com",
     )
     assert complete.status_code == 200
     assert complete.json()["access_token"]
@@ -345,13 +598,32 @@ async def test_social_registration_uses_one_time_pkce_state_and_creates_password
     assert social_user is not None
     assert social_user.password_hash is None
 
+    login_start = await auth_client.post(
+        "/v1/auth/oauth/google/start",
+        json={"mode": "login"},
+    )
+    login_state = parse_qs(urlparse(login_start.json()["authorization_url"]).query)["state"][0]
+    login_callback = await auth_client.post(
+        "/v1/auth/oauth/google/callback",
+        json={"code": "provider-code", "state": login_state},
+    )
+    assert login_callback.status_code == 200
+    assert login_callback.json()["status"] == "otp_required"
+    assert "access_token" not in login_callback.json()
+    login_complete = await verify_latest_otp(
+        auth_client,
+        login_callback,
+        email="social@example.com",
+    )
+    assert login_complete.status_code == 200
+
 
 @pytest.mark.asyncio
 async def test_account_deletion_requires_typed_confirmation_and_releases_email(
     auth_client: AsyncClient,
     auth_session: AsyncSession,
 ) -> None:
-    registered = await auth_client.post("/v1/auth/register", json=registration_payload())
+    registered = await register_with_otp(auth_client, registration_payload())
     token = registered.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
     rejected = await auth_client.post(
@@ -367,8 +639,8 @@ async def test_account_deletion_requires_typed_confirmation_and_releases_email(
     )
     assert deleted.status_code == 204
     assert await UserRepository(auth_session).get_by_email("owner@example.com") is None
-    reused = await auth_client.post(
-        "/v1/auth/register",
-        json=registration_payload(email="owner@example.com", organization_name="Reused"),
+    reused = await register_with_otp(
+        auth_client,
+        registration_payload(email="owner@example.com", organization_name="Reused"),
     )
-    assert reused.status_code == 201
+    assert reused.status_code == 200

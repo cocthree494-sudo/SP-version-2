@@ -10,7 +10,8 @@ There are three user types:
 
 1. **End customer** — asks the support bot questions.
 2. **Tenant member/admin** — manages a company, bots, knowledge, and analytics.
-3. **Platform admin** — operates the SaaS; full admin tooling is deferred.
+3. **Platform admin** — operates the SaaS through the separately authorized and audited T-081
+   control plane; tenant roles never imply platform access.
 
 ### Phase 1 outcome
 
@@ -122,8 +123,12 @@ All tenant-owned tables carry `tenant_id`. Global identity tables are the only j
 | `ingestion_jobs` | tenant_id, source_id, job type, state, attempts, progress, error |
 | `provider_credentials` | tenant_id, approved generation-provider type, encrypted secret envelope/reference, safe label, fingerprint/masked suffix, status, verification/rotation/revocation timestamps; raw secrets are never readable through the API |
 | `provider_policies` | tenant_id, routing mode (`platform_only`, `tenant_first_with_platform_fallback`, `tenant_only`), ordered tenant target references, and explicit platform-fallback setting |
+| `platform_admins` | global user authorization, status, grant/revoke metadata; separate from tenant memberships |
+| `platform_admin_audit_logs` | immutable actor, action, target type/ID, reason, outcome, request metadata, and redacted change summary |
 
-Likely later tables: `subscriptions`, `invoices`, `tickets`, `agent_assignments`, `audit_logs`, and channel-specific installations. Do not add them to Phase 1 without a task or a direct user request.
+Likely later tables: `subscriptions`, `invoices`, `tickets`, and `agent_assignments`. Platform
+administration and its audit records were explicitly promoted into T-081. Do not add other later
+tables without a task or a direct user request.
 
 ### Isolation rules
 
@@ -216,6 +221,10 @@ GET    /health/ready
 
 POST   /v1/auth/register
 POST   /v1/auth/login
+POST   /v1/auth/otp/status
+POST   /v1/auth/otp/resend
+POST   /v1/auth/otp/cancel
+POST   /v1/auth/otp/verify
 POST   /v1/auth/refresh
 GET    /v1/me
 
@@ -262,6 +271,12 @@ Public widget requests use a revocable publishable bot key, allowed-origin check
 ## 10. Security and privacy baseline
 
 - Password hashing with Argon2id; short-lived access tokens and rotated refresh tokens.
+- Registration and every explicit login require a fresh email OTP before any authenticated
+  session is issued. OTPs are single-use, short-lived, attempt-limited, rate-limited, stored only
+  as keyed hashes, and invalidated on resend.
+- Pending authentication state is private, short-lived Redis data. The browser receives only a
+  Secure, HttpOnly, SameSite pending-challenge cookie through the dashboard BFF; it never receives
+  access/refresh tokens or the raw challenge identifier.
 - Secrets only through environment/secret managers; never committed or logged.
 - Tenant provider secrets use envelope encryption through a replaceable KMS/Vault-style adapter. Store ciphertext plus key/reference metadata, not plaintext or a reversibly obfuscated application field.
 - Credential create/rotate accepts a secret once over TLS; every response returns only masked metadata. Raw keys are never re-displayed, written to browser storage, sent to an LLM, included in job payloads, or exposed in logs, traces, analytics, exceptions, support tools, or API validation bodies.
@@ -306,7 +321,9 @@ Multi-provider failover in production, Telegram, WhatsApp, Messenger, email adap
 
 ### Phase 3 — business and human operations
 
-Stripe plans/quotas/invoices, fuller account management, platform admin tooling, human handoff inbox, assignment, and takeover.
+Stripe plans/quotas/invoices, fuller account management, human handoff inbox, assignment, and
+takeover. The user explicitly promoted the platform-admin control plane into T-081 ahead of the
+remaining Phase 3 bucket.
 
 ### Phase 4 — growth
 

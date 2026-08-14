@@ -30,6 +30,7 @@ from app.domains.usage.models import UsageEvent, UsageEventMutationError
 from app.domains.usage.schemas import UsageRecordInput
 from app.domains.usage.service import UsageBotNotFoundError, UsageService
 from app.main import app
+from tests.auth_helpers import register_with_otp
 
 
 @pytest_asyncio.fixture
@@ -76,16 +77,15 @@ async def register_with_bot(
     organization_name: str,
     organization_slug: str,
 ) -> tuple[dict[str, Any], dict[str, Any], UUID]:
-    register_response = await client.post(
-        "/v1/auth/register",
-        json={
+    register_response = await register_with_otp(
+        client,
+        {
             "email": email,
             "password": "correct horse battery staple",
             "organization_name": organization_name,
             "organization_slug": organization_slug,
         },
     )
-    assert register_response.status_code == 201
     tokens = cast(dict[str, Any], register_response.json())
     headers = {"Authorization": f"Bearer {tokens['access_token']}"}
     bot_response = await client.post(

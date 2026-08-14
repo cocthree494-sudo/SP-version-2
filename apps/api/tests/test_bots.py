@@ -28,6 +28,7 @@ from app.domains.tenancy.enums import MembershipRole
 from app.domains.tenancy.models import Tenant, TenantMembership, User
 from app.domains.tenancy.repositories import MembershipRepository, UserRepository
 from app.main import app
+from tests.auth_helpers import register_with_otp
 
 
 @pytest_asyncio.fixture
@@ -73,16 +74,15 @@ async def register_owner(
     organization_name: str = "Acme",
     organization_slug: str = "acme",
 ) -> dict[str, Any]:
-    response = await client.post(
-        "/v1/auth/register",
-        json={
+    response = await register_with_otp(
+        client,
+        {
             "email": email,
             "password": "correct horse battery staple",
             "organization_name": organization_name,
             "organization_slug": organization_slug,
         },
     )
-    assert response.status_code == 201
     return cast(dict[str, Any], response.json())
 
 

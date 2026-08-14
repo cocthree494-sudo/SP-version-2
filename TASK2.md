@@ -90,7 +90,58 @@ This file is the source of truth for Phase 2 planning and implementation order. 
   Depends on: T-071, T-075, T-076, T-077, T-078
   Add a public documentation surface and an authenticated in-app Help / Docs page explaining account/login, workspace roles, provider setup and routing, bot/knowledge/widget configuration, channel connections, Telegram QR/OTP session safety, WhatsApp/Facebook approval requirements, voice consent and costs, account deletion, and troubleshooting. Documentation must be versioned from repository source, searchable with keyboard-accessible results, linkable to specific sections, responsive on desktop/mobile, and avoid exposing secrets or internal implementation details. Include a release checklist, provider/channel availability matrix, security and privacy notes, support contact path, and automated link/content smoke tests; update it whenever a completed task changes user-visible behavior.
 
+- [ ] **T-080 — Require email OTP for every registration and login**
+  Depends on: T-022, T-050, T-070
+  Replace direct session issuance with a two-step authentication contract for password and
+  social flows. Successful password/OAuth identity verification starts a short-lived email
+  challenge but must not create an authenticated browser session. Every registration and
+  explicit login requires a new six-digit, single-use OTP sent to the submitted or verified
+  provider email. OTPs expire after ten minutes, are stored only as keyed hashes, have bounded
+  attempts, a resend cooldown, email/IP/challenge rate limits, and are invalidated whenever a
+  replacement code is issued. Responses and logs must not expose account existence, plaintext
+  codes, SMTP credentials, password hashes, OAuth tokens, or pending authentication payloads.
+
+  Keep pending registration/login/social continuation data in the private short-lived Redis
+  boundary. Registration must not create a user, tenant, membership, or refresh token until the
+  OTP succeeds. Login and returning social authentication must not create access/refresh tokens
+  until the OTP succeeds. The dashboard BFF stores only an opaque pending challenge identifier
+  in a Secure, HttpOnly, SameSite cookie; browser JavaScript never receives auth tokens or the
+  challenge identifier. Add a provider-neutral mail interface with Gmail SMTP configuration for
+  development and a production-provider-compatible boundary, professional HTML/plain-text
+  templates, secret-safe delivery failures, and configuration validation.
+
+  Add API/client/BFF contracts, resend/status/verify flows, cleanup behavior, documentation, and
+  tests for password registration/login, Google/social registration/login/organization selection,
+  wrong/expired/replayed codes, replacement invalidation, attempt exhaustion, throttling, email
+  failure, Redis failure, cookie/session boundaries, redaction, and concurrent verification.
+  Run local lint/type checks only, then run PostgreSQL/Redis/API and desktop/mobile Playwright
+  verification on the VPS before acceptance.
+
+- [ ] **T-081 — Add an audited platform-admin control plane and dashboard**
+  Depends on: T-080
+  Add a global platform-admin authorization model that is separate from tenant owner/admin roles.
+  Bootstrap the first approved platform administrator through explicit environment configuration,
+  persist later assignments, require recent OTP-authenticated sessions, and audit every platform
+  read or mutation. Platform administrators must not receive tenant provider secrets, plaintext
+  OTPs, password material, OAuth tokens, customer message content, or unrestricted database
+  credentials through the UI or API.
+
+  Create a dedicated least-privilege cross-tenant reporting boundary instead of reusing the normal
+  tenant runtime session or migration-owner connection. Provide platform summaries and drill-downs
+  for users, tenants, activation, OTP/email delivery health, authentication/security events,
+  provider and AI usage/cost, ingestion jobs, channel/voice health, application readiness, and
+  immutable admin audit records. Destructive or identity-affecting actions require explicit
+  confirmation, step-up authorization, idempotency, and a reason; initial delivery may keep risky
+  actions read-only until their contracts and tests are complete.
+
+  Build a responsive `/admin` application shell with searchable tables, filters, date ranges,
+  status indicators, failure details, and operational charts sized for repeated work rather than
+  a marketing layout. Add authorization, least-privilege database, audit, redaction, pagination,
+  aggregate accuracy, cross-tenant, API, and desktop/mobile browser tests. Deploy and verify it on
+  the VPS only after T-080 is accepted.
+
 ## Deferred / out of scope
 
-- Phase 3: billing/quotas, platform administration, and human handoff/inbox.
+- Phase 3: billing/quotas and human handoff/inbox. Platform administration was explicitly
+  promoted into T-081 by the user.
 - Phase 4: growth analytics, voice, approved auto-learning, and selected external integrations.

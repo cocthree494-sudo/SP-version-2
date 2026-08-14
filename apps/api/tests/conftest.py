@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
 
 import pytest
 import pytest_asyncio
@@ -18,6 +18,9 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.pool import NullPool
 
 from app.core.config import settings
+from app.domains.auth.email import InMemoryAuthEmailSender
+from app.domains.auth.otp import InMemoryAuthOtpStore
+from app.main import app
 
 TENANT_TABLES = (
     "tenant_memberships",
@@ -37,6 +40,17 @@ TENANT_TABLES = (
     "voice_agent_installations",
     "voice_webhook_events",
 )
+
+
+@pytest.fixture(autouse=True)
+def isolated_auth_otp_state() -> Iterator[None]:
+    """Give every API test isolated OTP state without bypassing verification."""
+
+    app.state.auth_otp_store = InMemoryAuthOtpStore()
+    app.state.auth_email_sender = InMemoryAuthEmailSender()
+    yield
+    del app.state.auth_otp_store
+    del app.state.auth_email_sender
 
 
 def _integration_database_url() -> str:

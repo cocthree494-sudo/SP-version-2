@@ -28,6 +28,7 @@ from app.domains.tenancy.models import Tenant, TenantMembership, User
 from app.main import app
 from app.providers.storage import LocalObjectStorage
 from app.workers.queue import IngestionQueueMessage
+from tests.auth_helpers import register_with_otp
 
 
 class FakeQueue:
@@ -88,16 +89,15 @@ async def register_and_create_bot(
     email: str,
     slug: str,
 ) -> tuple[dict[str, str], dict[str, Any]]:
-    registered = await client.post(
-        "/v1/auth/register",
-        json={
+    registered = await register_with_otp(
+        client,
+        {
             "email": email,
             "password": "correct horse battery staple",
             "organization_name": slug.title(),
             "organization_slug": slug,
         },
     )
-    assert registered.status_code == 201
     headers = {"Authorization": f"Bearer {registered.json()['access_token']}"}
     bot = await client.post("/v1/bots", headers=headers, json={"name": f"{slug} bot"})
     assert bot.status_code == 201

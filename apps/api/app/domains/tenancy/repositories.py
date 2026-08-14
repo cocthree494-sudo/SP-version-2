@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -43,12 +44,14 @@ class UserRepository:
         password_hash: str | None,
         display_name: str | None = None,
         status: UserStatus = UserStatus.ACTIVE,
+        email_verified_at: datetime | None = None,
     ) -> User:
         user = User(
             email=normalize_email(email),
             password_hash=password_hash,
             display_name=display_name,
             status=status,
+            email_verified_at=email_verified_at,
         )
         self.session.add(user)
         await self.session.flush()

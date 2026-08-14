@@ -44,6 +44,7 @@ from app.providers.tenant_factory import (
     build_tenant_llm_targets,
 )
 from app.providers.types import ProviderError, ProviderErrorCategory
+from tests.auth_helpers import register_with_otp
 
 RAW_KEY = "sk-test-tenant-secret-never-exposed-1234"
 ROTATED_KEY = "sk-test-rotated-secret-never-exposed-5678"
@@ -206,16 +207,15 @@ async def register_owner(
     email: str = "owner@example.com",
     slug: str = "acme",
 ) -> dict[str, Any]:
-    response = await client.post(
-        "/v1/auth/register",
-        json={
+    response = await register_with_otp(
+        client,
+        {
             "email": email,
             "password": "correct horse battery staple",
             "organization_name": slug.title(),
             "organization_slug": slug,
         },
     )
-    assert response.status_code == 201
     return cast(dict[str, Any], response.json())
 
 

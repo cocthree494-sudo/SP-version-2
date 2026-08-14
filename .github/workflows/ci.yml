@@ -81,6 +81,8 @@ jobs:
           # a public, bounded crawl target and does not require credentials.
           E2E_WEBSITE_URL: https://example.com/
           DETERMINISTIC_LLM_RESPONSE: "[1] Deterministic support response."
+          AUTH_OTP_TEST_CODE: "000000"
+          E2E_OTP_CODE: "000000"
           DATABASE_URL: postgresql+asyncpg://support_agent_app:ci_only_app@127.0.0.1:5432/support_agent_test
         run: npm run test:e2e
 
@@ -97,6 +99,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
+      APP_ENV: test
       COMPOSE_PROJECT_NAME: support-agent-acceptance
       COMPOSE_FILE: infra/compose.production.yaml
       POSTGRES_DB: support_agent
@@ -107,6 +110,9 @@ jobs:
       REDIS_PASSWORD: ci_redis_password_2026
       REDIS_URL: redis://:ci_redis_password_2026@redis:6379/0
       AUTH_JWT_SECRET: ci-production-acceptance-jwt-secret-2026-long
+      AUTH_OTP_SECRET: ci-production-acceptance-otp-secret-2026-long
+      AUTH_OTP_TEST_CODE: "000000"
+      AUTH_EMAIL_PROVIDER: memory
       AI_PROVIDER_MODE: deterministic
       AI_PROVIDER_ID: deterministic
       LLM_MODEL_ID: deterministic-chat-v1
@@ -150,6 +156,10 @@ jobs:
               'REDIS_PASSWORD': os.environ['REDIS_PASSWORD'],
               'REDIS_URL': os.environ['REDIS_URL'],
               'AUTH_JWT_SECRET': os.environ['AUTH_JWT_SECRET'],
+              'AUTH_OTP_SECRET': os.environ['AUTH_OTP_SECRET'],
+              'AUTH_OTP_TEST_CODE': os.environ['AUTH_OTP_TEST_CODE'],
+              'AUTH_EMAIL_PROVIDER': os.environ['AUTH_EMAIL_PROVIDER'],
+              'APP_ENV': os.environ['APP_ENV'],
               'AI_PROVIDER_MODE': os.environ['AI_PROVIDER_MODE'],
               'AI_PROVIDER_ID': os.environ['AI_PROVIDER_ID'],
               'LLM_MODEL_ID': os.environ['LLM_MODEL_ID'],

@@ -1,7 +1,12 @@
 import { ApiError, type SocialProvider } from "@support-agent/api-client";
 import { NextResponse, type NextRequest } from "next/server";
 
-import { apiErrorResponse, publicRequestUrl, serverApi } from "@/lib/server-auth";
+import {
+  apiErrorResponse,
+  clearPendingAuthCookies,
+  publicRequestUrl,
+  serverApi,
+} from "@/lib/server-auth";
 
 const providers = new Set<SocialProvider>(["google", "microsoft", "github"]);
 
@@ -20,7 +25,9 @@ export async function GET(
       mode,
       ...(organizationSlug ? { organization_slug: organizationSlug } : {}),
     });
-    return NextResponse.redirect(result.authorization_url);
+    const response = NextResponse.redirect(result.authorization_url);
+    clearPendingAuthCookies(response);
+    return response;
   } catch (error) {
     if (error instanceof ApiError && error.status === 503) {
       const loginUrl = publicRequestUrl(request, "/login");

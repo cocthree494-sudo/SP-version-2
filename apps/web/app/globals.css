@@ -178,6 +178,13 @@ h1, h2, h3, p { margin: 0; }
 .auth-recovery { margin-top: -5px; color: var(--ink-soft); font-size: 11px; line-height: 1.45; }
 .auth-recovery a, .auth-legal a { color: var(--navy); font-weight: 760; text-decoration: underline; text-decoration-color: var(--mint-strong); text-underline-offset: 3px; }
 .auth-legal { max-width: 330px; margin: 32px auto 0; color: var(--ink-soft); font-size: 10px; line-height: 1.5; text-align: center; }
+.otp-checking { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 260px; color: var(--ink-soft); font-size: 13px; }
+.otp-field input { min-height: 62px; font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 28px; font-variant-numeric: tabular-nums; font-weight: 750; letter-spacing: 0; text-align: center; }
+.otp-resend, .auth-text-button { border: 0; background: transparent; color: var(--navy); font: inherit; font-weight: 780; text-decoration: underline; text-decoration-color: var(--mint-strong); text-underline-offset: 3px; }
+.otp-resend { min-height: 40px; padding: 7px 10px; font-size: 12px; }
+.otp-resend:disabled { color: var(--ink-faint); cursor: not-allowed; text-decoration: none; }
+.auth-text-button { padding: 0; }
+.otp-resend:focus-visible, .auth-text-button:focus-visible { outline: 3px solid rgba(145,227,190,.75); outline-offset: 3px; }
 
 /* Dashboard */
 .dashboard-app { display: flex; min-height: 100vh; background: var(--paper); }

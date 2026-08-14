@@ -3,6 +3,7 @@
 import type {
   LoginInput,
   MeResponse,
+  PendingAuthResponse,
   RegisterInput,
 } from "@support-agent/api-client";
 import {
@@ -20,22 +21,32 @@ type AuthStatus = "loading" | "authenticated" | "anonymous";
 interface AuthContextValue {
   status: AuthStatus;
   user: MeResponse | null;
-  login: (payload: LoginInput) => Promise<void>;
-  register: (payload: RegisterInput) => Promise<void>;
+  login: (payload: LoginInput, completeSocialLink?: boolean) => Promise<PendingAuthResponse>;
+  register: (payload: RegisterInput) => Promise<PendingAuthResponse>;
   socialRegister: (payload: {
-    continuation_token: string;
     organization_name: string;
     organization_slug?: string;
-  }) => Promise<void>;
-  socialSelect: (payload: { continuation_token: string; organization_slug: string }) => Promise<void>;
-  linkSocial: (continuation_token: string) => Promise<void>;
+  }) => Promise<PendingAuthResponse>;
+  socialSelect: (payload: { organization_slug: string }) => Promise<PendingAuthResponse>;
+  otpStatus: () => Promise<PendingAuthResponse | null>;
+  resendOtp: () => Promise<PendingAuthResponse>;
+  verifyOtp: (code: string) => Promise<void>;
+  cancelOtp: () => Promise<void>;
   logout: () => Promise<void>;
   reload: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-class BrowserAuthError extends Error {}
+class BrowserAuthError extends Error {
+  readonly status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "BrowserAuthError";
+    this.status = status;
+  }
+}
 
 async function responseDetail(response: Response): Promise<string> {
   const payload = (await response.json().catch(() => null)) as {
@@ -44,6 +55,10 @@ async function responseDetail(response: Response): Promise<string> {
   return typeof payload?.detail === "string"
     ? payload.detail
     : "We could not complete that request. Please try again.";
+}
+
+async function browserAuthError(response: Response): Promise<BrowserAuthError> {
+  return new BrowserAuthError(response.status, await responseDetail(response));
 }
 
 export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
@@ -63,7 +78,7 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
         return;
       }
       if (!response.ok) {
-        throw new BrowserAuthError(await responseDetail(response));
+        throw await browserAuthError(response);
       }
       setUser((await response.json()) as MeResponse);
       setStatus("authenticated");
@@ -78,23 +93,30 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
   }, [reload]);
 
   const authenticate = useCallback(
-    async (endpoint: "login" | "register", payload: LoginInput | RegisterInput) => {
+    async (
+      endpoint: "login" | "register",
+      payload: LoginInput | RegisterInput,
+      completeSocialLink = false,
+    ): Promise<PendingAuthResponse> => {
       const response = await fetch(`/api/auth/${endpoint}`, {
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(
+          endpoint === "login" ? { ...payload, complete_social_link: completeSocialLink } : payload,
+        ),
       });
       if (!response.ok) {
-        throw new BrowserAuthError(await responseDetail(response));
+        throw await browserAuthError(response);
       }
-      await reload();
+      return (await response.json()) as PendingAuthResponse;
     },
-    [reload],
+    [],
   );
 
   const login = useCallback(
-    (payload: LoginInput) => authenticate("login", payload),
+    (payload: LoginInput, completeSocialLink = false) =>
+      authenticate("login", payload, completeSocialLink),
     [authenticate],
   );
   const register = useCallback(
@@ -102,40 +124,72 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
     [authenticate],
   );
   const socialComplete = useCallback(
-    async (endpoint: "register" | "select", payload: Record<string, string>) => {
+    async (
+      endpoint: "register" | "select",
+      payload: Record<string, string>,
+    ): Promise<PendingAuthResponse> => {
       const response = await fetch(`/api/auth/social/${endpoint}`, {
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (!response.ok) throw new BrowserAuthError(await responseDetail(response));
-      await reload();
+      if (!response.ok) throw await browserAuthError(response);
+      return (await response.json()) as PendingAuthResponse;
     },
-    [reload],
+    [],
   );
   const socialRegister = useCallback(
-    (payload: { continuation_token: string; organization_name: string; organization_slug?: string }) =>
+    (payload: { organization_name: string; organization_slug?: string }) =>
       socialComplete("register", payload),
     [socialComplete],
   );
   const socialSelect = useCallback(
-    (payload: { continuation_token: string; organization_slug: string }) =>
+    (payload: { organization_slug: string }) =>
       socialComplete("select", payload),
     [socialComplete],
   );
-  const linkSocial = useCallback(
-    async (continuation_token: string) => {
-      const response = await fetch("/api/auth/social/link", {
+
+  const otpStatus = useCallback(async (): Promise<PendingAuthResponse | null> => {
+    const response = await fetch("/api/auth/otp/status", {
+      cache: "no-store",
+      credentials: "same-origin",
+    });
+    if (response.status === 204) return null;
+    if (!response.ok) throw await browserAuthError(response);
+    return (await response.json()) as PendingAuthResponse;
+  }, []);
+
+  const resendOtp = useCallback(async (): Promise<PendingAuthResponse> => {
+    const response = await fetch("/api/auth/otp/resend", {
+      method: "POST",
+      credentials: "same-origin",
+    });
+    if (!response.ok) throw await browserAuthError(response);
+    return (await response.json()) as PendingAuthResponse;
+  }, []);
+
+  const verifyOtp = useCallback(
+    async (code: string): Promise<void> => {
+      const response = await fetch("/api/auth/otp/verify", {
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ continuation_token }),
+        body: JSON.stringify({ code }),
       });
-      if (!response.ok) throw new BrowserAuthError(await responseDetail(response));
+      if (!response.ok) throw await browserAuthError(response);
+      await reload();
     },
-    [],
+    [reload],
   );
+
+  const cancelOtp = useCallback(async (): Promise<void> => {
+    const response = await fetch("/api/auth/otp/cancel", {
+      method: "POST",
+      credentials: "same-origin",
+    });
+    if (!response.ok) throw await browserAuthError(response);
+  }, []);
   const logout = useCallback(async () => {
     await fetch("/api/auth/logout", {
       method: "POST",
@@ -146,8 +200,34 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
   }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ status, user, login, register, socialRegister, socialSelect, linkSocial, logout, reload }),
-    [status, user, login, register, socialRegister, socialSelect, linkSocial, logout, reload],
+    () => ({
+      status,
+      user,
+      login,
+      register,
+      socialRegister,
+      socialSelect,
+      otpStatus,
+      resendOtp,
+      verifyOtp,
+      cancelOtp,
+      logout,
+      reload,
+    }),
+    [
+      status,
+      user,
+      login,
+      register,
+      socialRegister,
+      socialSelect,
+      otpStatus,
+      resendOtp,
+      verifyOtp,
+      cancelOtp,
+      logout,
+      reload,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

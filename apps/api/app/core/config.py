@@ -123,6 +123,29 @@ class Settings(BaseSettings):
     AUTH_JWT_AUDIENCE: str = "support-agent-dashboard"
     AUTH_ACCESS_TOKEN_TTL_SECONDS: int = Field(default=900, ge=60, le=3600)
     AUTH_REFRESH_TOKEN_TTL_DAYS: int = Field(default=30, ge=1, le=90)
+    AUTH_OTP_SECRET: SecretStr | None = None
+    # Deterministic OTPs are permitted only for isolated browser acceptance
+    # services. Never configure this outside APP_ENV=test.
+    AUTH_OTP_TEST_CODE: SecretStr | None = None
+    AUTH_OTP_TTL_SECONDS: int = Field(default=600, ge=60, le=1800)
+    AUTH_OTP_RESEND_COOLDOWN_SECONDS: int = Field(default=60, ge=10, le=600)
+    AUTH_OTP_MAX_ATTEMPTS: int = Field(default=5, ge=3, le=10)
+    AUTH_OTP_EMAIL_RATE_LIMIT: int = Field(default=5, ge=1, le=100)
+    AUTH_OTP_EMAIL_RATE_WINDOW_SECONDS: int = Field(default=3600, ge=60, le=86400)
+    AUTH_OTP_IP_RATE_LIMIT: int = Field(default=20, ge=1, le=500)
+    AUTH_OTP_IP_RATE_WINDOW_SECONDS: int = Field(default=3600, ge=60, le=86400)
+
+    # Provider-neutral authentication email delivery. Gmail SMTP is used only
+    # for development; production can replace the sender without changing auth.
+    AUTH_EMAIL_PROVIDER: Literal["memory", "smtp"] = "memory"
+    SMTP_HOST: str | None = None
+    SMTP_PORT: int = Field(default=587, ge=1, le=65535)
+    SMTP_USERNAME: str | None = None
+    SMTP_PASSWORD: SecretStr | None = None
+    SMTP_FROM_EMAIL: str | None = None
+    SMTP_FROM_NAME: str = "Relay"
+    SMTP_STARTTLS: bool = True
+    SMTP_TIMEOUT_SECONDS: float = Field(default=15.0, ge=2.0, le=60.0)
 
     # Social authentication. Providers are disabled until all required
     # credentials are supplied through the deployment secret manager.
@@ -141,10 +164,35 @@ class Settings(BaseSettings):
     def require_production_auth_secret(self) -> "Settings":
         if not self.is_local and self.AUTH_JWT_SECRET is None:
             raise ValueError("AUTH_JWT_SECRET is required outside development and test")
+        if not self.is_local and self.AUTH_OTP_SECRET is None:
+            raise ValueError("AUTH_OTP_SECRET is required outside development and test")
         if self.AUTH_JWT_SECRET is not None:
             secret = self.AUTH_JWT_SECRET.get_secret_value()
             if len(secret) < 32:
                 raise ValueError("AUTH_JWT_SECRET must contain at least 32 characters")
+        if self.AUTH_OTP_SECRET is not None:
+            otp_secret = self.AUTH_OTP_SECRET.get_secret_value()
+            if len(otp_secret) < 32:
+                raise ValueError("AUTH_OTP_SECRET must contain at least 32 characters")
+        if self.AUTH_OTP_TEST_CODE is not None:
+            if self.APP_ENV != "test":
+                raise ValueError("AUTH_OTP_TEST_CODE is allowed only when APP_ENV=test")
+            if not self.AUTH_OTP_TEST_CODE.get_secret_value().isdigit() or len(
+                self.AUTH_OTP_TEST_CODE.get_secret_value()
+            ) != 6:
+                raise ValueError("AUTH_OTP_TEST_CODE must contain exactly six digits")
+        if self.AUTH_EMAIL_PROVIDER == "smtp" and (
+            not self.SMTP_HOST
+            or not self.SMTP_USERNAME
+            or self.SMTP_PASSWORD is None
+            or not self.SMTP_FROM_EMAIL
+        ):
+            raise ValueError(
+                "SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD, and SMTP_FROM_EMAIL "
+                "are required for the smtp authentication email provider"
+            )
+        if self.AUTH_EMAIL_PROVIDER == "smtp" and not self.SMTP_STARTTLS:
+            raise ValueError("SMTP_STARTTLS must be enabled for authentication email")
         if self.INGESTION_RETRY_MAX_SECONDS < self.INGESTION_RETRY_BASE_SECONDS:
             raise ValueError(
                 "INGESTION_RETRY_MAX_SECONDS must be greater than or equal to "
@@ -179,6 +227,11 @@ class Settings(BaseSettings):
     @property
     def auth_jwt_secret(self) -> str:
         configured = self.AUTH_JWT_SECRET or _ephemeral_local_auth_secret
+        return configured.get_secret_value()
+
+    @property
+    def auth_otp_secret(self) -> str:
+        configured = self.AUTH_OTP_SECRET or self.AUTH_JWT_SECRET or _ephemeral_local_auth_secret
         return configured.get_secret_value()
 
 

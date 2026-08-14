@@ -24,6 +24,12 @@ export async function register(page: Page, account: AccountFixture): Promise<voi
   await page.getByLabel("Organization name").fill(account.organization);
   await page.getByLabel("Workspace URL").fill(account.slug);
   await page.getByRole("button", { name: "Create workspace" }).click();
+  const otpCode = process.env.E2E_OTP_CODE ?? process.env.AUTH_OTP_TEST_CODE;
+  if (!otpCode) {
+    throw new Error("Set E2E_OTP_CODE to the isolated test OTP before running browser acceptance");
+  }
+  await page.getByLabel("Verification code").fill(otpCode);
+  await page.getByRole("button", { name: "Verify and continue" }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
 }
 

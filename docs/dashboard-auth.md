@@ -4,9 +4,9 @@ The Next.js application exposes the public landing page, registration and login 
 
 ## Browser authentication boundary
 
-The browser never receives or stores API tokens in JavaScript-accessible storage. Login and registration post to same-origin Next.js route handlers, which call the FastAPI authentication endpoints and store the returned access and refresh tokens in `HttpOnly`, `SameSite=Lax` cookies. Secure cookies are enabled in production.
+The browser never receives or stores API tokens in JavaScript-accessible storage. Login and registration post to same-origin Next.js route handlers. Those handlers keep the pending OTP challenge identifier in a Secure, `HttpOnly`, `SameSite=Lax` cookie; after server-side OTP verification they store the returned access and refresh tokens in the same private cookie boundary. Secure cookies are enabled in production.
 
-`GET /api/auth/session` validates the access token through `/v1/me`. If it has expired, the route rotates the refresh token, replaces both cookies, and then returns the current user and tenant context. Invalid sessions clear both cookies. The client authentication provider exposes only the current user, tenant, role, and session state.
+`GET /api/auth/session` validates the access token through `/v1/me`. If it has expired, the route rotates the refresh token, replaces both cookies, and then returns the current user and tenant context. Invalid sessions clear both cookies. The client authentication provider exposes only the current user, tenant, role, and session state. OTP status, resend, verify, and cancel are same-origin BFF operations; challenge IDs and tokens are never placed in browser JavaScript state.
 
 The dashboard shell renders a loading state until session resolution completes and redirects anonymous users to `/login?next=...`. After authentication, only safe same-origin paths beginning with one `/` are accepted as a return target; external or protocol-relative redirects fall back to `/dashboard`.
 

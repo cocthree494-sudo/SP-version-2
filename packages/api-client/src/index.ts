@@ -27,6 +27,29 @@ export interface LoginInput {
   organization_slug?: string;
 }
 
+export interface AuthChallengeResponse {
+  status: "otp_required";
+  challenge_id: string;
+  email_hint: string;
+  expires_in: number;
+  resend_after: number;
+}
+
+export interface PendingAuthResponse {
+  status: "otp_required";
+  email_hint: string;
+  expires_in: number;
+  resend_after: number;
+}
+
+export interface AuthOtpChallengeInput {
+  challenge_id: string;
+}
+
+export interface AuthOtpVerifyInput extends AuthOtpChallengeInput {
+  code: string;
+}
+
 export type SocialProvider = "google" | "microsoft" | "github";
 export type SocialAuthMode = "login" | "register";
 
@@ -46,21 +69,21 @@ export interface SocialAuthCallbackInput {
 }
 
 export type SocialAuthStatus =
-  | "authenticated"
+  | "otp_required"
   | "organization_required"
   | "organization_selection_required"
   | "account_link_required";
 
 export interface SocialAuthResponse {
   status: SocialAuthStatus;
-  access_token: string | null;
-  refresh_token: string | null;
-  token_type: "bearer";
   expires_in: number | null;
   continuation_token: string | null;
   email: string | null;
   display_name: string | null;
   organizations: CurrentTenant[];
+  challenge_id: string | null;
+  email_hint: string | null;
+  resend_after: number | null;
 }
 
 export interface SocialAuthCompleteInput {
@@ -84,6 +107,7 @@ export interface MeResponse {
   id: string;
   email: string;
   display_name: string | null;
+  email_verified_at: string | null;
   status: AccountStatus;
   created_at: string;
   tenant: CurrentTenant;
@@ -348,12 +372,14 @@ export interface ProviderPolicyResponse {
 export class ApiError extends Error {
   readonly status: number;
   readonly detail: string;
+  readonly retryAfter: number | null;
 
-  constructor(status: number, detail: string) {
+  constructor(status: number, detail: string, retryAfter: number | null = null) {
     super(detail);
     this.name = "ApiError";
     this.status = status;
     this.detail = detail;
+    this.retryAfter = retryAfter;
   }
 }
 
@@ -401,22 +427,30 @@ export class SupportAgentApiClient {
     });
     const payload: unknown = await response.json().catch(() => null);
     if (!response.ok) {
-      throw new ApiError(response.status, errorDetail(payload));
+      const retryAfterValue = response.headers.get("retry-after");
+      const retryAfter = retryAfterValue === null ? null : Number.parseInt(retryAfterValue, 10);
+      throw new ApiError(
+        response.status,
+        errorDetail(payload),
+        Number.isFinite(retryAfter) ? retryAfter : null,
+      );
     }
     return payload as T;
   }
 
-  register(payload: RegisterInput): Promise<TokenPairResponse> {
-    return this.request<TokenPairResponse>("/auth/register", {
+  register(payload: RegisterInput, headers?: HeadersInit): Promise<AuthChallengeResponse> {
+    return this.request<AuthChallengeResponse>("/auth/register", {
       method: "POST",
       body: JSON.stringify(payload),
+      headers,
     });
   }
 
-  login(payload: LoginInput): Promise<TokenPairResponse> {
-    return this.request<TokenPairResponse>("/auth/login", {
+  login(payload: LoginInput, headers?: HeadersInit): Promise<AuthChallengeResponse> {
+    return this.request<AuthChallengeResponse>("/auth/login", {
       method: "POST",
       body: JSON.stringify(payload),
+      headers,
     });
   }
 
@@ -433,25 +467,64 @@ export class SupportAgentApiClient {
   socialCallback(
     provider: SocialProvider,
     payload: SocialAuthCallbackInput,
+    headers?: HeadersInit,
   ): Promise<SocialAuthResponse> {
     return this.request<SocialAuthResponse>(
       `/auth/oauth/${encodeURIComponent(provider)}/callback`,
-      { method: "POST", body: JSON.stringify(payload) },
+      { method: "POST", body: JSON.stringify(payload), headers },
     );
   }
 
-  socialRegister(payload: SocialAuthCompleteInput): Promise<TokenPairResponse> {
-    return this.request<TokenPairResponse>(
+  socialRegister(
+    payload: SocialAuthCompleteInput,
+    headers?: HeadersInit,
+  ): Promise<AuthChallengeResponse> {
+    return this.request<AuthChallengeResponse>(
       "/auth/oauth/register",
-      { method: "POST", body: JSON.stringify(payload) },
+      { method: "POST", body: JSON.stringify(payload), headers },
     );
   }
 
-  socialSelect(payload: SocialAuthCompleteInput): Promise<TokenPairResponse> {
-    return this.request<TokenPairResponse>(
+  socialSelect(
+    payload: SocialAuthCompleteInput,
+    headers?: HeadersInit,
+  ): Promise<AuthChallengeResponse> {
+    return this.request<AuthChallengeResponse>(
       "/auth/oauth/select",
-      { method: "POST", body: JSON.stringify(payload) },
+      { method: "POST", body: JSON.stringify(payload), headers },
     );
+  }
+
+  otpStatus(payload: AuthOtpChallengeInput): Promise<AuthChallengeResponse> {
+    return this.request<AuthChallengeResponse>("/auth/otp/status", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  otpCancel(payload: AuthOtpChallengeInput): Promise<void> {
+    return this.request<void>("/auth/otp/cancel", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  otpResend(
+    payload: AuthOtpChallengeInput,
+    headers?: HeadersInit,
+  ): Promise<AuthChallengeResponse> {
+    return this.request<AuthChallengeResponse>("/auth/otp/resend", {
+      method: "POST",
+      body: JSON.stringify(payload),
+      headers,
+    });
+  }
+
+  otpVerify(payload: AuthOtpVerifyInput): Promise<TokenPairResponse> {
+    return this.request<TokenPairResponse>("/auth/otp/verify", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
   }
 
   socialLink(

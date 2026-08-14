@@ -2,7 +2,7 @@
 
 > Read this first. This is the compact handoff document for Claude, Codex, or another coding agent. Detailed architecture is in [PLAN.md](PLAN.md); executable order is in [TASKS.md](TASKS.md).
 
-**Last updated:** 2026-08-07, Codex session
+**Last updated:** 2026-08-15, Codex session
 **Status:** Phase 1 through T-062 is complete. Final run `31212237732` passed live tests/evaluation, all browser paths, production Compose, restore/recovery, and deterministic performance acceptance.
 
 ## 1. Project
@@ -34,6 +34,8 @@ User priorities:
 | D9 | Docker/env-configured, hosting-agnostic code | Hosting and budget are not decided |
 | D10 | Provider/model IDs stay configurable | Enables tiering/failover and avoids vendor logic in the domain layer |
 | D11 | Platform-managed generation providers remain the default; tenants may optionally bring their own keys | User accepted optional BYOK with explicit tenant routing/fallback. Keys require encrypted, tenant-isolated, write-only custody; Phase 1 excludes arbitrary base URLs and embedding BYOK |
+| D12 | Every registration and explicit login requires a fresh email OTP before session issuance | User requires OTP for password and social authentication; development delivery uses Gmail SMTP behind a replaceable mail-provider boundary |
+| D13 | Platform administration is a separate global permission and audited control plane | User promoted a dynamic admin dashboard; tenant owner/admin roles must never imply platform access |
 
 ## 3. Deferred scope
 
@@ -308,6 +310,39 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 - Added catalog integrity, ready-provider credential lifecycle/routing, migration-head, Ruff/mypy, web lint/typecheck, and production-build coverage. Local focused suite passes 7 tests; the web lint/typecheck/build passes.
 - Pushed commits `39f5f47` and `7f5886d` to `origin/main`. Test VPS pulled the commits, applied migration `0014_provider_catalog_values`, rebuilt with cache bypass, preserved existing volumes, and is healthy at `relay.npcautomators.com`. Live browser verification confirmed 20 ready providers, 20 clear coming-soon entries, provider/model switching, encrypted add, masked-only inventory, invalid-key status, and revoke cleanup. A stable test-only `BYOK_MASTER_KEY` was added to the VPS secret file and was not committed.
 
+### Session 23 - Codex
+
+- User established the development workflow: keep local work light, push source to GitHub, and run
+  builds, database/integration suites, Playwright, and live-domain verification on the VPS.
+- The VPS project was deliberately reset for development: application containers, project data
+  volumes, and the old source checkout were removed; the repository was freshly cloned at
+  `/opt/sp-version-2`, configured with new runtime secrets, and deployed behind the existing
+  Cloudflare tunnel at `relay.npcautomators.com`. The fresh database started with no users or
+  tenants. An old backup remains outside the live project under `/root/backups`.
+- The account-menu layering and outside-click behavior fix was pushed and deployed in commit
+  `7809298`.
+- User required a new OTP on every registration and explicit login, including Google/social
+  authentication. The agreed baseline is six digits, ten-minute expiry, keyed-hash storage,
+  single use, replacement invalidation, bounded attempts, resend cooldown, and rate limits; no
+  session is issued before verification.
+- User selected personal Gmail SMTP for development and created a Google App Password named
+  `Relay Development`. The secret remains private and must be entered directly into the VPS
+  secret boundary, never chat, Git, browser storage, logs, or command history. Production will
+  later move to a transactional provider without rewriting the auth flow.
+- User also promoted a separate dynamic platform-admin dashboard. T-080 tracks mandatory OTP;
+  T-081 tracks the least-privilege, audited platform-admin control plane and `/admin` UI. Work must
+  proceed one planned and verified step at a time.
+- Implemented the complete local T-080 password/social OTP flow. Pending authentication is stored
+  in Redis, codes are stored only as keyed hashes, verification is atomic, and the dashboard BFF
+  keeps challenge and continuation identifiers in `Secure`, `HttpOnly`, `SameSite=Lax` cookies.
+  Registration creates no durable identity or session until OTP verification; explicit password
+  and returning-social login issue no tokens until verification.
+- Added provider-neutral authentication email delivery with Gmail STARTTLS configuration,
+  professional HTML/plain-text messages, configuration validation, a test-only deterministic OTP,
+  migration `0019_user_email_verification`, API/client/BFF/UI contracts, and focused API/E2E
+  security coverage. T-080 remains unchecked until VPS integration, browser, and real email
+  delivery acceptance pass.
+
 ## 7. Open items
 
 | ID | Item | Handling now |
@@ -319,14 +354,27 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 
 ## HANDOFF STATE
 
-**Session 22 handoff override:** T-071 is complete. Continue with T-072/T-073: finish native OAuth/cloud/local adapters and the hardened custom endpoint path; only shared API-key adapters are currently enabled. Pushed HEAD is `7f5886d`; local checks and live provider-page verification pass.
+**Session 23 handoff override:** Work on T-080 only. The complete password/social pre-session OTP
+challenge is implemented locally. Commit and push it, configure Gmail SMTP plus a separate random
+OTP secret through hidden direct-to-VPS input, then pass VPS database/API/security/browser and real
+email-delivery verification before starting T-081. Pushed HEAD remains `7809298` until this work is
+committed.
 
 **Last completed:** T-062 — MVP acceptance review.
-**Current task:** T-070 — social sign-in implementation is in progress; source and local verification are complete, but live provider callbacks remain.
-**Next task:** T-071 — build the Hermes-aligned provider catalog after T-070 is accepted. Phase 2 planning and task tracking are in `TASK2.md`.
+**Current task:** T-080 — mandatory email OTP for every registration and explicit login.
+**Next task:** T-081 — audited platform-admin control plane and dynamic `/admin` dashboard.
 **Blocked on:** No implementation blocker. Production traffic remains blocked on hosting/budget selection and named release-owner/security approval of the prerequisites in `docs/mvp-acceptance.md`.
 
-**Pushed state:** `origin/main` includes the T-062 acceptance baseline, the T-070 social sign-in implementation, and the `0013_runtime_identity_grant` production fix through commit `660e2a4`.
-**Uncommitted work:** None in the working tree; T-070 remains open for the remaining provider acceptance checks.
-**Verification:** T-070 local gate: Ruff, strict mypy over 115 files, 71 API tests with 16 live-only skips, web ESLint/typecheck, production web build, PostgreSQL-dialect migration SQL through `0013_runtime_identity_grant`, and live Google callback/smoke tests on `relay.npcautomators.com`. Microsoft/GitHub credentials and final workspace-creation acceptance remain pending.
-**Gotchas:** This workstation still lacks Docker/PostgreSQL/pgvector, so live database checks run in CI. Plaintext tenant keys must never be stored, logged, cached, queued, or re-displayed; platform fallback stays explicit; arbitrary provider URLs and embedding BYOK are excluded.
+**Pushed state:** `origin/main` and the VPS are at `7809298` before T-080 planning changes.
+**Uncommitted work:** Full T-080 implementation, migration, tests, BFF/UI, configuration examples,
+and documentation. T-081 contains planning only and remains blocked on T-080 acceptance.
+**Verification:** Focused auth tests pass (`19 passed`); OTP-related Ruff and strict mypy pass;
+web ESLint and TypeScript checks pass; `git diff --check` passes; the changed-file secret scan found
+only documented placeholders, CI test values, configuration declarations, and test fixtures. Fresh
+VPS services and live/readiness/widget routes were healthy before T-080. Builds, PostgreSQL/Redis
+integration, Playwright, and live-domain/email verification remain VPS-only.
+**Gotchas:** Never request or print the Gmail App Password. SMTP/OTP secrets must not enter Git,
+chat, browser storage, logs, process arguments, or shell history. No user/tenant/session may be
+created before registration OTP verification, and no login/social session may be issued before its
+OTP verification. `AUTH_OTP_TEST_CODE` is permitted only in an isolated `APP_ENV=test` stack and
+must never be enabled in the live production stack.

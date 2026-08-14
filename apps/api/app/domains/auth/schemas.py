@@ -69,6 +69,21 @@ class RefreshRequest(BaseModel):
     refresh_token: SecretStr = Field(min_length=32, max_length=256)
 
 
+class AuthOtpChallengeRequest(BaseModel):
+    challenge_id: SecretStr = Field(min_length=32, max_length=256)
+
+
+class AuthOtpVerifyRequest(AuthOtpChallengeRequest):
+    code: SecretStr
+
+    @field_validator("code")
+    @classmethod
+    def validate_code(cls, value: SecretStr) -> SecretStr:
+        if re.fullmatch(r"\d{6}", value.get_secret_value()) is None:
+            raise ValueError("Verification code must contain exactly six digits")
+        return value
+
+
 class CurrentTenantResponse(BaseModel):
     id: UUID
     name: str
@@ -122,19 +137,27 @@ class SocialAuthLinkRequest(BaseModel):
 
 class SocialAuthResponse(BaseModel):
     status: Literal[
-        "authenticated",
+        "otp_required",
         "organization_required",
         "organization_selection_required",
         "account_link_required",
     ]
-    access_token: str | None = None
-    refresh_token: str | None = None
-    token_type: str = "bearer"  # noqa: S105 - OAuth token type, not a credential
     expires_in: int | None = None
     continuation_token: str | None = None
     email: EmailStr | None = None
     display_name: str | None = None
     organizations: list[CurrentTenantResponse] = Field(default_factory=list)
+    challenge_id: str | None = None
+    email_hint: str | None = None
+    resend_after: int | None = None
+
+
+class AuthChallengeResponse(BaseModel):
+    status: Literal["otp_required"] = "otp_required"
+    challenge_id: str
+    email_hint: str
+    expires_in: int = Field(ge=0)
+    resend_after: int = Field(ge=0)
 
 
 class TokenPairResponse(BaseModel):
@@ -148,6 +171,7 @@ class MeResponse(BaseModel):
     id: UUID
     email: EmailStr
     display_name: str | None
+    email_verified_at: datetime | None
     status: UserStatus
     created_at: datetime
     tenant: CurrentTenantResponse
@@ -155,6 +179,9 @@ class MeResponse(BaseModel):
 
 
 __all__ = [
+    "AuthChallengeResponse",
+    "AuthOtpChallengeRequest",
+    "AuthOtpVerifyRequest",
     "CurrentTenantResponse",
     "LoginRequest",
     "MeResponse",

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import cast
+from typing import Any, cast
 from uuid import UUID, uuid4
 
 from anyio import to_thread
@@ -26,6 +26,7 @@ from app.core.tenancy import tenant_session_scope
 from app.domains.auth.oauth import (
     OAuthProfile,
     OAuthProviderDisabledError,
+    OAuthStateError,
     OAuthStateStore,
     SocialContinuation,
     SocialContinuationStore,
@@ -34,6 +35,7 @@ from app.domains.auth.oauth import (
     exchange_code,
     redirect_uri,
 )
+from app.domains.auth.otp import PendingAuth
 from app.domains.auth.repositories import AuthMembershipRepository, RefreshTokenRepository
 from app.domains.auth.schemas import (
     LoginRequest,
@@ -85,10 +87,10 @@ class AuthTokens:
 @dataclass(frozen=True, slots=True)
 class SocialAuthResult:
     status: str
-    tokens: AuthTokens | None = None
     continuation_token: str | None = None
     profile: OAuthProfile | None = None
     organizations: list[tuple[TenantMembership, Tenant]] | None = None
+    pending: PendingAuth | None = None
 
 
 def _ensure_utc(value: datetime) -> datetime:
@@ -109,41 +111,29 @@ class AuthService:
         self.users = UserRepository(session)
         self.tenants = TenantRepository(session)
 
-    async def register(self, request: RegisterRequest) -> AuthTokens:
+    async def prepare_registration(self, request: RegisterRequest) -> PendingAuth:
         email = str(request.email)
         password_hash = await to_thread.run_sync(
             hash_password,
             request.password.get_secret_value(),
         )
-        if await self.users.get_by_email(email) is not None:
-            raise RegistrationConflictError("Email is already registered")
-
         slug = request.organization_slug or create_organization_slug(request.organization_name)
-        existing_tenant = await self.tenants.get_by_slug(slug)
-        if existing_tenant is not None:
-            if request.organization_slug is not None:
-                raise RegistrationConflictError("Organization slug is already in use")
+        if request.organization_slug is None and await self.tenants.get_by_slug(slug) is not None:
             slug = f"{slug[:50].rstrip('-')}-{uuid4().hex[:8]}"
 
-        try:
-            user = await self.users.create(
-                email=email,
-                password_hash=password_hash,
-                display_name=request.display_name,
-            )
-            tenant = await self.tenants.create(name=request.organization_name, slug=slug)
-            await MembershipRepository(self.session, tenant.id).create(
-                user_id=user.id,
-                role=MembershipRole.OWNER,
-            )
-            result = await self._create_session(user_id=user.id, tenant_id=tenant.id)
-            await self.session.commit()
-            return result
-        except IntegrityError as exc:
-            await self.session.rollback()
-            raise RegistrationConflictError("Email or organization slug is already in use") from exc
+        return PendingAuth(
+            kind="password_register",
+            email=email,
+            payload={
+                "email": email,
+                "password_hash": password_hash,
+                "display_name": request.display_name,
+                "organization_name": request.organization_name,
+                "organization_slug": slug,
+            },
+        )
 
-    async def login(self, request: LoginRequest) -> AuthTokens:
+    async def prepare_login(self, request: LoginRequest) -> PendingAuth:
         user = await self.users.get_by_email(str(request.email))
         password = request.password.get_secret_value()
         if user is None:
@@ -166,12 +156,94 @@ class AuthService:
         if tenant.status is not TenantStatus.ACTIVE:
             raise AccountUnavailableError("Organization is not active")
 
+        replacement_hash = None
         if user.password_hash is not None and password_needs_rehash(user.password_hash):
-            user.password_hash = await to_thread.run_sync(hash_password, password)
+            replacement_hash = await to_thread.run_sync(hash_password, password)
 
-        result = await self._create_session(user_id=user.id, tenant_id=tenant.id)
-        await self.session.commit()
-        return result
+        return PendingAuth(
+            kind="password_login",
+            email=user.email,
+            payload={
+                "user_id": str(user.id),
+                "tenant_id": str(tenant.id),
+                "replacement_password_hash": replacement_hash,
+            },
+        )
+
+    async def complete_pending_auth(self, pending: PendingAuth) -> AuthTokens:
+        if pending.kind == "password_register":
+            return await self._complete_password_registration(pending.payload)
+        if pending.kind == "password_login":
+            return await self._complete_login(pending.payload)
+        if pending.kind == "social_register":
+            return await self._complete_social_registration(pending.payload)
+        if pending.kind == "social_login":
+            return await self._complete_login(pending.payload)
+        raise InvalidCredentialsError("The verification request is invalid")
+
+    async def _complete_password_registration(
+        self,
+        payload: dict[str, Any],
+    ) -> AuthTokens:
+        email = self._required_string(payload, "email")
+        password_hash = self._required_string(payload, "password_hash")
+        organization_name = self._required_string(payload, "organization_name")
+        organization_slug = self._required_string(payload, "organization_slug")
+        display_name = payload.get("display_name")
+        if display_name is not None and not isinstance(display_name, str):
+            raise InvalidCredentialsError("The verification request is invalid")
+
+        try:
+            user = await self.users.create(
+                email=email,
+                password_hash=password_hash,
+                display_name=display_name,
+                email_verified_at=datetime.now(UTC),
+            )
+            tenant = await self.tenants.create(
+                name=organization_name,
+                slug=organization_slug,
+            )
+            await MembershipRepository(self.session, tenant.id).create(
+                user_id=user.id,
+                role=MembershipRole.OWNER,
+            )
+            result = await self._create_session(user_id=user.id, tenant_id=tenant.id)
+            await self.session.commit()
+            return result
+        except IntegrityError as exc:
+            await self.session.rollback()
+            raise RegistrationConflictError("Email or organization slug is already in use") from exc
+
+    async def _complete_login(self, payload: dict[str, Any]) -> AuthTokens:
+        try:
+            user_id = UUID(self._required_string(payload, "user_id"))
+            tenant_id = UUID(self._required_string(payload, "tenant_id"))
+        except ValueError as exc:
+            raise InvalidCredentialsError("The verification request is invalid") from exc
+        user = await self.users.get_by_id(user_id)
+        tenant = await self.tenants.get_by_id(tenant_id)
+        if (
+            user is None
+            or user.status is not UserStatus.ACTIVE
+            or tenant is None
+            or tenant.status is not TenantStatus.ACTIVE
+        ):
+            raise AccountUnavailableError("Account or organization is not active")
+        async with tenant_session_scope(self.session, tenant_id):
+            membership = await MembershipRepository(self.session).get_for_user(user_id)
+            if membership is None:
+                raise AccountUnavailableError("No active organization is available")
+            replacement_hash = payload.get("replacement_password_hash")
+            if replacement_hash is not None:
+                if not isinstance(replacement_hash, str):
+                    raise InvalidCredentialsError("The verification request is invalid")
+                user.password_hash = replacement_hash
+            if user.email_verified_at is None:
+                user.email_verified_at = datetime.now(UTC)
+            result = await self._create_session(user_id=user_id, tenant_id=tenant_id)
+            await self.session.commit()
+            return result
 
     async def delete_account(
         self,
@@ -346,18 +418,24 @@ class AuthService:
         _membership, tenant = selected
         if tenant.status is not TenantStatus.ACTIVE:
             raise AccountUnavailableError("Organization is not active")
-        tokens = await self._create_session(user_id=user.id, tenant_id=tenant.id)
-        await self.session.commit()
-        return SocialAuthResult(status="authenticated", tokens=tokens, profile=profile)
+        return SocialAuthResult(
+            status="otp_required",
+            profile=profile,
+            pending=PendingAuth(
+                kind="social_login",
+                email=profile.email,
+                payload={"user_id": str(user.id), "tenant_id": str(tenant.id)},
+            ),
+        )
 
-    async def complete_social_registration(
+    async def prepare_social_registration(
         self,
         *,
         continuation_token: str,
         organization_name: str | None,
         organization_slug: str | None,
         continuation_store: SocialContinuationStore,
-    ) -> AuthTokens:
+    ) -> PendingAuth:
         continuation = await continuation_store.consume_continuation(continuation_token)
         if continuation is None or continuation.kind != "register":
             raise InvalidCredentialsError(
@@ -366,21 +444,45 @@ class AuthService:
         profile = continuation.profile
         if not profile.email_verified:
             raise InvalidCredentialsError("The provider email is not verified")
-        if await self.users.get_by_email(profile.email) is not None:
-            raise RegistrationConflictError("Email is already registered")
         name = organization_name or (
             f"{profile.display_name or profile.email.split('@', 1)[0]}'s workspace"
         )
         slug = organization_slug or create_organization_slug(name)
-        if await self.tenants.get_by_slug(slug) is not None:
-            if organization_slug is not None:
-                raise RegistrationConflictError("Organization slug is already in use")
+        if organization_slug is None and await self.tenants.get_by_slug(slug) is not None:
             slug = f"{slug[:50].rstrip('-')}-{uuid4().hex[:8]}"
+
+        return PendingAuth(
+            kind="social_register",
+            email=profile.email,
+            payload={
+                "continuation": continuation.as_dict(),
+                "organization_name": name,
+                "organization_slug": slug,
+            },
+        )
+
+    async def _complete_social_registration(
+        self,
+        payload: dict[str, Any],
+    ) -> AuthTokens:
+        continuation_value = payload.get("continuation")
+        if not isinstance(continuation_value, dict):
+            raise InvalidCredentialsError("The verification request is invalid")
+        try:
+            continuation = SocialContinuation.from_dict(continuation_value)
+        except OAuthStateError as exc:
+            raise InvalidCredentialsError("The verification request is invalid") from exc
+        if continuation.kind != "register":
+            raise InvalidCredentialsError("The verification request is invalid")
+        profile = continuation.profile
+        name = self._required_string(payload, "organization_name")
+        slug = self._required_string(payload, "organization_slug")
         try:
             user = await self.users.create(
                 email=profile.email,
                 password_hash=None,
                 display_name=profile.display_name,
+                email_verified_at=datetime.now(UTC),
             )
             tenant = await self.tenants.create(name=name, slug=slug)
             await MembershipRepository(self.session, tenant.id).create(
@@ -402,13 +504,13 @@ class AuthService:
             await self.session.rollback()
             raise RegistrationConflictError("Email or organization slug is already in use") from exc
 
-    async def complete_social_selection(
+    async def prepare_social_selection(
         self,
         *,
         continuation_token: str,
         organization_slug: str,
         continuation_store: SocialContinuationStore,
-    ) -> AuthTokens:
+    ) -> PendingAuth:
         continuation = await continuation_store.consume_continuation(continuation_token)
         if continuation is None or continuation.kind != "select" or continuation.user_id is None:
             raise InvalidCredentialsError(
@@ -427,9 +529,14 @@ class AuthService:
         _membership, tenant = selection
         if tenant.status is not TenantStatus.ACTIVE:
             raise AccountUnavailableError("Organization is not active")
-        tokens = await self._create_session(user_id=user_id, tenant_id=tenant.id)
-        await self.session.commit()
-        return tokens
+        user = await self.users.get_by_id(user_id)
+        if user is None or user.status is not UserStatus.ACTIVE:
+            raise AccountUnavailableError("Account is not active")
+        return PendingAuth(
+            kind="social_login",
+            email=user.email,
+            payload={"user_id": str(user_id), "tenant_id": str(tenant.id)},
+        )
 
     async def link_social_identity(
         self,
@@ -487,6 +594,13 @@ class AuthService:
             refresh_token=refresh_token,
             expires_in=expires_in,
         )
+
+    @staticmethod
+    def _required_string(payload: dict[str, Any], key: str) -> str:
+        value = payload.get(key)
+        if not isinstance(value, str) or not value:
+            raise InvalidCredentialsError("The verification request is invalid")
+        return value
 
     @staticmethod
     def _session_is_active(

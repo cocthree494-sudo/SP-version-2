@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import JSON, CheckConstraint, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import JSON, CheckConstraint, DateTime, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy import Enum as SqlEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -49,6 +50,10 @@ class User(UUIDTimestampModel):
         nullable=False,
     )
     display_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    email_verified_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
 
     memberships: Mapped[list[TenantMembership]] = relationship(
         back_populates="user",

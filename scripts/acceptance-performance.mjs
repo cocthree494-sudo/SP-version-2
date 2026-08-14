@@ -68,7 +68,7 @@ async function main() {
   const live = await request("/health/live");
   const ready = await request("/health/ready");
   const email = `acceptance-${Date.now()}@example.com`;
-  const tokens = await request("/v1/auth/register", {
+  const challenge = await request("/v1/auth/register", {
     method: "POST",
     body: JSON.stringify({
       email,
@@ -76,6 +76,14 @@ async function main() {
       display_name: "Acceptance runner",
       organization_name: "Acceptance performance",
     }),
+  });
+  const otpCode = process.env.ACCEPTANCE_OTP_CODE ?? process.env.AUTH_OTP_TEST_CODE;
+  if (!otpCode) {
+    throw new Error("Set ACCEPTANCE_OTP_CODE to the isolated test OTP before performance acceptance");
+  }
+  const tokens = await request("/v1/auth/otp/verify", {
+    method: "POST",
+    body: JSON.stringify({ challenge_id: challenge.challenge_id, code: otpCode }),
   });
   const authHeaders = { authorization: `Bearer ${tokens.access_token}` };
   const bot = await request("/v1/bots", {
