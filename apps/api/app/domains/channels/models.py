@@ -64,9 +64,13 @@ class ChannelInstallation(TenantScopedModel):
         server_default=ChannelStatus.PENDING.value,
         nullable=False,
     )
-    conversation_scope: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    conversation_scope: Mapped[list[str]] = mapped_column(
+        JSON, default=list, server_default="[]", nullable=False
+    )
     credential_reference: Mapped[str | None] = mapped_column(Text, nullable=True)
-    consent_record: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    consent_record: Mapped[dict[str, Any]] = mapped_column(
+        JSON, default=dict, server_default="{}", nullable=False
+    )
     expires_at: Mapped[Any | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 

@@ -65,7 +65,9 @@ class VoiceAgentInstallation(TenantScopedModel):
     voice: Mapped[str] = mapped_column(
         String(64), nullable=False, default="alloy", server_default="alloy"
     )
-    business_hours: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    business_hours: Mapped[dict[str, Any]] = mapped_column(
+        JSON, default=dict, server_default="{}", nullable=False
+    )
     outbound_enabled: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default="false", nullable=False
     )
@@ -97,7 +99,9 @@ class VoiceWebhookEvent(TenantScopedModel):
     )
     event_id: Mapped[str] = mapped_column(String(255), nullable=False)
     event_type: Mapped[str] = mapped_column(String(64), nullable=False)
-    payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(
+        JSON, default=dict, server_default="{}", nullable=False
+    )
     received_at: Mapped[Any | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
