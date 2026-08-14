@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Brand } from "@/components/brand";
 import {
@@ -73,6 +73,8 @@ export function ProtectedShell({ children }: Readonly<{ children: React.ReactNod
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
+  const sidebarAccountButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (status === "anonymous") {
@@ -82,9 +84,22 @@ export function ProtectedShell({ children }: Readonly<{ children: React.ReactNod
 
   useEffect(() => {
     if (!accountOpen) return;
-    const close = (event: KeyboardEvent) => { if (event.key === "Escape") setAccountOpen(false); };
-    window.addEventListener("keydown", close);
-    return () => window.removeEventListener("keydown", close);
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setAccountOpen(false);
+    };
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (accountMenuRef.current?.contains(target)) return;
+      if (sidebarAccountButtonRef.current?.contains(target)) return;
+      setAccountOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    document.addEventListener("pointerdown", closeOnOutsideClick);
+    return () => {
+      window.removeEventListener("keydown", closeOnEscape);
+      document.removeEventListener("pointerdown", closeOnOutsideClick);
+    };
   }, [accountOpen]);
 
   if (status === "loading") return <LoadingShell />;
@@ -180,10 +195,13 @@ export function ProtectedShell({ children }: Readonly<{ children: React.ReactNod
               <small>{user.email}</small>
             </span>
             <button
+              ref={sidebarAccountButtonRef}
               className="icon-button icon-button-muted"
               type="button"
               onClick={() => setAccountOpen((current) => !current)}
-              aria-label="Open account menu"
+              aria-label={accountOpen ? "Close account menu" : "Open account menu"}
+              aria-expanded={accountOpen}
+              aria-haspopup="menu"
               disabled={loggingOut}
               title="Account"
             >
@@ -222,7 +240,7 @@ export function ProtectedShell({ children }: Readonly<{ children: React.ReactNod
           </div>
           <div className="dashboard-header-actions">
             <span className="status-pill"><span className="status-dot" />Systems operational</span>
-            <div className="account-menu-wrap"><button className="header-user" type="button" onClick={() => setAccountOpen((current) => !current)} aria-expanded={accountOpen} aria-haspopup="menu">
+            <div className="account-menu-wrap" ref={accountMenuRef}><button className="header-user" type="button" onClick={() => setAccountOpen((current) => !current)} aria-expanded={accountOpen} aria-haspopup="menu">
               <span className="user-avatar user-avatar-small">{initials(displayName)}</span>
               <span>{displayName}</span>
               <span className="header-user-chevron" aria-hidden="true">⌄</span>

@@ -211,7 +211,7 @@ h1, h2, h3, p { margin: 0; }
 .mobile-close, .mobile-menu { display: none; }
 .sidebar-backdrop { display: none; }
 .dashboard-main { width: calc(100% - 256px); min-height: 100vh; margin-left: 256px; }
-.dashboard-header { display: flex; align-items: center; justify-content: space-between; min-height: 74px; padding: 0 clamp(24px, 4vw, 62px); border-bottom: 1px solid var(--line); background: rgba(244,247,244,.78); backdrop-filter: blur(10px); }
+.dashboard-header { position: relative; z-index: 40; display: flex; align-items: center; justify-content: space-between; min-height: 74px; padding: 0 clamp(24px, 4vw, 62px); border-bottom: 1px solid var(--line); background: rgba(244,247,244,.78); backdrop-filter: blur(10px); }
 .dashboard-header-left, .dashboard-header-actions { display: flex; align-items: center; gap: 19px; }
 .breadcrumb { display: flex; align-items: center; gap: 10px; color: #94a19d; font-size: 11px; }
 .breadcrumb strong { color: var(--ink); font-weight: 800; }
