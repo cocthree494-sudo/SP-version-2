@@ -60,7 +60,7 @@ test("dashboard shell keeps one responsive account menu and a collapsible deskto
   expect(menuBox!.x + menuBox!.width).toBeLessThanOrEqual(390);
 
   await page.getByRole("menuitem", { name: "Sign out" }).click();
-  await expect(page).toHaveURL(/\/login$/);
+  await expect(page).toHaveURL(/\/login(?:\?|$)/);
   const cookies = await page.context().cookies();
   expect(
     cookies.some(

@@ -369,6 +369,26 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
   cancelled; database user/provider-identity counts remained unchanged. Three additional public
   auth UI rounds passed, production test OTP remains disabled, and recent API logs had no errors.
 
+### Session 25 - Codex
+
+- Refined the completed T-075 dashboard shell from the user's browser annotations. The sidebar now
+  has one account-menu trigger in the bottom user row with account settings, delete-account, and
+  POST-only sign-out actions. The duplicate header account control, sidebar workspace switcher,
+  and sidebar tip were removed; the header now shows static current-organization information.
+- Added a desktop-only Relay-logo toggle that changes the sidebar from the 256-pixel navigation to
+  a stable 76-pixel icon rail with accessible labels/tooltips. The existing mobile drawer remains
+  full-width and keeps the account menu inside the viewport. Outside-click dismissal, Escape focus
+  return, navigation dismissal, disabled sign-out state, and route semantics are covered.
+- Pushed UI commit `f002875`, pulled it to `/opt/sp-version-2`, and deployed immutable image tag
+  `sp-version-2-f002875` without changing production data volumes or the Cloudflare tunnel. The
+  cached production Next.js and widget builds passed and all six Compose services are healthy.
+- Local web ESLint, TypeScript, diff checks, and Playwright discovery passed. VPS-hosted Playwright
+  exercised the deployed domain with a browser-only session mock: desktop sidebar changed from
+  256 to 76 pixels, main offset changed with it, static organization and all menu actions rendered,
+  outside click and Escape closed the menu, the 390-pixel mobile menu stayed in bounds, sign-out
+  issued POST and redirected to login, and the browser console had no errors. Desktop expanded,
+  collapsed viewport, account-menu, and mobile screenshots were visually inspected.
+
 ## 7. Open items
 
 | ID | Item | Handling now |
@@ -380,18 +400,20 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 
 ## HANDOFF STATE
 
-**Last completed:** T-080 — mandatory email OTP for every registration and explicit login.
-**Current task:** None; T-080 acceptance is complete.
+**Last completed:** T-075 dashboard-shell refinement after T-080 acceptance.
+**Current task:** None; the annotated dashboard changes are deployed and browser-verified.
 **Next task:** T-081 — audited platform-admin control plane and dynamic `/admin` dashboard.
 **Blocked on:** No implementation blocker. Production traffic remains blocked on hosting/budget selection and named release-owner/security approval of the prerequisites in `docs/mvp-acceptance.md`.
 
-**Pushed state:** `origin/main` contains T-080 code commit `44d4987`; the VPS source is current and
-API/worker/web run image tag `sp-version-2-44d4987` behind `relay.npcautomators.com`.
+**Pushed state:** `origin/main` contains the T-075 dashboard refinement and acceptance record; the
+VPS source is current and services run image tag `sp-version-2-f002875` behind
+`relay.npcautomators.com`.
 **Uncommitted work:** None. T-081 remains planning-only and may now begin when requested.
-**Verification:** Local and VPS auth suites pass (`20 passed` each); Ruff, focused strict mypy,
-web ESLint/TypeScript, production web build, public health, desktop/mobile Playwright, real Gmail
-OTP initiation/cancel, safe redirect continuity, HttpOnly cookie boundaries, and three repeated UI
-rounds pass. Production `AUTH_OTP_TEST_CODE` is disabled and recent API logs contain no errors.
+**Verification:** Existing local/VPS auth acceptance remains valid. For the dashboard refinement,
+web ESLint/TypeScript, production builds, Compose health, and VPS desktop/mobile Playwright pass;
+sidebar collapse/expand, static organization, account actions, outside click, Escape focus return,
+mobile bounds, POST sign-out redirect, screenshots, and browser console were checked. Production
+`AUTH_OTP_TEST_CODE` remains disabled.
 **Gotchas:** Never request or print the Gmail App Password. SMTP/OTP secrets must not enter Git,
 chat, browser storage, logs, process arguments, or shell history. No user/tenant/session may be
 created before registration OTP verification, and no login/social session may be issued before its
