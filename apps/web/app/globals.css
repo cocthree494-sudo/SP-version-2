@@ -167,9 +167,9 @@ h1, h2, h3, p { margin: 0; }
 .social-continuation-note { padding: 13px 14px; border: 1px solid var(--line); border-radius: 9px; background: var(--soft, #edf5f1); color: var(--ink-soft); font-size: 12px; line-height: 1.5; }
 .field { display: grid; gap: 8px; }
 .field label { color: var(--ink); font-size: 11px; font-weight: 800; letter-spacing: .02em; }
-.field input, .field select { width: 100%; min-height: 49px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: 8px; outline: none; background: var(--white); color: var(--ink); font-size: 14px; transition: border .18s ease, box-shadow .18s ease; }
+.field input:not([type="checkbox"]):not([type="radio"]), .field select { width: 100%; min-height: 49px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: 8px; outline: none; background: var(--white); color: var(--ink); font-size: 14px; transition: border .18s ease, box-shadow .18s ease; }
 .field input::placeholder { color: var(--ink-faint); }
-.field input:focus, .field select:focus { border-color: #7ab99f; box-shadow: 0 0 0 4px rgba(145,227,190,.22); }
+.field input:not([type="checkbox"]):not([type="radio"]):focus, .field select:focus { border-color: #7ab99f; box-shadow: 0 0 0 4px rgba(145,227,190,.22); }
 .field-hint { color: var(--ink-faint); font-size: 10px; line-height: 1.4; }
 .form-alert { display: flex; align-items: flex-start; gap: 9px; padding: 11px 12px; border: 1px solid #f0c1b6; border-radius: 8px; background: #fff4f1; color: #9e4e3e; font-size: 12px; line-height: 1.45; }
 .form-alert-mark { display: grid; place-items: center; flex: 0 0 auto; width: 16px; height: 16px; border-radius: 50%; background: var(--coral); color: white; font-size: 10px; font-weight: 800; }
@@ -363,9 +363,11 @@ h1, h2, h3, p { margin: 0; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 25px; }
 .workspace-form { display: grid; gap: 16px; }
 .workspace-form label, .bot-picker { display: grid; gap: 8px; color: var(--ink); font-size: 10px; font-weight: 800; letter-spacing: .02em; }
-.workspace-form input, .workspace-form textarea, .workspace-form select, .bot-picker select { width: 100%; min-height: 47px; padding: 11px 13px; border: 1px solid var(--line-strong); border-radius: 8px; outline: none; background: white; color: var(--ink); font-size: 13px; font-weight: 500; resize: vertical; }
+.workspace-form input:not([type="checkbox"]):not([type="radio"]), .workspace-form textarea, .workspace-form select, .bot-picker select { width: 100%; min-height: 47px; padding: 11px 13px; border: 1px solid var(--line-strong); border-radius: 8px; outline: none; background: white; color: var(--ink); font-size: 13px; font-weight: 500; resize: vertical; }
 .workspace-form textarea { line-height: 1.55; }
-.workspace-form input:focus, .workspace-form textarea:focus, .workspace-form select:focus, .bot-picker select:focus { border-color: #78ad97; box-shadow: 0 0 0 4px rgba(145,227,190,.2); }
+.workspace-form input:not([type="checkbox"]):not([type="radio"]):focus, .workspace-form textarea:focus, .workspace-form select:focus, .bot-picker select:focus { border-color: #78ad97; box-shadow: 0 0 0 4px rgba(145,227,190,.2); }
+.workspace-form input[type="checkbox"], .workspace-form input[type="radio"] { width: 17px; min-width: 17px; height: 17px; min-height: 17px; flex: 0 0 17px; margin: 2px 0 0; padding: 0; border: 0; border-radius: 4px; background: transparent; box-shadow: none; accent-color: var(--navy); cursor: pointer; }
+.workspace-form input[type="checkbox"]:focus-visible, .workspace-form input[type="radio"]:focus-visible { outline: 3px solid var(--lime); outline-offset: 2px; box-shadow: none; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .form-row-small { grid-template-columns: 180px 180px; }
 .form-note { color: var(--ink-faint); font-size: 10px; line-height: 1.55; }
@@ -475,8 +477,11 @@ h1, h2, h3, p { margin: 0; }
 .channel-option strong { color: var(--navy); font-size: 12px; }
 .channel-option small, .channel-option em { color: var(--ink-soft); font-size: 10px; line-height: 1.45; }
 .channel-option em { color: #668078; font-style: normal; font-weight: 750; }
-.consent-check { display: flex; align-items: flex-start; gap: 9px; color: var(--ink-soft); font-size: 11px; line-height: 1.5; }
-.consent-check input { margin-top: 2px; accent-color: var(--navy); }
+.workspace-form label.consent-check { display: flex; align-items: flex-start; gap: 9px; color: var(--ink-soft); font-size: 11px; line-height: 1.5; }
+.consent-check input { margin-top: 2px; }
+.consent-check span { min-width: 0; }
+.channel-option input, .policy-mode input, .policy-credential input { width: 17px; min-width: 17px; height: 17px; min-height: 17px; padding: 0; border: 0; border-radius: 4px; background: transparent; box-shadow: none; accent-color: var(--navy); cursor: pointer; }
+.channel-option input:focus-visible, .policy-mode input:focus-visible, .policy-credential input:focus-visible { outline: 3px solid var(--lime); outline-offset: 2px; }
 .channel-safety-card { position: sticky; top: 86px; }
 .channel-safety-copy { display: grid; gap: 15px; padding: 23px; color: var(--ink-soft); font-size: 12px; line-height: 1.65; }
 .channel-count { color: var(--ink-faint); font-size: 10px; font-weight: 750; }
@@ -522,6 +527,9 @@ h1, h2, h3, p { margin: 0; }
 .documentation-card li::marker { color: var(--coral); font-weight: 800; }
 .documentation-footer { display: flex; align-items: center; justify-content: center; gap: 16px; color: var(--ink-faint); font-size: 10px; }
 .config-card { overflow: hidden; }
+.empty-state { display: grid; justify-items: center; gap: 7px; min-height: 116px; padding: 25px 23px; color: var(--ink-soft); text-align: center; }
+.empty-state strong { color: var(--navy); font-size: 12px; }
+.empty-state span { max-width: 520px; color: var(--ink-faint); font-size: 11px; line-height: 1.5; }
 .config-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 20px 23px; border-bottom: 1px solid var(--line); background: #fbfdfc; }
 .config-card-heading h2 { margin-top: 4px; color: var(--navy); font-family: var(--font-display), Georgia, serif; font-size: 22px; }
 .config-card > .workspace-form, .key-manager { padding: 23px; }

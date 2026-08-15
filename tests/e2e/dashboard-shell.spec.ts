@@ -1,6 +1,15 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
 
 import { register, uniqueAccount } from "./helpers";
+
+async function expectCompactControl(control: Locator) {
+  const box = await control.boundingBox();
+  expect(box).not.toBeNull();
+  expect(box!.width).toBeGreaterThanOrEqual(15);
+  expect(box!.width).toBeLessThanOrEqual(20);
+  expect(box!.height).toBeGreaterThanOrEqual(15);
+  expect(box!.height).toBeLessThanOrEqual(20);
+}
 
 test("dashboard shell keeps one responsive account menu and a collapsible desktop sidebar", async ({
   page,
@@ -67,4 +76,43 @@ test("dashboard shell keeps one responsive account menu and a collapsible deskto
       (cookie) => cookie.name === "sa_access_token" || cookie.name === "sa_refresh_token",
     ),
   ).toBe(false);
+});
+
+test("shared dashboard checkboxes, radios, and empty states stay compact", async ({ page }) => {
+  await register(page, uniqueAccount("controls"));
+
+  await page.goto("/dashboard/voice");
+  await expect(page.getByRole("heading", { name: "Let support speak with care." })).toBeVisible();
+  const voiceCheckboxes = page.locator('.voice-form input[type="checkbox"]');
+  await expect(voiceCheckboxes).toHaveCount(3);
+  for (let index = 0; index < 3; index += 1) {
+    await expectCompactControl(voiceCheckboxes.nth(index));
+  }
+
+  const voiceEmptyTitle = page.locator(".empty-state strong", {
+    hasText: "No voice agent configured.",
+  });
+  const voiceEmptyCopy = page.locator(".empty-state span", {
+    hasText: "Add a number above",
+  });
+  await expect(voiceEmptyTitle).toBeVisible();
+  await expect(voiceEmptyCopy).toBeVisible();
+  const voiceTitleBox = await voiceEmptyTitle.boundingBox();
+  const voiceCopyBox = await voiceEmptyCopy.boundingBox();
+  expect(voiceCopyBox!.y).toBeGreaterThanOrEqual(voiceTitleBox!.y + voiceTitleBox!.height);
+
+  await page.getByText("Allow outbound calls", { exact: true }).click();
+  const nestedConsent = page.getByText("I have consent for outbound calling in my region.");
+  await expect(nestedConsent).toBeVisible();
+  await expectCompactControl(nestedConsent.locator("..").locator('input[type="checkbox"]'));
+
+  await page.goto("/dashboard/channels");
+  await expect(page.getByRole("heading", { name: "Meet customers where they already are." })).toBeVisible();
+  const channelRadios = page.locator('.channel-option input[type="radio"]');
+  await expect(channelRadios).toHaveCount(3);
+  for (let index = 0; index < 3; index += 1) {
+    await expectCompactControl(channelRadios.nth(index));
+  }
+  await expectCompactControl(page.locator('.channel-form input[type="checkbox"]'));
+  await expect(page.locator(".empty-state", { hasText: "No channels connected yet." })).toBeVisible();
 });
