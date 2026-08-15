@@ -81,8 +81,8 @@ jobs:
           # a public, bounded crawl target and does not require credentials.
           E2E_WEBSITE_URL: https://example.com/
           DETERMINISTIC_LLM_RESPONSE: "[1] Deterministic support response."
-          AUTH_OTP_TEST_CODE: "000000"
-          E2E_OTP_CODE: "000000"
+          AUTH_OTP_TEST_CODE: "A1b2C3d4"
+          E2E_OTP_CODE: "A1b2C3d4"
           DATABASE_URL: postgresql+asyncpg://support_agent_app:ci_only_app@127.0.0.1:5432/support_agent_test
         run: npm run test:e2e
 
@@ -111,7 +111,7 @@ jobs:
       REDIS_URL: redis://:ci_redis_password_2026@redis:6379/0
       AUTH_JWT_SECRET: ci-production-acceptance-jwt-secret-2026-long
       AUTH_OTP_SECRET: ci-production-acceptance-otp-secret-2026-long
-      AUTH_OTP_TEST_CODE: "000000"
+      AUTH_OTP_TEST_CODE: "A1b2C3d4"
       AUTH_EMAIL_PROVIDER: memory
       AI_PROVIDER_MODE: deterministic
       AI_PROVIDER_ID: deterministic

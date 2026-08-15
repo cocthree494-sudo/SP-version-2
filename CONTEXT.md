@@ -322,7 +322,7 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 - The account-menu layering and outside-click behavior fix was pushed and deployed in commit
   `7809298`.
 - User required a new OTP on every registration and explicit login, including Google/social
-  authentication. The agreed baseline is six digits, 90-second expiry, keyed-hash storage,
+  authentication. The agreed baseline is eight-character alphanumeric codes, 90-second expiry, keyed-hash storage,
   single use, replacement invalidation, bounded attempts, resend cooldown, and rate limits; no
   session is issued before verification.
 - User selected personal Gmail SMTP for development and created a Google App Password named

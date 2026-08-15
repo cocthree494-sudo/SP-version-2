@@ -79,8 +79,12 @@ class AuthOtpVerifyRequest(AuthOtpChallengeRequest):
     @field_validator("code")
     @classmethod
     def validate_code(cls, value: SecretStr) -> SecretStr:
-        if re.fullmatch(r"\d{6}", value.get_secret_value()) is None:
-            raise ValueError("Verification code must contain exactly six digits")
+        code = value.get_secret_value()
+        if re.fullmatch(r"(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]{8}", code) is None:
+            raise ValueError(
+                "Verification code must contain exactly eight alphanumeric characters "
+                "including at least one letter and one number"
+            )
         return value
 
 

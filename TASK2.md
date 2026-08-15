@@ -95,7 +95,7 @@ This file is the source of truth for Phase 2 planning and implementation order. 
   Replace direct session issuance with a two-step authentication contract for password and
   social flows. Successful password/OAuth identity verification starts a short-lived email
   challenge but must not create an authenticated browser session. Every registration and
-  explicit login requires a new six-digit, single-use OTP sent to the submitted or verified
+  explicit login requires a new eight-character alphanumeric, single-use OTP sent to the submitted or verified
   provider email. OTPs expire after ten minutes, are stored only as keyed hashes, have bounded
   attempts, a resend cooldown, email/IP/challenge rate limits, and are invalidated whenever a
   replacement code is issued. Responses and logs must not expose account existence, plaintext

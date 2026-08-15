@@ -531,7 +531,13 @@ class AuthOtpService:
         configured = settings.AUTH_OTP_TEST_CODE
         if settings.APP_ENV == "test" and configured is not None:
             return configured.get_secret_value()
-        return f"{secrets.randbelow(1_000_000):06d}"
+        alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"
+        while True:
+            code = "".join(secrets.choice(alphabet) for _ in range(8))
+            if any(character.isalpha() for character in code) and any(
+                character.isdigit() for character in code
+            ):
+                return code
 
     @staticmethod
     def _rate_key(scope: str, value: str) -> str:

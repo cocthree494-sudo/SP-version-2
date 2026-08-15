@@ -12,6 +12,8 @@ import { useAuth } from "@/lib/auth-context";
 
 type AuthMode = "login" | "register";
 
+const OTP_CODE_PATTERN = /^(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]{8}$/;
+
 interface PendingChallenge {
   emailHint: string;
   expiresAt: number;
@@ -243,8 +245,8 @@ export function AuthForm({ mode }: Readonly<{ mode: AuthMode }>) {
 
   async function submitOtp(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (otpCode.length !== 6) {
-      setError("Enter the complete six-digit code.");
+    if (!OTP_CODE_PATTERN.test(otpCode)) {
+      setError("Enter the complete eight-character code using letters and numbers.");
       return;
     }
     setError(null);
@@ -338,7 +340,7 @@ export function AuthForm({ mode }: Readonly<{ mode: AuthMode }>) {
                 <span className="eyebrow">Email verification</span>
                 <h1 id="auth-title">Check your inbox.</h1>
                 <p>
-                  Enter the six-digit code sent to <strong>{challenge.emailHint}</strong>. The
+                  Enter the eight-character code sent to <strong>{challenge.emailHint}</strong>. The
                   code expires in <span aria-live="polite">{formatCountdown(expiresIn)}</span>.
                 </p>
               </div>
@@ -350,15 +352,18 @@ export function AuthForm({ mode }: Readonly<{ mode: AuthMode }>) {
                     id="verification-code"
                     name="verification-code"
                     type="text"
-                    inputMode="numeric"
+                    inputMode="text"
                     autoComplete="one-time-code"
-                    pattern="[0-9]{6}"
-                    maxLength={6}
+                    pattern="(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]{8}"
+                    maxLength={8}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
                     value={otpCode}
                     onChange={(event) =>
-                      setOtpCode(event.target.value.replace(/\D/g, "").slice(0, 6))
+                      setOtpCode(event.target.value.replace(/[^A-Za-z0-9]/g, "").slice(0, 8))
                     }
-                    placeholder="000000"
+                    placeholder="A1b2C3d4"
                     autoFocus
                     disabled={otpExpired || verificationBlocked || submitting}
                     aria-describedby="verification-code-hint"
@@ -394,7 +399,7 @@ export function AuthForm({ mode }: Readonly<{ mode: AuthMode }>) {
                     <button
                       className="button button-primary button-wide"
                       type="submit"
-                      disabled={submitting || otpCode.length !== 6}
+                      disabled={submitting || !OTP_CODE_PATTERN.test(otpCode)}
                     >
                       <span>{submitting ? "Verifying…" : "Verify and continue"}</span>
                       {!submitting ? (

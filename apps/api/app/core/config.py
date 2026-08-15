@@ -1,3 +1,4 @@
+import re
 import secrets
 from pathlib import Path
 from typing import Literal
@@ -177,10 +178,12 @@ class Settings(BaseSettings):
         if self.AUTH_OTP_TEST_CODE is not None:
             if self.APP_ENV != "test":
                 raise ValueError("AUTH_OTP_TEST_CODE is allowed only when APP_ENV=test")
-            if not self.AUTH_OTP_TEST_CODE.get_secret_value().isdigit() or len(
-                self.AUTH_OTP_TEST_CODE.get_secret_value()
-            ) != 6:
-                raise ValueError("AUTH_OTP_TEST_CODE must contain exactly six digits")
+            test_code = self.AUTH_OTP_TEST_CODE.get_secret_value()
+            if re.fullmatch(r"(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]{8}", test_code) is None:
+                raise ValueError(
+                    "AUTH_OTP_TEST_CODE must contain exactly eight alphanumeric characters "
+                    "including at least one letter and one number"
+                )
         if self.AUTH_EMAIL_PROVIDER == "smtp" and (
             not self.SMTP_HOST
             or not self.SMTP_USERNAME

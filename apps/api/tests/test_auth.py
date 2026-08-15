@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from collections.abc import AsyncGenerator
 from typing import cast
 from uuid import UUID
@@ -223,7 +224,10 @@ async def test_otp_is_single_use_and_wrong_codes_never_create_a_session(
 
     wrong = await auth_client.post(
         "/v1/auth/otp/verify",
-        json={"challenge_id": challenge_id, "code": "000000" if code != "000000" else "999999"},
+        json={
+            "challenge_id": challenge_id,
+            "code": "Z9x8C7v6" if code != "Z9x8C7v6" else "Q2w3E4r5",
+        },
     )
     assert wrong.status_code == 400
     assert await UserRepository(auth_session).get_by_email("owner@example.com") is None
@@ -240,6 +244,21 @@ async def test_otp_is_single_use_and_wrong_codes_never_create_a_session(
     assert replayed.status_code == 410
 
 
+def test_generated_otp_codes_are_eight_character_mixed_alphanumeric(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "AUTH_OTP_TEST_CODE", None)
+    codes = {AuthOtpService._new_code() for _ in range(32)}
+
+    assert len(codes) == 32
+    assert all(
+        re.fullmatch(r"(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]{8}", code)
+        for code in codes
+    )
+
+
 @pytest.mark.asyncio
 async def test_otp_attempt_exhaustion_locks_the_challenge(
     auth_client: AsyncClient,
@@ -247,7 +266,7 @@ async def test_otp_attempt_exhaustion_locks_the_challenge(
     started = await auth_client.post("/v1/auth/register", json=registration_payload())
     challenge_id = started.json()["challenge_id"]
     code = latest_otp("owner@example.com")
-    wrong_code = "000000" if code != "000000" else "999999"
+    wrong_code = "Z9x8C7v6" if code != "Z9x8C7v6" else "Q2w3E4r5"
 
     for _ in range(4):
         wrong = await auth_client.post(
@@ -374,7 +393,7 @@ def test_test_only_otp_code_is_rejected_outside_test_environment() -> None:
             REDIS_URL="redis://127.0.0.1:6379/15",
             AUTH_JWT_SECRET=SecretStr("a" * 40),
             AUTH_OTP_SECRET=SecretStr("b" * 40),
-            AUTH_OTP_TEST_CODE=SecretStr("123456"),
+            AUTH_OTP_TEST_CODE=SecretStr("A1b2C3d4"),
         )
 
 
