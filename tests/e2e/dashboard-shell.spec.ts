@@ -109,8 +109,8 @@ test("shared dashboard checkboxes, radios, and empty states stay compact", async
   await page.goto("/dashboard/channels");
   await expect(page.getByRole("heading", { name: "Meet customers where they already are." })).toBeVisible();
   const channelRadios = page.locator('.channel-option input[type="radio"]');
-  await expect(channelRadios).toHaveCount(3);
-  for (let index = 0; index < 3; index += 1) {
+  await expect(channelRadios).toHaveCount(4);
+  for (let index = 0; index < 4; index += 1) {
     await expectCompactControl(channelRadios.nth(index));
   }
   await expectCompactControl(page.locator('.channel-form input[type="checkbox"]'));

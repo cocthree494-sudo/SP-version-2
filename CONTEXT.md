@@ -389,6 +389,24 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
   issued POST and redirected to login, and the browser console had no errors. Desktop expanded,
   collapsed viewport, account-menu, and mobile screenshots were visually inspected.
 
+### Session 26 - Codex
+
+- Fixed the oversized checkbox/radio defect reported on the Voice page at the shared form-system
+  level. Generic `.field` and `.workspace-form` text-input styling now explicitly excludes
+  checkbox/radio inputs; all binary controls use stable 17-pixel dimensions, visible keyboard
+  focus, and the existing Relay accent color. Consent labels now retain their intended flex-row
+  alignment instead of being overridden by the generic form-label grid.
+- Added the missing shared empty-state layout used by Voice agents, Installed channels, and search
+  results. Empty titles and guidance now have centered spacing and readable line height instead of
+  rendering as one colliding line. Focused Playwright coverage checks compact Voice checkboxes,
+  conditional consent controls, all four channel radios, channel consent, and empty-state spacing.
+- Pushed and deployed code commit `529ec17` as image tag `sp-version-2-529ec17`. Cached production
+  builds passed and all six Compose services are healthy. VPS-hosted Playwright measured every
+  tested checkbox/radio at 17 by 17 pixels on Voice, Channels, and Providers; verified the nested
+  Voice controls, a 7-pixel empty-state gap, 390-pixel mobile layout with no horizontal overflow,
+  and a clean browser console. Desktop Voice, expanded consents, Channels, Providers, and mobile
+  Voice screenshots were visually inspected.
+
 ## 7. Open items
 
 | ID | Item | Handling now |
@@ -400,20 +418,20 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 
 ## HANDOFF STATE
 
-**Last completed:** T-075 dashboard-shell refinement after T-080 acceptance.
-**Current task:** None; the annotated dashboard changes are deployed and browser-verified.
+**Last completed:** T-075 dashboard-shell and shared form-control refinements after T-080 acceptance.
+**Current task:** None; the annotated dashboard and checkbox/empty-state fixes are deployed and browser-verified.
 **Next task:** T-081 — audited platform-admin control plane and dynamic `/admin` dashboard.
 **Blocked on:** No implementation blocker. Production traffic remains blocked on hosting/budget selection and named release-owner/security approval of the prerequisites in `docs/mvp-acceptance.md`.
 
-**Pushed state:** `origin/main` contains the T-075 dashboard refinement and acceptance record; the
-VPS source is current and services run image tag `sp-version-2-f002875` behind
+**Pushed state:** `origin/main` contains the T-075 dashboard and shared-control refinements; the
+VPS source is current and services run image tag `sp-version-2-529ec17` behind
 `relay.npcautomators.com`.
 **Uncommitted work:** None. T-081 remains planning-only and may now begin when requested.
 **Verification:** Existing local/VPS auth acceptance remains valid. For the dashboard refinement,
 web ESLint/TypeScript, production builds, Compose health, and VPS desktop/mobile Playwright pass;
 sidebar collapse/expand, static organization, account actions, outside click, Escape focus return,
-mobile bounds, POST sign-out redirect, screenshots, and browser console were checked. Production
-`AUTH_OTP_TEST_CODE` remains disabled.
+mobile bounds, POST sign-out redirect, Voice/Channels/Providers controls, empty states, screenshots,
+and browser console were checked. Production `AUTH_OTP_TEST_CODE` remains disabled.
 **Gotchas:** Never request or print the Gmail App Password. SMTP/OTP secrets must not enter Git,
 chat, browser storage, logs, process arguments, or shell history. No user/tenant/session may be
 created before registration OTP verification, and no login/social session may be issued before its
