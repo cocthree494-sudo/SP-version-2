@@ -41,6 +41,14 @@ challenge metadata. OTP verification and refresh return HTTP 200 token responses
 containing `access_token`, `refresh_token`, `token_type: "bearer"`, and the access
 token lifetime in `expires_in` seconds.
 
+Challenge metadata includes a non-secret `flow` value (`register` or `login`) so
+the dashboard keeps registration copy for a pending signup even if the user
+reopens a different auth URL. OAuth also preserves a safe same-origin `next`
+path through the provider redirect and OTP step. A social flow started in
+registration mode never silently becomes a login: an already-linked provider
+identity or matching email returns a registration conflict with a clear sign-in
+instruction and does not send an OTP.
+
 ## Security behavior
 
 Passwords are hashed with Argon2id. Login does equivalent password-hash work for

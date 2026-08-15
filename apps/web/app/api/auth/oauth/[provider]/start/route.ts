@@ -5,7 +5,9 @@ import {
   apiErrorResponse,
   clearPendingAuthCookies,
   publicRequestUrl,
+  safeNextPath,
   serverApi,
+  setOAuthFlowCookies,
 } from "@/lib/server-auth";
 
 const providers = new Set<SocialProvider>(["google", "microsoft", "github"]);
@@ -19,6 +21,7 @@ export async function GET(
     return NextResponse.json({ detail: "This sign-in provider is not available." }, { status: 404 });
   }
   const mode = request.nextUrl.searchParams.get("mode") === "register" ? "register" : "login";
+  const nextPath = safeNextPath(request.nextUrl.searchParams.get("next"));
   const organizationSlug = request.nextUrl.searchParams.get("organization_slug") ?? undefined;
   try {
     const result = await serverApi.socialStart(provider as SocialProvider, {
@@ -27,13 +30,15 @@ export async function GET(
     });
     const response = NextResponse.redirect(result.authorization_url);
     clearPendingAuthCookies(response);
+    setOAuthFlowCookies(response, mode, nextPath);
     return response;
   } catch (error) {
     if (error instanceof ApiError && error.status === 503) {
-      const loginUrl = publicRequestUrl(request, "/login");
-      loginUrl.searchParams.set("oauth_error", "provider_unavailable");
-      loginUrl.searchParams.set("provider", provider);
-      return NextResponse.redirect(loginUrl);
+      const authUrl = publicRequestUrl(request, mode === "register" ? "/register" : "/login");
+      authUrl.searchParams.set("oauth_error", "provider_unavailable");
+      authUrl.searchParams.set("provider", provider);
+      if (nextPath) authUrl.searchParams.set("next", nextPath);
+      return NextResponse.redirect(authUrl);
     }
     return apiErrorResponse(error);
   }

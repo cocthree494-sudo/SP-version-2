@@ -16,6 +16,7 @@ const OTP_CODE_PATTERN = /^(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]{8}$/;
 
 interface PendingChallenge {
   emailHint: string;
+  flow: AuthMode;
   expiresAt: number;
   resendAt: number;
 }
@@ -24,9 +25,14 @@ function pendingChallenge(response: PendingAuthResponse): PendingChallenge {
   const now = Date.now();
   return {
     emailHint: response.email_hint,
+    flow: response.flow,
     expiresAt: now + response.expires_in * 1000,
     resendAt: now + response.resend_after * 1000,
   };
+}
+
+function safeNextPath(value: string | null): string | null {
+  return value?.startsWith("/") && !value.startsWith("//") ? value : null;
 }
 
 function formatCountdown(seconds: number): string {
@@ -149,13 +155,27 @@ export function AuthForm({ mode }: Readonly<{ mode: AuthMode }>) {
   const socialStep = searchParams.get("social");
   const oauthError = searchParams.get("oauth_error");
   const oauthProvider = searchParams.get("provider");
-  const oauthErrorMessage =
-    oauthError === "provider_unavailable"
-      ? `${oauthProvider === "microsoft" ? "Microsoft" : oauthProvider === "github" ? "GitHub" : "Google"} sign-in is not configured yet. Ask the workspace administrator to enable it.`
-      : null;
+  const oauthProviderName = oauthProvider === "microsoft"
+    ? "Microsoft"
+    : oauthProvider === "github"
+      ? "GitHub"
+      : "Google";
+  const oauthErrorMessage = oauthError === "provider_unavailable"
+    ? `${oauthProviderName} sign-in is not configured yet. Ask the workspace administrator to enable it.`
+    : oauthError === "account_exists"
+      ? `This ${oauthProviderName} account already belongs to a Relay account. Sign in instead to receive a fresh login code.`
+      : oauthError === "invalid_callback"
+        ? "The social authentication response was incomplete. Start again."
+        : oauthError === "failed"
+          ? `${oauthProviderName} authentication could not be completed. Start again.`
+          : oauthError === "incomplete"
+            ? "Relay could not determine the next authentication step. Start again."
+            : null;
   const socialRegistration = isRegister && socialStep === "register";
   const socialOrganizationSelection = !isRegister && socialStep === "select";
   const socialLink = !isRegister && socialStep === "link";
+  const requestedNext = safeNextPath(searchParams.get("next"));
+  const displayMode = challenge?.flow ?? mode;
 
   useEffect(() => {
     let active = true;
@@ -196,6 +216,7 @@ export function AuthForm({ mode }: Readonly<{ mode: AuthMode }>) {
   function beginSocial(provider: "google" | "microsoft" | "github") {
     const params = new URLSearchParams({ mode: isRegister ? "register" : "login" });
     if (organizationSlug) params.set("organization_slug", organizationSlug);
+    if (requestedNext) params.set("next", requestedNext);
     window.location.assign(`/api/auth/oauth/${provider}/start?${params.toString()}`);
   }
 
@@ -253,12 +274,7 @@ export function AuthForm({ mode }: Readonly<{ mode: AuthMode }>) {
     setSubmitting(true);
     try {
       await verifyOtp(otpCode);
-      const requestedPath = new URLSearchParams(window.location.search).get("next");
-      const safeNext =
-        requestedPath?.startsWith("/") && !requestedPath.startsWith("//")
-          ? requestedPath
-          : "/dashboard";
-      router.replace(safeNext);
+      router.replace(requestedNext ?? "/dashboard");
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : "The code could not be verified.";
       setError(message);
@@ -295,6 +311,7 @@ export function AuthForm({ mode }: Readonly<{ mode: AuthMode }>) {
   }
 
   async function startOver() {
+    const restartMode = challenge?.flow ?? mode;
     setError(null);
     setSubmitting(true);
     try {
@@ -302,8 +319,9 @@ export function AuthForm({ mode }: Readonly<{ mode: AuthMode }>) {
       setChallenge(null);
       setOtpCode("");
       setVerificationBlocked(false);
-      const next = searchParams.get("next");
-      router.replace(`${isRegister ? "/register" : "/login"}${next ? `?next=${encodeURIComponent(next)}` : ""}`);
+      router.replace(
+        `${restartMode === "register" ? "/register" : "/login"}${requestedNext ? `?next=${encodeURIComponent(requestedNext)}` : ""}`,
+      );
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The verification flow could not be reset.");
     } finally {
@@ -313,7 +331,7 @@ export function AuthForm({ mode }: Readonly<{ mode: AuthMode }>) {
 
   return (
     <main className="auth-page">
-      <AuthAside mode={mode} />
+      <AuthAside mode={displayMode} />
       <section
         className="auth-panel"
         aria-labelledby={checkingOtp ? undefined : "auth-title"}
@@ -338,10 +356,13 @@ export function AuthForm({ mode }: Readonly<{ mode: AuthMode }>) {
             <>
               <div className="auth-heading">
                 <span className="eyebrow">Email verification</span>
-                <h1 id="auth-title">Check your inbox.</h1>
+                <h1 id="auth-title">
+                  {challenge.flow === "register" ? "Verify your new workspace." : "Check your inbox."}
+                </h1>
                 <p>
-                  Enter the eight-character code sent to <strong>{challenge.emailHint}</strong>. The
-                  code expires in <span aria-live="polite">{formatCountdown(expiresIn)}</span>.
+                  Enter the eight-character code sent to <strong>{challenge.emailHint}</strong>{" "}
+                  {challenge.flow === "register" ? "to finish creating your Relay account" : "to sign in"}.
+                  The code expires in <span aria-live="polite">{formatCountdown(expiresIn)}</span>.
                 </p>
               </div>
 
@@ -436,10 +457,16 @@ export function AuthForm({ mode }: Readonly<{ mode: AuthMode }>) {
           ) : (
             <>
               <div className="auth-heading">
-                <span className="eyebrow">{isRegister ? "Start your workspace" : "Your workspace awaits"}</span>
-                <h1 id="auth-title">{isRegister ? "Build a better support loop." : "Welcome back."}</h1>
+                <span className="eyebrow">
+                  {socialRegistration ? "Verified social account" : isRegister ? "Start your workspace" : "Your workspace awaits"}
+                </span>
+                <h1 id="auth-title">
+                  {socialRegistration ? "Finish your Relay setup." : isRegister ? "Build a better support loop." : "Welcome back."}
+                </h1>
                 <p>
-                  {isRegister
+                  {socialRegistration
+                    ? "Choose your workspace name. We will then email a fresh verification code before creating the account."
+                    : isRegister
                     ? "Create your organization and meet your new support command center."
                     : "Sign in to see what your agent learned while you were away."}
                 </p>
@@ -564,7 +591,9 @@ export function AuthForm({ mode }: Readonly<{ mode: AuthMode }>) {
 
               <p className="auth-switch">
                 {isRegister ? "Already have an account?" : "New to Relay?"}{" "}
-                <Link href={isRegister ? "/login" : "/register"}>
+                <Link
+                  href={`${isRegister ? "/login" : "/register"}${requestedNext ? `?next=${encodeURIComponent(requestedNext)}` : ""}`}
+                >
                   {isRegister ? "Sign in" : "Create your workspace"}
                 </Link>
               </p>

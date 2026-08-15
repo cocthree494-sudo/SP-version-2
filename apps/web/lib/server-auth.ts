@@ -13,6 +13,8 @@ export const REFRESH_COOKIE = "sa_refresh_token";
 export const PENDING_AUTH_COOKIE = "sa_pending_auth";
 export const SOCIAL_CONTINUATION_COOKIE = "sa_social_continuation";
 export const SOCIAL_LINK_COOKIE = "sa_social_link";
+export const OAUTH_MODE_COOKIE = "sa_oauth_mode";
+export const OAUTH_NEXT_COOKIE = "sa_oauth_next";
 
 export const apiBaseUrl =
   process.env.API_INTERNAL_URL ??
@@ -61,9 +63,45 @@ export function pendingAuthResponse(challenge: AuthChallengeResponse): PendingAu
   return {
     status: "otp_required",
     email_hint: challenge.email_hint,
+    flow: challenge.flow,
     expires_in: challenge.expires_in,
     resend_after: challenge.resend_after,
   };
+}
+
+export function safeNextPath(value: string | null | undefined): string | null {
+  return value?.startsWith("/") && !value.startsWith("//") ? value : null;
+}
+
+export function setOAuthFlowCookies(
+  response: NextResponse,
+  mode: "login" | "register",
+  nextPath: string | null,
+): void {
+  response.cookies.set(OAUTH_MODE_COOKIE, mode, {
+    ...privateCookieOptions,
+    maxAge: 10 * 60,
+  });
+  if (nextPath) {
+    response.cookies.set(OAUTH_NEXT_COOKIE, nextPath, {
+      ...privateCookieOptions,
+      maxAge: 10 * 60,
+    });
+  } else {
+    response.cookies.set(OAUTH_NEXT_COOKIE, "", {
+      ...privateCookieOptions,
+      maxAge: 0,
+    });
+  }
+}
+
+export function clearOAuthFlowCookies(response: NextResponse): void {
+  for (const name of [OAUTH_MODE_COOKIE, OAUTH_NEXT_COOKIE]) {
+    response.cookies.set(name, "", {
+      ...privateCookieOptions,
+      maxAge: 0,
+    });
+  }
 }
 
 export function setPendingAuthCookie(

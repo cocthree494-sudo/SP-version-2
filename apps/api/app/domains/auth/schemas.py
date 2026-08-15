@@ -153,6 +153,7 @@ class SocialAuthResponse(BaseModel):
     organizations: list[CurrentTenantResponse] = Field(default_factory=list)
     challenge_id: str | None = None
     email_hint: str | None = None
+    flow: Literal["login", "register"] | None = None
     resend_after: int | None = None
 
 
@@ -160,6 +161,7 @@ class AuthChallengeResponse(BaseModel):
     status: Literal["otp_required"] = "otp_required"
     challenge_id: str
     email_hint: str
+    flow: Literal["login", "register"]
     expires_in: int = Field(ge=0)
     resend_after: int = Field(ge=0)
 

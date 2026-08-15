@@ -29,6 +29,7 @@ from app.core.security import (
 )
 from app.db.base import Base
 from app.db.session import get_db_session
+from app.domains.auth.email import InMemoryAuthEmailSender
 from app.domains.auth.models import RefreshToken
 from app.domains.auth.oauth import OAuthProfile
 from app.domains.auth.otp import AuthOtpExpiredError, AuthOtpService, PendingAuth
@@ -114,6 +115,7 @@ async def test_register_bootstraps_owner_and_me_context(
 
     assert started.status_code == 202
     assert started.json()["status"] == "otp_required"
+    assert started.json()["flow"] == "register"
     assert await UserRepository(auth_session).get_by_email("owner@example.com") is None
     assert await auth_session.scalar(select(RefreshToken)) is None
 
@@ -204,6 +206,7 @@ async def test_login_uses_generic_failure_and_accepts_normalized_email(
     assert bad_response.json()["detail"] == "Invalid email, password, or organization"
     assert good_start.status_code == 200
     assert "access_token" not in good_start.json()
+    assert good_start.json()["flow"] == "login"
     good_response = await verify_latest_otp(
         auth_client,
         good_start,
@@ -599,6 +602,7 @@ async def test_social_registration_uses_one_time_pkce_state_and_creates_password
     )
     assert complete_start.status_code == 200
     assert complete_start.json()["status"] == "otp_required"
+    assert complete_start.json()["flow"] == "register"
     assert await UserRepository(auth_session).get_by_email("social@example.com") is None
     complete = await verify_latest_otp(
         auth_client,
@@ -617,6 +621,25 @@ async def test_social_registration_uses_one_time_pkce_state_and_creates_password
     assert social_user is not None
     assert social_user.password_hash is None
 
+    sender = cast(InMemoryAuthEmailSender, app.state.auth_email_sender)
+    deliveries_before_duplicate = len(sender.deliveries)
+    duplicate_register_start = await auth_client.post(
+        "/v1/auth/oauth/google/start",
+        json={"mode": "register"},
+    )
+    duplicate_register_state = parse_qs(
+        urlparse(duplicate_register_start.json()["authorization_url"]).query
+    )["state"][0]
+    duplicate_register_callback = await auth_client.post(
+        "/v1/auth/oauth/google/callback",
+        json={"code": "provider-code", "state": duplicate_register_state},
+    )
+    assert duplicate_register_callback.status_code == 409
+    assert duplicate_register_callback.json()["detail"] == (
+        "This social account already has a Relay account. Sign in instead."
+    )
+    assert len(sender.deliveries) == deliveries_before_duplicate
+
     login_start = await auth_client.post(
         "/v1/auth/oauth/google/start",
         json={"mode": "login"},
@@ -628,6 +651,7 @@ async def test_social_registration_uses_one_time_pkce_state_and_creates_password
     )
     assert login_callback.status_code == 200
     assert login_callback.json()["status"] == "otp_required"
+    assert login_callback.json()["flow"] == "login"
     assert "access_token" not in login_callback.json()
     login_complete = await verify_latest_otp(
         auth_client,

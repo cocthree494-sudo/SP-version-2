@@ -105,6 +105,7 @@ def _challenge_response(challenge: AuthOtpChallenge) -> AuthChallengeResponse:
     return AuthChallengeResponse(
         challenge_id=challenge.challenge_id,
         email_hint=challenge.email_hint,
+        flow=challenge.flow,
         expires_in=challenge.expires_in,
         resend_after=challenge.resend_after,
     )
@@ -309,6 +310,7 @@ def _social_response(
         display_name=profile.display_name if profile else None,
         challenge_id=challenge.challenge_id if challenge else None,
         email_hint=challenge.email_hint if challenge else None,
+        flow=challenge.flow if challenge else None,
         resend_after=challenge.resend_after if challenge else None,
         expires_in=challenge.expires_in if challenge else None,
         organizations=[

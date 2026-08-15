@@ -44,3 +44,27 @@ test("OTP challenge stays HttpOnly and cancel removes the pending challenge", as
   );
   expect(cancelledChallenge.status()).toBe(410);
 });
+
+test("login and social registration keep their intended mode and redirect", async ({ page }) => {
+  await page.goto("/login?next=%2Fdashboard%2Fproviders");
+  await expect(page.getByRole("heading", { name: "Welcome back." })).toBeVisible();
+  await page.getByRole("link", { name: "Create your workspace" }).click();
+  await expect(page).toHaveURL(/\/register\?next=%2Fdashboard%2Fproviders$/);
+  await expect(page.getByRole("heading", { name: "Build a better support loop." })).toBeVisible();
+
+  const googleStart = page.waitForRequest("**/api/auth/oauth/google/start?*");
+  await page.getByRole("button", { name: "Continue with Google" }).click();
+  const googleUrl = (await googleStart).url();
+  expect(googleUrl).toContain("mode=register");
+  expect(googleUrl).toContain("next=%2Fdashboard%2Fproviders");
+
+  await page.goto("/register?social=register&next=%2Fdashboard%2Fproviders");
+  await expect(page.getByRole("heading", { name: "Finish your Relay setup." })).toBeVisible();
+  await expect(page.getByText(/Welcome back/i)).toHaveCount(0);
+
+  await page.goto("/register?oauth_error=account_exists&provider=google");
+  await expect(page.getByRole("alert")).toContainText(
+    "already belongs to a Relay account",
+  );
+  await expect(page.getByRole("heading", { name: "Build a better support loop." })).toBeVisible();
+});

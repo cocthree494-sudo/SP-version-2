@@ -120,6 +120,7 @@ class AuthOtpChallengeData:
 class AuthOtpChallenge:
     challenge_id: str
     email_hint: str
+    flow: Literal["login", "register"]
     expires_in: int
     resend_after: int
 
@@ -513,6 +514,7 @@ class AuthOtpService:
         return AuthOtpChallenge(
             challenge_id=challenge_id,
             email_hint=AuthOtpService._email_hint(data.pending.email),
+            flow=("register" if data.pending.kind.endswith("register") else "login"),
             expires_in=max(0, data.expires_at - now),
             resend_after=max(0, data.resend_available_at - now),
         )

@@ -366,9 +366,17 @@ class AuthService:
             issuer=profile.issuer,
             subject=profile.subject,
         )
+        if identity is not None and oauth_state.mode == "register":
+            raise RegistrationConflictError(
+                "This social account already has a Relay account. Sign in instead."
+            )
         if identity is None:
             existing_user = await self.users.get_by_email(profile.email)
             if existing_user is not None:
+                if oauth_state.mode == "register":
+                    raise RegistrationConflictError(
+                        "An account with this email already exists. Sign in instead."
+                    )
                 token = await self._store_social_continuation(
                     continuation_store,
                     SocialContinuation(kind="link", profile=profile, user_id=str(existing_user.id)),

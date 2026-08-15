@@ -31,6 +31,7 @@ export interface AuthChallengeResponse {
   status: "otp_required";
   challenge_id: string;
   email_hint: string;
+  flow: "login" | "register";
   expires_in: number;
   resend_after: number;
 }
@@ -38,6 +39,7 @@ export interface AuthChallengeResponse {
 export interface PendingAuthResponse {
   status: "otp_required";
   email_hint: string;
+  flow: "login" | "register";
   expires_in: number;
   resend_after: number;
 }
@@ -83,6 +85,7 @@ export interface SocialAuthResponse {
   organizations: CurrentTenant[];
   challenge_id: string | null;
   email_hint: string | null;
+  flow: "login" | "register" | null;
   resend_after: number | null;
 }
 
