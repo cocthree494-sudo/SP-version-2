@@ -322,7 +322,7 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 - The account-menu layering and outside-click behavior fix was pushed and deployed in commit
   `7809298`.
 - User required a new OTP on every registration and explicit login, including Google/social
-  authentication. The agreed baseline is six digits, ten-minute expiry, keyed-hash storage,
+  authentication. The agreed baseline is six digits, 90-second expiry, keyed-hash storage,
   single use, replacement invalidation, bounded attempts, resend cooldown, and rate limits; no
   session is issued before verification.
 - User selected personal Gmail SMTP for development and created a Google App Password named
@@ -342,6 +342,9 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
   migration `0019_user_email_verification`, API/client/BFF/UI contracts, and focused API/E2E
   security coverage. T-080 remains unchecked until VPS integration, browser, and real email
   delivery acceptance pass.
+- User changed the OTP expiry timer from ten minutes to 90 seconds. Backend expiry, API metadata,
+  and dashboard countdown now use the same 90-second lifetime; the separate resend cooldown
+  remains 60 seconds.
 
 ## 7. Open items
 

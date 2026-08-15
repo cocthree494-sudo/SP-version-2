@@ -75,7 +75,7 @@ requires the fresh email OTP before a session or identity record is finalized.
 
 ## OTP security
 
-Codes are six digits, expire after ten minutes, are stored only as an HMAC keyed
+Codes are six digits, expire after 90 seconds, are stored only as an HMAC keyed
 by `AUTH_OTP_SECRET`, and are consumed atomically. A wrong code consumes one of
 five attempts; the challenge is locked after the final failure. Resending resets
 the attempts and invalidates the previous code. Email and IP request windows plus

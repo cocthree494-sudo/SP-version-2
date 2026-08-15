@@ -127,7 +127,7 @@ class Settings(BaseSettings):
     # Deterministic OTPs are permitted only for isolated browser acceptance
     # services. Never configure this outside APP_ENV=test.
     AUTH_OTP_TEST_CODE: SecretStr | None = None
-    AUTH_OTP_TTL_SECONDS: int = Field(default=600, ge=60, le=1800)
+    AUTH_OTP_TTL_SECONDS: int = Field(default=90, ge=60, le=1800)
     AUTH_OTP_RESEND_COOLDOWN_SECONDS: int = Field(default=60, ge=10, le=600)
     AUTH_OTP_MAX_ATTEMPTS: int = Field(default=5, ge=3, le=10)
     AUTH_OTP_EMAIL_RATE_LIMIT: int = Field(default=5, ge=1, le=100)
