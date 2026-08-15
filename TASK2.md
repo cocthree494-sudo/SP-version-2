@@ -90,13 +90,13 @@ This file is the source of truth for Phase 2 planning and implementation order. 
   Depends on: T-071, T-075, T-076, T-077, T-078
   Add a public documentation surface and an authenticated in-app Help / Docs page explaining account/login, workspace roles, provider setup and routing, bot/knowledge/widget configuration, channel connections, Telegram QR/OTP session safety, WhatsApp/Facebook approval requirements, voice consent and costs, account deletion, and troubleshooting. Documentation must be versioned from repository source, searchable with keyboard-accessible results, linkable to specific sections, responsive on desktop/mobile, and avoid exposing secrets or internal implementation details. Include a release checklist, provider/channel availability matrix, security and privacy notes, support contact path, and automated link/content smoke tests; update it whenever a completed task changes user-visible behavior.
 
-- [ ] **T-080 — Require email OTP for every registration and login**
+- [x] **T-080 — Require email OTP for every registration and login**
   Depends on: T-022, T-050, T-070
   Replace direct session issuance with a two-step authentication contract for password and
   social flows. Successful password/OAuth identity verification starts a short-lived email
   challenge but must not create an authenticated browser session. Every registration and
   explicit login requires a new eight-character alphanumeric, single-use OTP sent to the submitted or verified
-  provider email. OTPs expire after ten minutes, are stored only as keyed hashes, have bounded
+  provider email. OTPs expire after 90 seconds, are stored only as keyed hashes, have bounded
   attempts, a resend cooldown, email/IP/challenge rate limits, and are invalidated whenever a
   replacement code is issued. Responses and logs must not expose account existence, plaintext
   codes, SMTP credentials, password hashes, OAuth tokens, or pending authentication payloads.

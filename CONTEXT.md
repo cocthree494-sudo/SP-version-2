@@ -346,6 +346,29 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
   and dashboard countdown now use the same 90-second lifetime; the separate resend cooldown
   remains 60 seconds.
 
+### Session 24 - Codex
+
+- Diagnosed the reported Google registration failure with public Playwright and VPS evidence. The
+  registration page sent `mode=register` correctly, but the backend ignored that stored OAuth mode;
+  an already-linked Gmail identity could therefore silently enter login OTP and show "Welcome back."
+- Fixed social mode preservation in commit `44d4987`. Register-mode callbacks now reject existing
+  Relay identities with a clear sign-in instruction and do not issue a misleading login OTP. New
+  social identities still continue through workspace setup and receive their registration OTP
+  before any user, tenant, membership, provider identity, or session is created.
+- OTP challenge metadata now includes the non-secret `register`/`login` flow, so pending signup UI
+  always renders registration-specific copy. Social setup explicitly says that the fresh code is
+  sent after the workspace name is submitted. Safe same-origin `next` paths now survive auth-mode
+  switching, the provider round trip, and OTP verification in private short-lived cookies.
+- Local auth tests pass (`20 passed`), with Ruff, focused strict mypy, web ESLint, and TypeScript
+  clean. The VPS repeated the same 20 auth tests plus Ruff/mypy, built the production API/web
+  images, and deployed `sp-version-2-44d4987` for API, worker, and web without touching the widget
+  or Cloudflare tunnels.
+- VPS Playwright passed desktop/mobile login, registration, social-registration copy, existing
+  account messaging, Google register mode, safe `next`, and HttpOnly OAuth/pending cookies. A real
+  Gmail plus-alias password registration reached the registration OTP screen and was immediately
+  cancelled; database user/provider-identity counts remained unchanged. Three additional public
+  auth UI rounds passed, production test OTP remains disabled, and recent API logs had no errors.
+
 ## 7. Open items
 
 | ID | Item | Handling now |
@@ -357,25 +380,18 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 
 ## HANDOFF STATE
 
-**Session 23 handoff override:** Work on T-080 only. The complete password/social pre-session OTP
-challenge is implemented locally. Commit and push it, configure Gmail SMTP plus a separate random
-OTP secret through hidden direct-to-VPS input, then pass VPS database/API/security/browser and real
-email-delivery verification before starting T-081. Pushed HEAD remains `7809298` until this work is
-committed.
-
-**Last completed:** T-062 — MVP acceptance review.
-**Current task:** T-080 — mandatory email OTP for every registration and explicit login.
+**Last completed:** T-080 — mandatory email OTP for every registration and explicit login.
+**Current task:** None; T-080 acceptance is complete.
 **Next task:** T-081 — audited platform-admin control plane and dynamic `/admin` dashboard.
 **Blocked on:** No implementation blocker. Production traffic remains blocked on hosting/budget selection and named release-owner/security approval of the prerequisites in `docs/mvp-acceptance.md`.
 
-**Pushed state:** `origin/main` and the VPS are at `7809298` before T-080 planning changes.
-**Uncommitted work:** Full T-080 implementation, migration, tests, BFF/UI, configuration examples,
-and documentation. T-081 contains planning only and remains blocked on T-080 acceptance.
-**Verification:** Focused auth tests pass (`19 passed`); OTP-related Ruff and strict mypy pass;
-web ESLint and TypeScript checks pass; `git diff --check` passes; the changed-file secret scan found
-only documented placeholders, CI test values, configuration declarations, and test fixtures. Fresh
-VPS services and live/readiness/widget routes were healthy before T-080. Builds, PostgreSQL/Redis
-integration, Playwright, and live-domain/email verification remain VPS-only.
+**Pushed state:** `origin/main` contains T-080 code commit `44d4987`; the VPS source is current and
+API/worker/web run image tag `sp-version-2-44d4987` behind `relay.npcautomators.com`.
+**Uncommitted work:** None. T-081 remains planning-only and may now begin when requested.
+**Verification:** Local and VPS auth suites pass (`20 passed` each); Ruff, focused strict mypy,
+web ESLint/TypeScript, production web build, public health, desktop/mobile Playwright, real Gmail
+OTP initiation/cancel, safe redirect continuity, HttpOnly cookie boundaries, and three repeated UI
+rounds pass. Production `AUTH_OTP_TEST_CODE` is disabled and recent API logs contain no errors.
 **Gotchas:** Never request or print the Gmail App Password. SMTP/OTP secrets must not enter Git,
 chat, browser storage, logs, process arguments, or shell history. No user/tenant/session may be
 created before registration OTP verification, and no login/social session may be issued before its
