@@ -6,18 +6,18 @@ import { useEffect, useRef, useState } from "react";
 
 import { Brand } from "@/components/brand";
 import {
+  ArrowIcon,
   BookIcon,
   BotIcon,
   GridIcon,
   MessageIcon,
   SparkIcon,
+  TrashIcon,
   UserIcon,
 } from "@/components/icons";
 import { useAuth } from "@/lib/auth-context";
 
-const primaryNav = [
-  { href: "/dashboard", label: "Overview", icon: GridIcon },
-];
+const primaryNav = [{ href: "/dashboard", label: "Overview", icon: GridIcon }];
 
 const buildNav = [
   { href: "/dashboard/bots", label: "Bots", icon: BotIcon, available: true },
@@ -39,6 +39,7 @@ function routeLabel(pathname: string): string {
   if (pathname.startsWith("/dashboard/channels")) return "Channels";
   if (pathname.startsWith("/dashboard/voice")) return "Voice";
   if (pathname.startsWith("/dashboard/docs")) return "Docs";
+  if (pathname.startsWith("/dashboard/account")) return "Account settings";
   return "Overview";
 }
 
@@ -71,10 +72,12 @@ export function ProtectedShell({ children }: Readonly<{ children: React.ReactNod
   const pathname = usePathname();
   const router = useRouter();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const accountMenuRef = useRef<HTMLDivElement>(null);
   const sidebarAccountButtonRef = useRef<HTMLButtonElement>(null);
+  const firstAccountActionRef = useRef<HTMLAnchorElement>(null);
 
   useEffect(() => {
     if (status === "anonymous") {
@@ -83,20 +86,28 @@ export function ProtectedShell({ children }: Readonly<{ children: React.ReactNod
   }, [pathname, router, status]);
 
   useEffect(() => {
+    setAccountOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
     if (!accountOpen) return;
+
+    const focusFrame = window.requestAnimationFrame(() => firstAccountActionRef.current?.focus());
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setAccountOpen(false);
+      if (event.key !== "Escape") return;
+      setAccountOpen(false);
+      window.requestAnimationFrame(() => sidebarAccountButtonRef.current?.focus());
     };
     const closeOnOutsideClick = (event: PointerEvent) => {
       const target = event.target;
-      if (!(target instanceof Node)) return;
-      if (accountMenuRef.current?.contains(target)) return;
-      if (sidebarAccountButtonRef.current?.contains(target)) return;
+      if (!(target instanceof Node) || accountMenuRef.current?.contains(target)) return;
       setAccountOpen(false);
     };
+
     window.addEventListener("keydown", closeOnEscape);
     document.addEventListener("pointerdown", closeOnOutsideClick);
     return () => {
+      window.cancelAnimationFrame(focusFrame);
       window.removeEventListener("keydown", closeOnEscape);
       document.removeEventListener("pointerdown", closeOnOutsideClick);
     };
@@ -106,6 +117,17 @@ export function ProtectedShell({ children }: Readonly<{ children: React.ReactNod
   if (status === "anonymous" || user === null) return <LoadingShell />;
 
   const displayName = user.display_name?.trim() || user.email.split("@")[0] || "Builder";
+  const organizationLabel = `${user.tenant.name}, ${user.role} workspace`;
+
+  function closeMobileNavigation() {
+    setMobileNavOpen(false);
+    setAccountOpen(false);
+  }
+
+  function toggleSidebar() {
+    setAccountOpen(false);
+    setSidebarCollapsed((current) => !current);
+  }
 
   async function signOut() {
     setLoggingOut(true);
@@ -115,25 +137,31 @@ export function ProtectedShell({ children }: Readonly<{ children: React.ReactNod
 
   return (
     <div className="dashboard-app">
-      <aside className={`sidebar ${mobileNavOpen ? "sidebar-open" : ""}`}>
+      <aside
+        className={`sidebar ${sidebarCollapsed ? "sidebar-collapsed" : ""} ${
+          mobileNavOpen ? "sidebar-open" : ""
+        }`}
+      >
         <div className="sidebar-top">
           <Brand href="/dashboard" />
+          <button
+            className="sidebar-collapse"
+            type="button"
+            aria-label={sidebarCollapsed ? "Expand navigation" : "Collapse navigation"}
+            aria-expanded={!sidebarCollapsed}
+            title={sidebarCollapsed ? "Expand navigation" : "Collapse navigation"}
+            onClick={toggleSidebar}
+          >
+            <ArrowIcon width={15} height={15} />
+          </button>
           <button
             className="mobile-close"
             type="button"
             aria-label="Close navigation"
-            onClick={() => setMobileNavOpen(false)}
+            onClick={closeMobileNavigation}
           >
             ×
           </button>
-        </div>
-        <div className="workspace-switcher" aria-label="Current organization">
-          <span className="workspace-avatar">{initials(user.tenant.name)}</span>
-          <span className="workspace-copy">
-            <strong>{user.tenant.name}</strong>
-            <small>{user.role} workspace</small>
-          </span>
-          <span className="workspace-chevron" aria-hidden="true">⌄</span>
         </div>
         <nav className="sidebar-nav" aria-label="Workspace navigation">
           <span className="nav-label">Workspace</span>
@@ -146,7 +174,8 @@ export function ProtectedShell({ children }: Readonly<{ children: React.ReactNod
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 key={item.href}
-                onClick={() => setMobileNavOpen(false)}
+                onClick={closeMobileNavigation}
+                title={sidebarCollapsed ? item.label : undefined}
               >
                 <Icon width={18} height={18} />
                 <span>{item.label}</span>
@@ -164,7 +193,8 @@ export function ProtectedShell({ children }: Readonly<{ children: React.ReactNod
                   href={item.href}
                   aria-current={active ? "page" : undefined}
                   key={item.href}
-                  onClick={() => setMobileNavOpen(false)}
+                  onClick={closeMobileNavigation}
+                  title={sidebarCollapsed ? item.label : undefined}
                 >
                   <Icon width={18} height={18} />
                   <span>{item.label}</span>
@@ -172,7 +202,12 @@ export function ProtectedShell({ children }: Readonly<{ children: React.ReactNod
               );
             }
             return (
-              <span className="nav-item nav-item-disabled" aria-disabled="true" key={item.href}>
+              <span
+                className="nav-item nav-item-disabled"
+                aria-disabled="true"
+                key={item.href}
+                title={sidebarCollapsed ? `${item.label} (coming soon)` : undefined}
+              >
                 <Icon width={18} height={18} />
                 <span>{item.label}</span>
                 <small>Soon</small>
@@ -181,32 +216,71 @@ export function ProtectedShell({ children }: Readonly<{ children: React.ReactNod
           })}
         </nav>
         <div className="sidebar-bottom">
-          <div className="sidebar-tip">
-            <span className="tip-icon"><SparkIcon width={16} height={16} /></span>
-            <div>
-              <strong>Small steps, sharp answers.</strong>
-              <span>Shape each answer from trusted knowledge.</span>
-            </div>
-          </div>
-          <div className="sidebar-user">
-            <span className="user-avatar">{initials(displayName)}</span>
-            <span className="sidebar-user-copy">
-              <strong>{displayName}</strong>
-              <small>{user.email}</small>
-            </span>
+          <div className="account-menu-wrap sidebar-account-wrap" ref={accountMenuRef}>
             <button
               ref={sidebarAccountButtonRef}
-              className="icon-button icon-button-muted"
+              className="sidebar-user"
               type="button"
               onClick={() => setAccountOpen((current) => !current)}
               aria-label={accountOpen ? "Close account menu" : "Open account menu"}
+              aria-controls="sidebar-account-menu"
               aria-expanded={accountOpen}
               aria-haspopup="menu"
               disabled={loggingOut}
-              title="Account"
+              title={sidebarCollapsed ? "Account" : undefined}
             >
-              <UserIcon width={17} height={17} />
+              <span className="user-avatar">{initials(displayName)}</span>
+              <span className="sidebar-user-copy">
+                <strong>{displayName}</strong>
+                <small>{user.email}</small>
+              </span>
+              <ArrowIcon className="sidebar-account-arrow" width={15} height={15} />
             </button>
+            {accountOpen ? (
+              <div
+                className="account-menu sidebar-account-menu"
+                id="sidebar-account-menu"
+                role="menu"
+                aria-label="Account actions"
+              >
+                <div className="account-menu-summary">
+                  <strong>{displayName}</strong>
+                  <span>{user.email}</span>
+                  <span>{user.tenant.name} · {user.role}</span>
+                </div>
+                <div className="account-menu-actions">
+                  <Link
+                    ref={firstAccountActionRef}
+                    className="account-menu-item"
+                    href="/dashboard/account"
+                    role="menuitem"
+                    onClick={closeMobileNavigation}
+                  >
+                    <UserIcon width={16} height={16} />
+                    <span>Account settings</span>
+                  </Link>
+                  <Link
+                    className="account-menu-item account-menu-item-danger"
+                    href="/dashboard/account#delete-account"
+                    role="menuitem"
+                    onClick={closeMobileNavigation}
+                  >
+                    <TrashIcon width={16} height={16} />
+                    <span>Delete account</span>
+                  </Link>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="account-menu-item account-menu-signout"
+                    onClick={() => void signOut()}
+                    disabled={loggingOut}
+                  >
+                    <ArrowIcon width={16} height={16} />
+                    <span>{loggingOut ? "Signing out…" : "Sign out"}</span>
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       </aside>
@@ -215,10 +289,10 @@ export function ProtectedShell({ children }: Readonly<{ children: React.ReactNod
           className="sidebar-backdrop"
           type="button"
           aria-label="Close navigation"
-          onClick={() => setMobileNavOpen(false)}
+          onClick={closeMobileNavigation}
         />
       ) : null}
-      <section className="dashboard-main">
+      <section className={`dashboard-main ${sidebarCollapsed ? "dashboard-main-collapsed" : ""}`}>
         <header className="dashboard-header">
           <div className="dashboard-header-left">
             <button
@@ -239,12 +313,22 @@ export function ProtectedShell({ children }: Readonly<{ children: React.ReactNod
             </div>
           </div>
           <div className="dashboard-header-actions">
-            <span className="status-pill"><span className="status-dot" />Systems operational</span>
-            <div className="account-menu-wrap" ref={accountMenuRef}><button className="header-user" type="button" onClick={() => setAccountOpen((current) => !current)} aria-expanded={accountOpen} aria-haspopup="menu">
-              <span className="user-avatar user-avatar-small">{initials(displayName)}</span>
-              <span>{displayName}</span>
-              <span className="header-user-chevron" aria-hidden="true">⌄</span>
-            </button>{accountOpen ? <div className="account-menu" role="menu"><div className="account-menu-summary"><strong>{displayName}</strong><span>{user.email}</span><span>{user.tenant.name} · {user.role}</span></div><button type="button" role="menuitem" className="account-menu-signout" onClick={() => void signOut()} disabled={loggingOut}>{loggingOut ? "Signing out…" : "Sign out"}</button></div> : null}</div>
+            <span className="status-pill">
+              <span className="status-dot" />Systems operational
+            </span>
+            <div
+              className="header-organization"
+              aria-label={`Current organization: ${organizationLabel}`}
+              title={organizationLabel}
+            >
+              <span className="workspace-avatar workspace-avatar-small">
+                {initials(user.tenant.name)}
+              </span>
+              <span className="header-organization-copy">
+                <strong>{user.tenant.name}</strong>
+                <small>{user.role} workspace</small>
+              </span>
+            </div>
           </div>
         </header>
         <main className="dashboard-content">{children}</main>
