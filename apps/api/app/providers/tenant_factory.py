@@ -27,6 +27,7 @@ from app.providers.router import ModelTarget, ModelTier
 from app.providers.types import ChatMessage, GenerationRequest, MessageRole
 
 _APPROVED_BASE_URLS = {item.provider: item.base_url for item in adapter_specs()}
+_VERIFICATION_MAX_OUTPUT_TOKENS = 128
 
 
 class TenantProviderUnavailableError(RuntimeError):
@@ -78,7 +79,9 @@ class LiveCredentialVerifier:
                             content="Reply with OK to verify this provider credential.",
                         )
                     ],
-                    max_output_tokens=2,
+                    # Gemini 2.5 may spend a small reasoning budget before emitting
+                    # content; two tokens can produce a valid 200 with no text.
+                    max_output_tokens=_VERIFICATION_MAX_OUTPUT_TOKENS,
                     temperature=0,
                 )
             )
@@ -96,7 +99,7 @@ class LiveCredentialVerifier:
                             content="Reply with OK to verify this provider credential.",
                         )
                     ],
-                    max_output_tokens=2,
+                    max_output_tokens=_VERIFICATION_MAX_OUTPUT_TOKENS,
                     temperature=0,
                 )
             )
