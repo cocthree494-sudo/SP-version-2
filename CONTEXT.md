@@ -407,6 +407,20 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
   and a clean browser console. Desktop Voice, expanded consents, Channels, Providers, and mobile
   Voice screenshots were visually inspected.
 
+### Session 27 - Codex
+
+- Added Gemini as an enabled API-key generation provider using Google's approved
+  OpenAI-compatible endpoint and the maintained `gemini-2.5-flash` and
+  `gemini-2.5-pro` models. Focused provider tests, Ruff, and mypy passed; commit
+  `3ef3bc7` is pushed to `origin/main` but has not yet been deployed to the VPS.
+- The user deliberately narrowed T-082 to the smallest release-critical backend proof:
+  two-account bot persistence and ownership, Manual Q&A ingestion/retrieval, real
+  Gemini tenant-only generation, provider/model usage evidence, and fail-closed
+  cross-tenant bot, knowledge, credential, conversation, job, cache, and usage isolation.
+- Website crawling, broad provider acceptance, channels, and platform administration are
+  outside the narrowed T-082. Local work remains lightweight; deployment, integration,
+  and browser acceptance run on the VPS.
+
 ## 7. Open items
 
 | ID | Item | Handling now |
@@ -419,14 +433,13 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 ## HANDOFF STATE
 
 **Last completed:** T-075 dashboard-shell and shared form-control refinements after T-080 acceptance.
-**Current task:** None; the annotated dashboard and checkbox/empty-state fixes are deployed and browser-verified.
-**Next task:** T-081 — audited platform-admin control plane and dynamic `/admin` dashboard.
+**Current task:** T-082 — focused two-account bot, Manual Q&A, and Gemini acceptance.
+**Next task:** Complete T-082 on the VPS; T-081 and T-083 remain queued outside this narrowed scope.
 **Blocked on:** No implementation blocker. Production traffic remains blocked on hosting/budget selection and named release-owner/security approval of the prerequisites in `docs/mvp-acceptance.md`.
 
-**Pushed state:** `origin/main` contains the T-075 dashboard and shared-control refinements; the
-VPS source is current and services run image tag `sp-version-2-529ec17` behind
-`relay.npcautomators.com`.
-**Uncommitted work:** None. T-081 remains planning-only and may now begin when requested.
+**Pushed state:** `origin/main` is at `3ef3bc7` with the Gemini adapter. The VPS still runs
+image tag `sp-version-2-529ec17` behind `relay.npcautomators.com` and must be updated.
+**Uncommitted work:** The T-082 scope and handoff documentation are being updated before VPS execution.
 **Verification:** Existing local/VPS auth acceptance remains valid. For the dashboard refinement,
 web ESLint/TypeScript, production builds, Compose health, and VPS desktop/mobile Playwright pass;
 sidebar collapse/expand, static organization, account actions, outside click, Escape focus return,
