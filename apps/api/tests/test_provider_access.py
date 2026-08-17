@@ -75,6 +75,7 @@ async def test_provider_catalog_is_complete_and_only_ready_adapters_are_selectab
         "openai",
         "openrouter",
         "deepseek",
+        "gemini",
         "xai",
     }
     assert next(entry for entry in payload if entry["id"] == "custom")["enabled"] is True

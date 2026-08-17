@@ -140,6 +140,35 @@ This file is the source of truth for Phase 2 planning and implementation order. 
   aggregate accuracy, cross-tenant, API, and desktop/mobile browser tests. Deploy and verify it on
   the VPS only after T-080 is accepted.
 
+- [ ] **T-082 — Verify tenant-isolated bot lifecycle and enable Gemini API-key generation**
+  Depends on: T-023, T-034, T-043, T-046, T-055, T-060, T-072, T-074
+  Exercise the real dashboard bot flow on the VPS and prove that bot records,
+  knowledge sources, conversations, provider credentials, policies, caches, jobs,
+  and usage remain scoped to the owning tenant. Add any missing cross-tenant tests
+  and correct misleading UI or API behavior found during the acceptance run.
+
+  Register Google/Gemini as an enabled API-key provider only after its approved
+  OpenAI-compatible endpoint, maintained model catalog, normalized streaming/error
+  handling, masked write-only credential lifecycle, routing policy, and redaction
+  tests pass. The Gemini key must enter only the VPS secret boundary or the
+  authenticated write-only provider form; it must never appear in chat, Git,
+  browser storage, logs, prompts, queues, or error bodies.
+
+  Visually create a bot, refresh and edit it, attach a website source, wait for
+  background ingestion, then ask a grounded playground question through the
+  verified Gemini target. Record the crawl, extraction, chunking, embedding,
+  retrieval, citation, and provider-routing evidence. Run lightweight checks
+  locally and the full API/worker/build/Playwright acceptance on the VPS.
+
+- [ ] **T-083 — Implement the first credential-backed external channel adapter**
+  Depends on: T-076, T-082
+  Choose one user-prioritized external channel with its required provider account
+  and implement the actual authorization, signed webhook, idempotent inbound
+  event, channel-neutral conversation mapping, outbound reply, retry/dead-letter,
+  pause/revoke, usage, and tenant-isolation contract. A channel remains visibly
+  pending/unavailable until provider authorization and end-to-end tests prove it;
+  installation metadata alone must never be presented as connected.
+
 ## Deferred / out of scope
 
 - Phase 3: billing/quotas and human handoff/inbox. Platform administration was explicitly

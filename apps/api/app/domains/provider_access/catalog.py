@@ -33,6 +33,7 @@ _OPENAI_COMPATIBLE_READY = {
     "alibaba-coding-plan",
     "deepseek",
     "huggingface",
+    "gemini",
     "nvidia",
     "ollama-cloud",
     "stepfun",

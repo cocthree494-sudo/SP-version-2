@@ -34,7 +34,7 @@ terminal error without provider response bodies or secrets.
 
 ## Tenant-owned generation keys (T-046)
 
-Organizations may optionally bring an OpenAI generation key. Owner and admin
+Organizations may optionally bring an approved generation-provider key. Owner and admin
 roles can create, list, verify, rotate, and revoke credentials through
 `/v1/providers/credentials`; member roles cannot access this surface. Secret
 inputs are write-only. Responses contain only the label, provider, configured
@@ -56,8 +56,10 @@ Database backups contain ciphertext and wrapped data keys, never plaintext keys.
 
 Policy and credential state are loaded for every generation request, so rotation
 and revocation take effect on the next request. Revocation removes the credential
-from the active policy order. Tenant keys are accepted only for the approved
-OpenAI API endpoint; arbitrary base URLs and embedding BYOK remain out of scope.
+from the active policy order. Tenant keys are accepted only for approved
+provider endpoints; arbitrary base URLs and embedding BYOK remain out of scope.
+Google/Gemini uses Google's OpenAI-compatible endpoint and accepts a Gemini API
+key with a maintained Gemini model selected in the dashboard.
 
 Operational logs, validation errors, normalized provider failures, API responses,
 jobs, prompts, and shared circuit/cache keys must never contain raw credentials.

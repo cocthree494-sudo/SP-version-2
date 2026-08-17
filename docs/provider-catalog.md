@@ -10,7 +10,7 @@ coverage shown in the official [Hermes Agent provider documentation](https://her
 - Current runtime: OpenAI and the vetted OpenAI-compatible API-key adapters are
   enabled (OpenRouter, Fireworks, NovitaAI, Vercel AI Gateway, z.ai/GLM,
   Kimi/Moonshot, Arcee, GMI Cloud, MiniMax, xAI, Alibaba DashScope, DeepSeek,
-  Hugging Face, NVIDIA Build, Ollama Cloud, and StepFun). They share the
+  Hugging Face, Google/Gemini, NVIDIA Build, Ollama Cloud, and StepFun). They share the
   hardened transport, verification, routing, and redaction contract.
 - Native API, OAuth, cloud-role, local, and custom entries remain visible as
   “coming soon” until their dedicated adapter and security tests are delivered

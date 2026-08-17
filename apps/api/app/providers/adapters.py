@@ -33,6 +33,8 @@ _BASE_URLS: dict[GenerationProvider, str] = {
     GenerationProvider.ARCEE: "https://api.arcee.ai/api/v1",
     GenerationProvider.DEEPSEEK: "https://api.deepseek.com/v1",
     GenerationProvider.FIREWORKS: "https://api.fireworks.ai/inference/v1",
+    # Google's Gemini API exposes an OpenAI-compatible API-key endpoint.
+    GenerationProvider.GEMINI: "https://generativelanguage.googleapis.com/v1beta/openai",
     GenerationProvider.GMI: "https://api.gmi-serving.com/v1",
     GenerationProvider.HUGGINGFACE: "https://router.huggingface.co/v1",
     GenerationProvider.KIMI: "https://api.moonshot.ai/v1",
