@@ -33,7 +33,18 @@ def test_alembic_has_conversation_revision_after_knowledge() -> None:
     config = Config(str(api_root / "alembic.ini"))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_current_head() == "0019_user_email_verification"
+    assert scripts.get_current_head() == "0020_platform_admin"
+    platform_admin_revision = scripts.get_revision("0020_platform_admin")
+    assert platform_admin_revision is not None
+    assert platform_admin_revision.down_revision == "0019_user_email_verification"
+    platform_admin_migration = api_root / "alembic" / "versions" / "0020_platform_admin.py"
+    platform_admin_text = platform_admin_migration.read_text(encoding="utf-8")
+    assert '"platform_admins"' in platform_admin_text
+    assert '"platform_admin_audit_logs"' in platform_admin_text
+    assert "support_agent_reporting" in platform_admin_text
+    assert "platform_admin_audit_immutable" in platform_admin_text
+    assert "masked_external_identity" in platform_admin_text
+    assert "masked_phone_number" in platform_admin_text
     revision = scripts.get_revision("0002_tenancy")
     assert revision is not None
     assert revision.down_revision == "0001_enable_pgvector"

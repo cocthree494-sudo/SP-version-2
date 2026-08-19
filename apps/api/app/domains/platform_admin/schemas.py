@@ -154,7 +154,7 @@ class AdminAuditListResponse(BaseModel):
 
 
 class AdminActionRequest(BaseModel):
-    status: Literal["active", "suspended", "revoked"]
+    status: Literal["active", "suspended", "disabled"]
     reason: str = Field(min_length=3, max_length=1000)
     confirmation: Literal["CONFIRM"]
     idempotency_key: str = Field(min_length=8, max_length=128)
@@ -181,4 +181,3 @@ class AdminDirectoryRow(BaseModel):
 
 
 __all__ = [name for name in globals() if name.startswith("Admin")]
-

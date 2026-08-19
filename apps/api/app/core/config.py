@@ -203,7 +203,9 @@ class Settings(BaseSettings):
         if self.AUTH_EMAIL_PROVIDER == "smtp" and not self.SMTP_STARTTLS:
             raise ValueError("SMTP_STARTTLS must be enabled for authentication email")
         if not self.is_local and not self.ADMIN_REPORTING_DATABASE_URL:
-            raise ValueError("ADMIN_REPORTING_DATABASE_URL is required outside development and test")
+            raise ValueError(
+                "ADMIN_REPORTING_DATABASE_URL is required outside development and test"
+            )
         if self.INGESTION_RETRY_MAX_SECONDS < self.INGESTION_RETRY_BASE_SECONDS:
             raise ValueError(
                 "INGESTION_RETRY_MAX_SECONDS must be greater than or equal to "

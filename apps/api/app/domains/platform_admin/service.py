@@ -1,5 +1,8 @@
 """Authorization, redacted reporting, and audited platform mutations."""
 
+# The reporting helper validates view and column identifiers before interpolation.
+# ruff: noqa: E501, S608
+
 from __future__ import annotations
 
 import math
@@ -9,6 +12,7 @@ from uuid import UUID
 
 from fastapi import HTTPException, Request, status
 from sqlalchemy import select, text, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -51,7 +55,7 @@ async def require_platform_admin(
     if user is None or user.status is not UserStatus.ACTIVE:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Platform admin access denied")
     admin = await session.scalar(select(PlatformAdmin).where(PlatformAdmin.user_id == user.id))
-    if admin is None and user.email in settings.platform_admin_emails:
+    if admin is None and user.email.casefold() in settings.platform_admin_emails:
         admin = PlatformAdmin(user_id=user.id, status=PlatformAdminStatus.ACTIVE, granted_by_user_id=user.id)
         session.add(admin)
         await session.flush()
@@ -96,6 +100,71 @@ async def audit(
     )
 
 
+async def admin_action_is_replay(
+    session: AsyncSession,
+    *,
+    context: PlatformAdminContext,
+    action: str,
+    target_type: str,
+    target_id: UUID,
+    idempotency_key: str,
+    reason: str,
+    expected_change: dict[str, Any] | None = None,
+) -> bool:
+    """Accept exact retries and reject reuse of a key for a different action body."""
+
+    record = await session.scalar(
+        select(PlatformAdminAuditLog).where(
+            PlatformAdminAuditLog.actor_user_id == context.user.id,
+            PlatformAdminAuditLog.action == action,
+            PlatformAdminAuditLog.target_type == target_type,
+            PlatformAdminAuditLog.target_id == target_id,
+            PlatformAdminAuditLog.change_summary["idempotency_key"].as_string()
+            == idempotency_key,
+        )
+    )
+    if record is None:
+        return False
+    expected = expected_change or {}
+    if record.reason != reason or any(record.change_summary.get(key) != value for key, value in expected.items()):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="The idempotency key was already used for a different admin action",
+        )
+    return True
+
+
+async def commit_admin_action(
+    session: AsyncSession,
+    *,
+    context: PlatformAdminContext,
+    action: str,
+    target_type: str,
+    target_id: UUID,
+    idempotency_key: str,
+    reason: str,
+    expected_change: dict[str, Any] | None = None,
+) -> None:
+    """Treat a concurrent duplicate action as the same successful request."""
+
+    try:
+        await session.commit()
+    except IntegrityError:
+        await session.rollback()
+        if await admin_action_is_replay(
+            session,
+            context=context,
+            action=action,
+            target_type=target_type,
+            target_id=target_id,
+            idempotency_key=idempotency_key,
+            reason=reason,
+            expected_change=expected_change,
+        ):
+            return
+        raise
+
+
 async def report_rows(
     session: AsyncSession,
     *,
@@ -123,6 +192,11 @@ async def report_rows(
         raise ValueError("Unknown reporting view")
     if any(not value.replace("_", "").isalnum() for value in columns):
         raise ValueError("Invalid reporting column")
+    order_parts = order_by.split()
+    if len(order_parts) > 2 or not order_parts or order_parts[0] not in columns:
+        raise ValueError("Invalid reporting order")
+    if len(order_parts) == 2 and order_parts[1].upper() not in {"ASC", "DESC"}:
+        raise ValueError("Invalid reporting order")
     page, page_size = _safe_page(page, page_size)
     values = dict(params or {})
     count_query = f"SELECT COUNT(*) FROM {view} WHERE {where}"  # noqa: S608
@@ -156,16 +230,25 @@ async def revoke_user_sessions(session: AsyncSession, reporting: AsyncSession, u
             {"tenant_id": str(tenant_id)},
         ) if session.get_bind().dialect.name == "postgresql" else None
         result = await session.execute(
-            update(RefreshToken).where(RefreshToken.tenant_id == tenant_id, RefreshToken.user_id == user_id, RefreshToken.revoked_at.is_(None)).values(revoked_at=now)
+            update(RefreshToken)
+            .where(
+                RefreshToken.tenant_id == tenant_id,
+                RefreshToken.user_id == user_id,
+                RefreshToken.revoked_at.is_(None),
+            )
+            .values(revoked_at=now)
+            .returning(RefreshToken.id)
         )
-        count += result.rowcount or 0
+        count += len(result.scalars().all())
     return count
 
 
 __all__ = [
     "PlatformAdminContext",
     "admin_page",
+    "admin_action_is_replay",
     "audit",
+    "commit_admin_action",
     "report_rows",
     "report_scalar",
     "require_platform_admin",

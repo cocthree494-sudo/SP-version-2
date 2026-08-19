@@ -1,5 +1,8 @@
 """Add the audited platform-admin control plane and redacted reporting views."""
 
+# View/role identifiers below are module constants, never request input.
+# ruff: noqa: E501, S608
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -57,6 +60,7 @@ def _create_reporting_role() -> None:
         )
     )
     op.execute(sa.text(f"GRANT USAGE ON SCHEMA public TO {_REPORTING_ROLE}"))
+    op.execute(sa.text(f"REVOKE CREATE ON SCHEMA public FROM {_REPORTING_ROLE}"))
 
 
 def _create_view(name: str, sql: str) -> None:
@@ -189,7 +193,13 @@ def upgrade() -> None:
         """
         SELECT ci.id AS installation_id, ci.tenant_id, t.name AS tenant_name,
                ci.channel_type::text AS channel_type, ci.status::text AS status,
-               ci.external_identity, ci.expires_at, ci.created_at, ci.updated_at
+               CASE
+                   WHEN ci.external_identity IS NULL THEN NULL
+                   WHEN length(ci.external_identity) > 4
+                       THEN left(ci.external_identity, 2) || '...' || right(ci.external_identity, 2)
+                   ELSE '***'
+               END AS masked_external_identity,
+               ci.expires_at, ci.created_at, ci.updated_at
         FROM channel_installations ci JOIN tenants t ON t.id = ci.tenant_id
         """,
     )
@@ -197,7 +207,13 @@ def upgrade() -> None:
         "platform_admin_voice_health",
         """
         SELECT vai.id AS installation_id, vai.tenant_id, t.name AS tenant_name,
-               vai.provider, vai.phone_number, vai.status::text AS status,
+               vai.provider,
+               CASE
+                   WHEN vai.phone_number IS NULL THEN NULL
+                   WHEN length(vai.phone_number) > 4 THEN '***' || right(vai.phone_number, 4)
+                   ELSE '***'
+               END AS masked_phone_number,
+               vai.status::text AS status,
                vai.outbound_enabled, vai.recording_enabled, vai.monthly_cost_limit_usd,
                vai.created_at, vai.updated_at
         FROM voice_agent_installations vai JOIN tenants t ON t.id = vai.tenant_id
@@ -239,6 +255,7 @@ def downgrade() -> None:
     for view in reversed(_VIEWS):
         op.execute(sa.text(f"DROP VIEW IF EXISTS {view}"))
     op.execute(sa.text(f"REVOKE USAGE ON SCHEMA public FROM {_REPORTING_ROLE}"))
+    op.execute(sa.text(f"REVOKE CREATE ON SCHEMA public FROM {_REPORTING_ROLE}"))
     op.execute(sa.text(f"REVOKE SELECT ON ALL TABLES IN SCHEMA public FROM {_REPORTING_ROLE}"))
     op.execute(sa.text("DROP TRIGGER IF EXISTS platform_admin_audit_immutable ON platform_admin_audit_logs"))
     op.execute(sa.text("DROP FUNCTION IF EXISTS prevent_platform_admin_audit_mutation()"))

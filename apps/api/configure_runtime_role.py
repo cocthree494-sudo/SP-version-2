@@ -28,7 +28,8 @@ async def configure_runtime_role() -> None:
         )
     if reporting_url.username != EXPECTED_REPORTING_ROLE or not reporting_url.password:
         raise RuntimeError(
-            f"ADMIN_REPORTING_DATABASE_URL must authenticate as {EXPECTED_REPORTING_ROLE} with a password"
+            "ADMIN_REPORTING_DATABASE_URL must authenticate as "
+            f"{EXPECTED_REPORTING_ROLE} with a password"
         )
 
     engine = create_async_engine(owner_database_url)

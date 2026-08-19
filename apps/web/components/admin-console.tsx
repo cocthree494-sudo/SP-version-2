@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { ArrowIcon, GridIcon, MessageIcon, UserIcon } from "@/components/icons";
 import { DashboardApiError, dashboardRequest } from "@/lib/dashboard-api";
@@ -121,10 +121,10 @@ function ActionDialog({ title, description, onClose, onSubmit, loading }: { titl
   </div>;
 }
 
-function Overview({ summary, onRefresh }: { summary: Summary; onRefresh: () => void }) {
+function Overview({ summary, rangeDays, onRangeChange, onRefresh }: { summary: Summary; rangeDays: string; onRangeChange: (value: string) => void; onRefresh: () => void }) {
   const maxRequests = Math.max(1, ...summary.usage_trend.map((item) => item.requests));
   return <div className="admin-stack">
-    <div className="admin-section-heading"><div><span className="admin-kicker">Relay control plane</span><h1>Platform pulse</h1><p>Live operational evidence across every Relay workspace.</p></div><button className="admin-button admin-button-quiet" type="button" onClick={onRefresh}><ArrowIcon width={15} height={15} />Refresh</button></div>
+    <div className="admin-section-heading"><div><span className="admin-kicker">Relay control plane</span><h1>Platform pulse</h1><p>Live operational evidence across every Relay workspace.</p></div><div className="admin-heading-actions"><select className="admin-range-select" aria-label="Date range" value={rangeDays} onChange={(event) => onRangeChange(event.target.value)}><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option><option value="all">All time</option></select><button className="admin-button admin-button-quiet" type="button" onClick={onRefresh}><ArrowIcon width={15} height={15} />Refresh</button></div></div>
     <section className="admin-metric-grid">
       <Metric label="Active tenants" value={formatNumber(summary.tenants.active ?? 0)} detail={`${formatNumber(summary.tenants.total ?? 0)} total workspaces`} tone="green" />
       <Metric label="Active users" value={formatNumber(summary.users.active ?? 0)} detail={`${formatNumber(summary.users.total ?? 0)} identities`} />
@@ -144,6 +144,8 @@ export function AdminConsole({ section }: { section: Section }) {
   const [rows, setRows] = useState<Page<TenantRow | UserRow | UsageRow | IngestionRow | AuditRow> | null>(null);
   const [health, setHealth] = useState<Page<HealthRow> | null>(null);
   const [query, setQuery] = useState("");
+  const [appliedQuery, setAppliedQuery] = useState("");
+  const [rangeDays, setRangeDays] = useState("30");
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -151,22 +153,28 @@ export function AdminConsole({ section }: { section: Section }) {
   const [action, setAction] = useState<{ kind: "tenant" | "user" | "sessions"; id: string; desired?: string } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      if (section === "overview") { setSummary(await dashboardRequest<Summary>("/admin/summary")); return; }
+      if (section === "overview") {
+        const summaryPath = rangeDays === "all"
+          ? "/admin/summary"
+          : `/admin/summary?start=${encodeURIComponent(new Date(Date.now() - Number(rangeDays) * 86_400_000).toISOString())}`;
+        setSummary(await dashboardRequest<Summary>(summaryPath));
+        return;
+      }
       if (section === "operations") { setHealth(await dashboardRequest<Page<HealthRow>>(`/admin/health?page=${page}&page_size=25`)); return; }
       const endpoint = section === "audit" ? "audit" : section === "usage" ? "usage" : section;
       const params = new URLSearchParams({ page: String(page), page_size: "25" });
-      if (query.trim()) params.set("q", query.trim());
+      if (appliedQuery) params.set("q", appliedQuery);
       if (statusFilter && (section === "tenants" || section === "users")) params.set("status", statusFilter);
       setRows(await dashboardRequest<Page<TenantRow | UserRow | UsageRow | IngestionRow | AuditRow>>(`/admin/${endpoint}?${params.toString()}`));
     } catch (caught) {
       setError(caught instanceof DashboardApiError && caught.status === 403 ? "This account is not approved for platform administration." : caught instanceof Error ? caught.message : "The admin service is unavailable.");
     } finally { setLoading(false); }
-  };
+  }, [appliedQuery, page, rangeDays, section, statusFilter]);
 
-  useEffect(() => { void load(); }, [section, page, statusFilter]);
+  useEffect(() => { void load(); }, [load]);
   useEffect(() => { setPage(1); }, [section]);
 
   const sectionMeta = navigation.find((item) => item.key === section) ?? navigation[0];
@@ -183,7 +191,7 @@ export function AdminConsole({ section }: { section: Section }) {
 
   return <div className="admin-app">
     <aside className="admin-sidebar"><div className="admin-brand"><span className="admin-brand-mark">R</span><div><strong>Relay</strong><small>Control plane</small></div></div><div className="admin-sidebar-label">Operate</div><nav aria-label="Platform administration">{navigation.map((item) => <Link key={item.key} href={`/admin${item.key === "overview" ? "" : `/${item.key}`}`} className={section === item.key ? "admin-nav-link admin-nav-link-active" : "admin-nav-link"}><span className="admin-nav-icon">{item.key === "overview" ? <GridIcon width={16} height={16} /> : item.key === "users" ? <UserIcon width={16} height={16} /> : item.key === "audit" ? <UserIcon width={16} height={16} /> : <MessageIcon width={16} height={16} />}</span><span><strong>{item.label}</strong><small>{item.note}</small></span></Link>)}</nav><div className="admin-sidebar-footer"><span className="admin-live-dot" />Private operator access<Link href="/dashboard">Back to workspace <ArrowIcon width={13} height={13} /></Link></div></aside>
-    <main className="admin-main"><header className="admin-topbar"><div><span className="admin-topbar-kicker">Relay / Platform administration</span><strong>{sectionMeta.label}</strong></div><div className="admin-topbar-right"><span className="admin-secure-pill"><i />OTP session verified</span><span className="admin-avatar">A</span></div></header><div className="admin-content">{loading && section !== "overview" ? <LoadingRows /> : error ? <ErrorState message={error} /> : section === "overview" && summary ? <Overview summary={summary} onRefresh={() => void load()} /> : section === "operations" && health ? <Operations health={health} /> : rows ? <DataSection section={section} data={rows} query={query} setQuery={setQuery} statusFilter={statusFilter} setStatusFilter={setStatusFilter} onSearch={() => { setPage(1); void load(); }} onAction={setAction} /> : null}<Pagination page={section === "operations" ? health?.page : rows?.page} onPage={setPage} /></div></main>{action ? <ActionDialog title={action.kind === "sessions" ? "Revoke all user sessions" : `${action.desired === "active" ? "Reactivate" : "Suspend"} ${action.kind}`} description={action.kind === "sessions" ? "Every active browser session and refresh token for this identity will be invalidated." : "This changes the account lifecycle state across the platform and is recorded in the immutable audit log."} onClose={() => setAction(null)} onSubmit={submitAction} loading={actionLoading} /> : null}</div>;
+    <main className="admin-main"><header className="admin-topbar"><div><span className="admin-topbar-kicker">Relay / Platform administration</span><strong>{sectionMeta.label}</strong></div><div className="admin-topbar-right"><span className="admin-secure-pill"><i />OTP session verified</span><span className="admin-avatar">A</span></div></header><div className="admin-content">{loading && section !== "overview" ? <LoadingRows /> : error ? <ErrorState message={error} /> : section === "overview" && summary ? <Overview summary={summary} rangeDays={rangeDays} onRangeChange={setRangeDays} onRefresh={() => void load()} /> : section === "operations" && health ? <Operations health={health} /> : rows ? <DataSection section={section} data={rows} query={query} setQuery={setQuery} statusFilter={statusFilter} setStatusFilter={setStatusFilter} onSearch={() => { setPage(1); setAppliedQuery(query.trim()); }} onAction={setAction} /> : null}<Pagination page={section === "operations" ? health?.page : rows?.page} onPage={setPage} /></div></main>{action ? <ActionDialog title={action.kind === "sessions" ? "Revoke all user sessions" : action.desired === "active" ? `Reactivate ${action.kind}` : action.kind === "user" ? "Disable user" : "Suspend tenant"} description={action.kind === "sessions" ? "Every active browser session and refresh token for this identity will be invalidated." : "This changes the account lifecycle state across the platform and is recorded in the immutable audit log."} onClose={() => setAction(null)} onSubmit={submitAction} loading={actionLoading} /> : null}</div>;
 }
 
 function DataSection({ section, data, query, setQuery, statusFilter, setStatusFilter, onSearch, onAction }: { section: Section; data: Page<TenantRow | UserRow | UsageRow | IngestionRow | AuditRow>; query: string; setQuery: (value: string) => void; statusFilter: string; setStatusFilter: (value: string) => void; onSearch: () => void; onAction: (value: { kind: "tenant" | "user" | "sessions"; id: string; desired?: string }) => void }) {

@@ -1,5 +1,8 @@
 """Protected platform-admin reporting and lifecycle endpoints."""
 
+# Reporting SQL is assembled only from internal constants and allow-listed filters.
+# ruff: noqa: E501, S608
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -10,12 +13,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.db.reporting import get_reporting_session
 from app.db.session import get_db_session
 from app.domains.platform_admin.models import PlatformAdmin, PlatformAdminStatus
 from app.domains.platform_admin.schemas import (
     AdminActionRequest,
     AdminAuditListResponse,
+    AdminAuditRow,
     AdminDirectoryRow,
     AdminGrantRequest,
     AdminHealthListResponse,
@@ -34,8 +39,10 @@ from app.domains.platform_admin.schemas import (
 )
 from app.domains.platform_admin.service import (
     PlatformAdminContext,
+    admin_action_is_replay,
     admin_page,
     audit,
+    commit_admin_action,
     report_rows,
     report_scalar,
     require_platform_admin,
@@ -146,7 +153,19 @@ async def summary(
         ingestion=ingestion,
         channels=channels,
         voice=voice,
-        security={"otp_email_provider": "configured" if True else "unavailable", "active_sessions": int(await report_scalar(reporting, "SELECT COALESCE(SUM(active_session_count), 0) FROM platform_admin_user_directory") or 0)},
+        security={
+            "otp_email_provider": (
+                "configured" if settings.AUTH_EMAIL_PROVIDER == "smtp" else "unavailable"
+            ),
+            "active_sessions": int(
+                await report_scalar(
+                    reporting,
+                    "SELECT COALESCE(SUM(active_session_count), 0) "
+                    "FROM platform_admin_user_directory",
+                )
+                or 0
+            ),
+        },
         readiness={"api": "ready", "reporting": "ready"},
         usage_trend=trend,
     )
@@ -252,11 +271,11 @@ async def health(
 ) -> AdminHealthListResponse:
     items: list[AdminHealthRow] = []
     if category in (None, "channel"):
-        rows, _ = await report_rows(reporting, view="platform_admin_channel_health", columns=("installation_id", "tenant_id", "tenant_name", "channel_type", "status", "external_identity", "expires_at", "updated_at"), page=1, page_size=100)
-        items.extend(AdminHealthRow(category="channel", resource_id=row["installation_id"], tenant_id=row["tenant_id"], tenant_name=row["tenant_name"], name=row["channel_type"], status=row["status"], detail={"identity": row["external_identity"], "expires_at": row["expires_at"]}, updated_at=row["updated_at"]) for row in rows)
+        rows, _ = await report_rows(reporting, view="platform_admin_channel_health", columns=("installation_id", "tenant_id", "tenant_name", "channel_type", "status", "masked_external_identity", "expires_at", "updated_at"), order_by="updated_at DESC", page=1, page_size=100)
+        items.extend(AdminHealthRow(category="channel", resource_id=row["installation_id"], tenant_id=row["tenant_id"], tenant_name=row["tenant_name"], name=row["channel_type"], status=row["status"], detail={"identity": row["masked_external_identity"], "expires_at": row["expires_at"]}, updated_at=row["updated_at"]) for row in rows)
     if category in (None, "voice"):
-        rows, _ = await report_rows(reporting, view="platform_admin_voice_health", columns=("installation_id", "tenant_id", "tenant_name", "provider", "phone_number", "status", "outbound_enabled", "recording_enabled", "monthly_cost_limit_usd", "updated_at"), page=1, page_size=100)
-        items.extend(AdminHealthRow(category="voice", resource_id=row["installation_id"], tenant_id=row["tenant_id"], tenant_name=row["tenant_name"], name=row["provider"], status=row["status"], detail={"phone_number": row["phone_number"], "outbound_enabled": row["outbound_enabled"], "recording_enabled": row["recording_enabled"], "monthly_cost_limit_usd": row["monthly_cost_limit_usd"]}, updated_at=row["updated_at"]) for row in rows)
+        rows, _ = await report_rows(reporting, view="platform_admin_voice_health", columns=("installation_id", "tenant_id", "tenant_name", "provider", "masked_phone_number", "status", "outbound_enabled", "recording_enabled", "monthly_cost_limit_usd", "updated_at"), order_by="updated_at DESC", page=1, page_size=100)
+        items.extend(AdminHealthRow(category="voice", resource_id=row["installation_id"], tenant_id=row["tenant_id"], tenant_name=row["tenant_name"], name=row["provider"], status=row["status"], detail={"phone_number": row["masked_phone_number"], "outbound_enabled": row["outbound_enabled"], "recording_enabled": row["recording_enabled"], "monthly_cost_limit_usd": row["monthly_cost_limit_usd"]}, updated_at=row["updated_at"]) for row in rows)
     if category in (None, "provider"):
         rows, _ = await report_rows(reporting, view="platform_admin_provider_health", columns=("credential_id", "tenant_id", "tenant_name", "provider", "label", "masked_secret", "low_cost_model_id", "strong_model_id", "status", "verified_at", "rotated_at", "revoked_at", "created_at", "routing_mode"), page=1, page_size=100)
         items.extend(AdminHealthRow(category="provider", resource_id=row["credential_id"], tenant_id=row["tenant_id"], tenant_name=row["tenant_name"], name=row["provider"], status=row["status"], detail={"label": row["label"], "masked_secret": row["masked_secret"], "low_cost_model_id": row["low_cost_model_id"], "strong_model_id": row["strong_model_id"], "verified_at": row["verified_at"], "rotated_at": row["rotated_at"], "routing_mode": row["routing_mode"]}, updated_at=row["created_at"]) for row in rows)
@@ -283,7 +302,10 @@ async def audit_log(
         params["q"] = f"%{q.strip()}%"
     rows, total = await report_rows(reporting, view="platform_admin_audit_log", columns=("id", "created_at", "actor_user_id", "action", "target_type", "target_id", "reason", "outcome", "request_id", "ip_address", "user_agent", "change_summary"), where=where, params=params, page=page, page_size=page_size)
     await _read_audit(session, context, request, "admin.audit.read", "audit")
-    return AdminAuditListResponse(items=rows, page=_page_model(page, page_size, total))
+    return AdminAuditListResponse(
+        items=[AdminAuditRow(**row) for row in rows],
+        page=_page_model(page, page_size, total),
+    )
 
 
 async def _status_mutation(
@@ -298,12 +320,30 @@ async def _status_mutation(
 ) -> None:
     if payload.confirmation != "CONFIRM":
         raise HTTPException(status_code=422, detail="Explicit confirmation is required")
+    action = f"admin.{target_type}.status"
+    if await admin_action_is_replay(
+        session,
+        context=context,
+        action=action,
+        target_type=target_type,
+        target_id=target.id,
+        idempotency_key=payload.idempotency_key,
+        reason=payload.reason,
+        expected_change={"status": desired},
+    ):
+        return
     if isinstance(target, Tenant):
-        target.status = TenantStatus.ACTIVE if desired == "active" else TenantStatus.SUSPENDED
+        if desired not in {"active", "suspended"}:
+            raise HTTPException(status_code=422, detail="Invalid tenant status")
+        target.status = TenantStatus(desired)
     else:
-        target.status = UserStatus.ACTIVE if desired == "active" else UserStatus.DISABLED
-    await audit(session, context=context, request=request, action=f"admin.{target_type}.status", target_type=target_type, target_id=target.id, reason=payload.reason, change_summary={"status": desired, "idempotency_key": payload.idempotency_key})
-    await session.commit()
+        if desired not in {"active", "disabled"}:
+            raise HTTPException(status_code=422, detail="Invalid user status")
+        if target.id == context.user.id and desired == "disabled":
+            raise HTTPException(status_code=422, detail="You cannot disable your own platform identity")
+        target.status = UserStatus(desired)
+    await audit(session, context=context, request=request, action=action, target_type=target_type, target_id=target.id, reason=payload.reason, change_summary={"status": desired, "idempotency_key": payload.idempotency_key})
+    await commit_admin_action(session, context=context, action=action, target_type=target_type, target_id=target.id, idempotency_key=payload.idempotency_key, reason=payload.reason, expected_change={"status": desired})
 
 
 @router.post("/tenants/{tenant_id}/status", status_code=status.HTTP_204_NO_CONTENT)
@@ -327,9 +367,12 @@ async def revoke_sessions(user_id: UUID, payload: AdminRevokeSessionsRequest, re
     user = await session.scalar(select(User).where(User.id == user_id))
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
+    action = "admin.user.sessions.revoke"
+    if await admin_action_is_replay(session, context=context, action=action, target_type="user", target_id=user_id, idempotency_key=payload.idempotency_key, reason=payload.reason):
+        return
     count = await revoke_user_sessions(session, reporting, user_id)
-    await audit(session, context=context, request=request, action="admin.user.sessions.revoke", target_type="user", target_id=user_id, reason=payload.reason, change_summary={"revoked_count": count, "idempotency_key": payload.idempotency_key})
-    await session.commit()
+    await audit(session, context=context, request=request, action=action, target_type="user", target_id=user_id, reason=payload.reason, change_summary={"revoked_count": count, "idempotency_key": payload.idempotency_key})
+    await commit_admin_action(session, context=context, action=action, target_type="user", target_id=user_id, idempotency_key=payload.idempotency_key, reason=payload.reason)
 
 
 @router.get("/admins", response_model=list[AdminDirectoryRow])
@@ -344,6 +387,9 @@ async def grant_admin(user_id: UUID, payload: AdminGrantRequest, request: Reques
     user = await session.scalar(select(User).where(User.id == user_id))
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
+    action = "admin.platform_admin.grant"
+    if await admin_action_is_replay(session, context=context, action=action, target_type="user", target_id=user_id, idempotency_key=payload.idempotency_key, reason=payload.reason):
+        return
     record = await session.scalar(select(PlatformAdmin).where(PlatformAdmin.user_id == user_id))
     if record is None:
         record = PlatformAdmin(user_id=user_id, granted_by_user_id=context.user.id, status=PlatformAdminStatus.ACTIVE)
@@ -352,21 +398,24 @@ async def grant_admin(user_id: UUID, payload: AdminGrantRequest, request: Reques
         record.status = PlatformAdminStatus.ACTIVE
         record.revoked_at = None
         record.granted_by_user_id = context.user.id
-    await audit(session, context=context, request=request, action="admin.platform_admin.grant", target_type="user", target_id=user_id, reason=payload.reason, change_summary={"idempotency_key": payload.idempotency_key})
-    await session.commit()
+    await audit(session, context=context, request=request, action=action, target_type="user", target_id=user_id, reason=payload.reason, change_summary={"idempotency_key": payload.idempotency_key})
+    await commit_admin_action(session, context=context, action=action, target_type="user", target_id=user_id, idempotency_key=payload.idempotency_key, reason=payload.reason)
 
 
 @router.delete("/admins/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def revoke_admin(user_id: UUID, payload: AdminGrantRequest, request: Request, session: DbSession, context: CurrentAdmin) -> None:
     if user_id == context.user.id:
         raise HTTPException(status_code=422, detail="You cannot revoke your own platform access")
+    action = "admin.platform_admin.revoke"
+    if await admin_action_is_replay(session, context=context, action=action, target_type="user", target_id=user_id, idempotency_key=payload.idempotency_key, reason=payload.reason):
+        return
     record = await session.scalar(select(PlatformAdmin).where(PlatformAdmin.user_id == user_id))
     if record is None:
         raise HTTPException(status_code=404, detail="Platform admin not found")
     record.status = PlatformAdminStatus.REVOKED
     record.revoked_at = datetime.now(UTC)
-    await audit(session, context=context, request=request, action="admin.platform_admin.revoke", target_type="user", target_id=user_id, reason=payload.reason, change_summary={"idempotency_key": payload.idempotency_key})
-    await session.commit()
+    await audit(session, context=context, request=request, action=action, target_type="user", target_id=user_id, reason=payload.reason, change_summary={"idempotency_key": payload.idempotency_key})
+    await commit_admin_action(session, context=context, action=action, target_type="user", target_id=user_id, idempotency_key=payload.idempotency_key, reason=payload.reason)
 
 
 __all__ = ["router"]
