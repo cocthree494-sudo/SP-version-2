@@ -14,17 +14,17 @@ from app.api import (
     channels,
     health,
     knowledge,
+    platform_admin,
     playground,
     providers,
     usage,
     voice,
     widget,
-    platform_admin,
 )
 from app.core.config import settings
 from app.core.logger import setup_logging
-from app.db.session import dispose_engine
 from app.db.reporting import dispose_reporting_engine
+from app.db.session import dispose_engine
 from app.domains.auth.email import configured_auth_email_sender
 from app.domains.auth.oauth import RedisOAuthStateStore
 from app.domains.auth.otp import RedisAuthOtpStore

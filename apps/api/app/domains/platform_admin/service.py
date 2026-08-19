@@ -199,9 +199,9 @@ async def report_rows(
         raise ValueError("Invalid reporting order")
     page, page_size = _safe_page(page, page_size)
     values = dict(params or {})
-    count_query = f"SELECT COUNT(*) FROM {view} WHERE {where}"  # noqa: S608
+    count_query = f"SELECT COUNT(*) FROM {view} WHERE {where}"
     total = int(await session.scalar(text(count_query), values) or 0)
-    page_query = (  # noqa: S608
+    page_query = (
         f"SELECT {', '.join(columns)} FROM {view} WHERE {where} "
         f"ORDER BY {order_by} LIMIT :limit OFFSET :offset"
     )
@@ -245,8 +245,8 @@ async def revoke_user_sessions(session: AsyncSession, reporting: AsyncSession, u
 
 __all__ = [
     "PlatformAdminContext",
-    "admin_page",
     "admin_action_is_replay",
+    "admin_page",
     "audit",
     "commit_admin_action",
     "report_rows",
