@@ -98,12 +98,21 @@ def upgrade() -> None:
         sa.Column("reason", sa.Text(), nullable=True),
         sa.Column("outcome", sa.String(length=32), nullable=False),
         sa.Column("request_id", sa.String(length=128), nullable=True),
+        sa.Column("idempotency_key", sa.String(length=128), nullable=True),
         sa.Column("ip_address", sa.String(length=64), nullable=True),
         sa.Column("user_agent", sa.String(length=512), nullable=True),
         sa.Column("change_summary", sa.JSON(), server_default="{}", nullable=False),
         sa.CheckConstraint("length(action) BETWEEN 1 AND 120", name="ck_admin_audit_action"),
         sa.CheckConstraint("length(outcome) BETWEEN 1 AND 32", name="ck_admin_audit_outcome"),
         sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint(
+            "actor_user_id",
+            "action",
+            "target_type",
+            "target_id",
+            "idempotency_key",
+            name="uq_admin_audit_idempotency",
+        ),
     )
     op.create_index("ix_platform_admin_audit_logs_actor_user_id", "platform_admin_audit_logs", ["actor_user_id"])
     op.create_index("ix_platform_admin_audit_logs_action", "platform_admin_audit_logs", ["action"])

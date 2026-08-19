@@ -7,7 +7,7 @@ from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import JSON, CheckConstraint, DateTime, ForeignKey, String, Text
+from sqlalchemy import JSON, CheckConstraint, DateTime, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy import Enum as SqlEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -54,6 +54,14 @@ class PlatformAdminAuditLog(UUIDTimestampModel):
     __table_args__ = (
         CheckConstraint("length(action) BETWEEN 1 AND 120", name="ck_admin_audit_action"),
         CheckConstraint("length(outcome) BETWEEN 1 AND 32", name="ck_admin_audit_outcome"),
+        UniqueConstraint(
+            "actor_user_id",
+            "action",
+            "target_type",
+            "target_id",
+            "idempotency_key",
+            name="uq_admin_audit_idempotency",
+        ),
     )
 
     actor_user_id: Mapped[UUID | None] = mapped_column(nullable=True, index=True)
@@ -63,6 +71,7 @@ class PlatformAdminAuditLog(UUIDTimestampModel):
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     outcome: Mapped[str] = mapped_column(String(32), nullable=False)
     request_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    idempotency_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
     ip_address: Mapped[str | None] = mapped_column(String(64), nullable=True)
     user_agent: Mapped[str | None] = mapped_column(String(512), nullable=True)
     change_summary: Mapped[dict[str, Any]] = mapped_column(
@@ -71,4 +80,3 @@ class PlatformAdminAuditLog(UUIDTimestampModel):
 
 
 __all__ = ["PlatformAdmin", "PlatformAdminAuditLog", "PlatformAdminStatus"]
-

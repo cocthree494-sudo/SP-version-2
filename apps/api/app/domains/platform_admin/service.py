@@ -93,6 +93,7 @@ async def audit(
             reason=reason,
             outcome=outcome,
             request_id=request.headers.get("x-request-id"),
+            idempotency_key=(change_summary or {}).get("idempotency_key"),
             ip_address=(request.client.host if request.client else None),
             user_agent=request.headers.get("user-agent", "")[:512] or None,
             change_summary=change_summary or {},
@@ -119,8 +120,7 @@ async def admin_action_is_replay(
             PlatformAdminAuditLog.action == action,
             PlatformAdminAuditLog.target_type == target_type,
             PlatformAdminAuditLog.target_id == target_id,
-            PlatformAdminAuditLog.change_summary["idempotency_key"].as_string()
-            == idempotency_key,
+            PlatformAdminAuditLog.idempotency_key == idempotency_key,
         )
     )
     if record is None:

@@ -43,6 +43,7 @@ def test_alembic_has_conversation_revision_after_knowledge() -> None:
     assert '"platform_admin_audit_logs"' in platform_admin_text
     assert "support_agent_reporting" in platform_admin_text
     assert "platform_admin_audit_immutable" in platform_admin_text
+    assert "uq_admin_audit_idempotency" in platform_admin_text
     assert "masked_external_identity" in platform_admin_text
     assert "masked_phone_number" in platform_admin_text
     revision = scripts.get_revision("0002_tenancy")
