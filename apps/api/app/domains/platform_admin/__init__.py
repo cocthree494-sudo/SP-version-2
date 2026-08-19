@@ -1,0 +1,2 @@
+"""Global platform administration domain."""
+

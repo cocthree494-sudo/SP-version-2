@@ -136,6 +136,12 @@ class Settings(BaseSettings):
     AUTH_OTP_IP_RATE_LIMIT: int = Field(default=20, ge=1, le=500)
     AUTH_OTP_IP_RATE_WINDOW_SECONDS: int = Field(default=3600, ge=60, le=86400)
 
+    # Platform administration. The bootstrap list is intentionally an
+    # environment-only control; later grants are persisted in PostgreSQL.
+    PLATFORM_ADMIN_EMAILS: str = ""
+    ADMIN_REPORTING_DATABASE_URL: str | None = None
+    ADMIN_SESSION_MAX_AGE_SECONDS: int = Field(default=900, ge=60, le=3600)
+
     # Provider-neutral authentication email delivery. Gmail SMTP is used only
     # for development; production can replace the sender without changing auth.
     AUTH_EMAIL_PROVIDER: Literal["memory", "smtp"] = "memory"
@@ -196,6 +202,8 @@ class Settings(BaseSettings):
             )
         if self.AUTH_EMAIL_PROVIDER == "smtp" and not self.SMTP_STARTTLS:
             raise ValueError("SMTP_STARTTLS must be enabled for authentication email")
+        if not self.is_local and not self.ADMIN_REPORTING_DATABASE_URL:
+            raise ValueError("ADMIN_REPORTING_DATABASE_URL is required outside development and test")
         if self.INGESTION_RETRY_MAX_SECONDS < self.INGESTION_RETRY_BASE_SECONDS:
             raise ValueError(
                 "INGESTION_RETRY_MAX_SECONDS must be greater than or equal to "
@@ -236,6 +244,22 @@ class Settings(BaseSettings):
     def auth_otp_secret(self) -> str:
         configured = self.AUTH_OTP_SECRET or self.AUTH_JWT_SECRET or _ephemeral_local_auth_secret
         return configured.get_secret_value()
+
+    @property
+    def platform_admin_emails(self) -> frozenset[str]:
+        """Normalized bootstrap identities; raw environment text is never exposed."""
+
+        return frozenset(
+            value.strip().casefold()
+            for value in self.PLATFORM_ADMIN_EMAILS.split(",")
+            if value.strip()
+        )
+
+    @property
+    def admin_reporting_database_url(self) -> str:
+        """Use a dedicated reporting role for cross-tenant reads."""
+
+        return self.ADMIN_REPORTING_DATABASE_URL or self.DATABASE_URL
 
 
 settings = Settings()  # type: ignore[call-arg]

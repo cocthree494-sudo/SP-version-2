@@ -30,6 +30,8 @@ class AccessTokenClaims:
     user_id: UUID
     tenant_id: UUID
     token_id: UUID
+    issued_at: datetime
+    otp_verified: bool
 
 
 def hash_password(password: str) -> str:
@@ -73,6 +75,7 @@ def create_access_token(user_id: UUID, tenant_id: UUID) -> tuple[str, int]:
         "tenant_id": str(tenant_id),
         "jti": str(uuid4()),
         "type": "access",
+        "otp_verified": True,
         "iat": now,
         "exp": now + timedelta(seconds=ttl_seconds),
         "iss": settings.AUTH_JWT_ISSUER,
@@ -96,19 +99,41 @@ def decode_access_token(token: str) -> AccessTokenClaims:
             algorithms=[settings.AUTH_JWT_ALGORITHM],
             audience=settings.AUTH_JWT_AUDIENCE,
             issuer=settings.AUTH_JWT_ISSUER,
-            options={"require": ["sub", "tenant_id", "jti", "type", "iat", "exp"]},
+            options={
+                "require": [
+                    "sub",
+                    "tenant_id",
+                    "jti",
+                    "type",
+                    "otp_verified",
+                    "iat",
+                    "exp",
+                ]
+            },
         )
-        if payload["type"] != "access":
+        if payload["type"] != "access" or payload["otp_verified"] is not True:
             raise AccessTokenError("Unexpected token type")
         return AccessTokenClaims(
             user_id=UUID(str(payload["sub"])),
             tenant_id=UUID(str(payload["tenant_id"])),
             token_id=UUID(str(payload["jti"])),
+            issued_at=_as_utc_datetime(payload["iat"]),
+            otp_verified=True,
         )
     except AccessTokenError:
         raise
     except (KeyError, TypeError, ValueError, jwt.PyJWTError) as exc:
         raise AccessTokenError("Invalid access token") from exc
+
+
+def _as_utc_datetime(value: Any) -> datetime:
+    """Normalize PyJWT's numeric/date claim without widening trusted input."""
+
+    if isinstance(value, datetime):
+        return value.astimezone(UTC)
+    if isinstance(value, (int, float)):
+        return datetime.fromtimestamp(value, UTC)
+    raise AccessTokenError("Invalid access token")
 
 
 def generate_refresh_token(tenant_id: UUID) -> str:

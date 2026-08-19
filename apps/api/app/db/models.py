@@ -11,6 +11,7 @@ from app.domains.channels import models as _channel_models
 from app.domains.chat import models as _chat_models
 from app.domains.knowledge import models as _knowledge_models
 from app.domains.provider_access import models as _provider_access_models
+from app.domains.platform_admin import models as _platform_admin_models
 from app.domains.tenancy import models as _tenancy_models
 from app.domains.usage import models as _usage_models
 from app.domains.voice import models as _voice_models
@@ -22,6 +23,7 @@ _REGISTERED_MODULES = (
     _channel_models,
     _knowledge_models,
     _provider_access_models,
+    _platform_admin_models,
     _tenancy_models,
     _usage_models,
     _voice_models,
@@ -31,7 +33,7 @@ _REGISTERED_MODULES = (
 def register_model_mappings() -> None:
     """Provide an explicit, testable worker/bootstrap registration hook."""
 
-    if len(_REGISTERED_MODULES) != 9:  # pragma: no cover - import invariant
+    if len(_REGISTERED_MODULES) != 10:  # pragma: no cover - import invariant
         raise RuntimeError("Application ORM model registry is incomplete")
 
 

@@ -64,6 +64,14 @@ the runtime role is non-superuser/NOBYPASSRLS. API and worker connect only throu
 `APP_DATABASE_URL`; using the owner URL in either process defeats the RLS safety
 model and is a release blocker.
 
+The platform operator console uses a second non-owner `support_agent_reporting`
+role. Set `ADMIN_REPORTING_DATABASE_URL` to that role and set
+`PLATFORM_ADMIN_EMAILS` to the approved bootstrap identity or identities. The
+reporting role can read only redacted platform views; it cannot read provider
+secret envelopes, customer messages, OTP data, or arbitrary application tables.
+The live console is served at the separate `admin` host and every read/mutation
+is written to the immutable platform-admin audit log.
+
 ## Secrets and credential rotation
 
 - Supply `.env.production` from a deployment secret store when possible. Never

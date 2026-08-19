@@ -19,10 +19,12 @@ from app.api import (
     usage,
     voice,
     widget,
+    platform_admin,
 )
 from app.core.config import settings
 from app.core.logger import setup_logging
 from app.db.session import dispose_engine
+from app.db.reporting import dispose_reporting_engine
 from app.domains.auth.email import configured_auth_email_sender
 from app.domains.auth.oauth import RedisOAuthStateStore
 from app.domains.auth.otp import RedisAuthOtpStore
@@ -48,6 +50,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         await app.state.ingestion_queue.redis.aclose()
         await app.state.widget_redis.aclose()
         await dispose_engine()
+        await dispose_reporting_engine()
         await health.redis_client.aclose()
 
 
@@ -104,6 +107,7 @@ app.include_router(usage.router)
 app.include_router(providers.router)
 app.include_router(playground.router)
 app.include_router(widget.router)
+app.include_router(platform_admin.router)
 
 
 @app.get("/", include_in_schema=False)
