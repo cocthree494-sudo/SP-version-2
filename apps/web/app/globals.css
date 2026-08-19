@@ -801,6 +801,8 @@ h1, h2, h3, p { margin: 0; }
 .admin-sidebar-label, .admin-kicker, .admin-topbar-kicker { color: #779d91; font-size: 9px; font-weight: 850; letter-spacing: .14em; line-height: 1.2; text-transform: uppercase; }
 .admin-sidebar-label { padding: 0 11px 10px; }
 .admin-sidebar nav { display: grid; gap: 4px; }
+.admin-sidebar nav { scrollbar-width: none; -ms-overflow-style: none; }
+.admin-sidebar nav::-webkit-scrollbar { display: none; }
 .admin-nav-link { display: flex; align-items: center; gap: 10px; min-height: 49px; padding: 7px 10px; border-radius: 7px; color: #a6c2b7; transition: background .15s ease, color .15s ease; }
 .admin-nav-link:hover, .admin-nav-link-active { background: #1d4a51; color: white; }
 .admin-nav-icon { display: grid; place-items: center; width: 29px; height: 29px; border: 1px solid rgba(216,233,224,.17); border-radius: 7px; }
