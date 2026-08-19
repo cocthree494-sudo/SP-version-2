@@ -437,6 +437,23 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
   Password is present in a secure VPS secret source. The production stack must not use
   `AUTH_OTP_TEST_CODE` or the in-memory mail sender, so no live OTP acceptance was claimed.
 
+### Session 29 - Codex
+
+- After the user supplied and explicitly authorized the Gmail App Password, created the
+  VPS-only `/opt/sp-version-2/.env.production` with mode `600`, fresh database/app-role,
+  Redis, JWT, OTP, and BYOK secrets, SMTP OTP delivery, deterministic platform generation,
+  and the required Relay public URLs. Secrets were never printed or committed.
+- Built and started the production Compose stack as image tag `sp-version-2-b58afb4`.
+  PostgreSQL migrations completed through `0019_user_email_verification`; API, worker,
+  web, widget, PostgreSQL, and Redis are healthy.
+- Added only the `relay.npcautomators.com` Nginx integration, preserving the unrelated CTM
+  vhost/service. HTTPS is enabled with an automatically renewing Let's Encrypt certificate.
+  `/` routes to the dashboard, `/widget-api/` to the API with buffering disabled for SSE,
+  and `/widget/` to the widget assets. HTTP redirects to HTTPS.
+- Verified publicly: dashboard `200`, `/widget-api/health/live` returns `ok`,
+  `/widget-api/health/ready` returns `ready` with database/Redis details, and
+  `/widget/loader.js` returns `200`. The live Codex browser loaded the Relay landing page.
+
 ## 7. Open items
 
 | ID | Item | Handling now |
@@ -451,16 +468,18 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 **Last completed:** T-075 dashboard-shell and shared form-control refinements after T-080 acceptance.
 **Current task:** T-082 — focused two-account bot, Manual Q&A, and Gemini acceptance.
 **Next task:** Complete T-082 on the VPS; T-081 and T-083 remain queued outside this narrowed scope.
-**Blocked on:** The fresh VPS has no secure SMTP/Gmail App Password source, so production OTP
-delivery cannot be enabled without violating the authentication contract. Hosting/budget selection
-and named release-owner/security approval from `docs/mvp-acceptance.md` also remain open.
+**Blocked on:** No deployment blocker remains. T-082's two-tenant, Manual Q&A, and real Gemini
+acceptance still needs to be run against the live stack before that task can be checked. Hosting/
+budget selection and named release-owner/security approval from `docs/mvp-acceptance.md` remain open
+for broader production customer traffic.
 
-**Pushed state:** `origin/main` is at `3da0332` with the scoped verification-budget fix. The VPS
-checkout at `/opt/sp-version-2` is also at `3da0332`; the production stack is intentionally stopped
-until the secret boundary and Relay edge are configured.
+**Pushed state:** `origin/main` is at `b58afb4` with the scoped verification-budget fix and handoff.
+The VPS checkout at `/opt/sp-version-2` is also at `b58afb4`; the live Compose image tag is
+`sp-version-2-b58afb4` behind `https://relay.npcautomators.com`.
 **Uncommitted work:** None.
 **Verification:** Existing local/VPS auth acceptance remains valid. T-082 focused verification,
-VPS Ruff, strict mypy, and the full API suite pass. For the dashboard refinement,
+VPS Ruff, strict mypy, full API suite, production builds, Compose health, public API/widget
+health, TLS redirect, and live browser landing-page load pass. For the dashboard refinement,
 web ESLint/TypeScript, production builds, Compose health, and VPS desktop/mobile Playwright pass;
 sidebar collapse/expand, static organization, account actions, outside click, Escape focus return,
 mobile bounds, POST sign-out redirect, Voice/Channels/Providers controls, empty states, screenshots,
