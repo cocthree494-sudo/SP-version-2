@@ -365,8 +365,17 @@ def provider_config(provider: str) -> OAuthProviderConfig:
     return config
 
 
-def redirect_uri(provider: SocialProvider) -> str:
-    return f"{settings.OAUTH_WEB_BASE_URL.rstrip('/')}/api/auth/oauth/{provider}/callback"
+def redirect_uri(provider: SocialProvider, *, admin: bool = False) -> str:
+    base_url = (
+        settings.OAUTH_ADMIN_WEB_BASE_URL
+        if admin and settings.OAUTH_ADMIN_WEB_BASE_URL
+        else settings.OAUTH_WEB_BASE_URL
+    )
+    return f"{base_url.rstrip('/')}/api/auth/oauth/{provider}/callback"
+
+
+def allowed_redirect_uris(provider: SocialProvider) -> frozenset[str]:
+    return frozenset({redirect_uri(provider), redirect_uri(provider, admin=True)})
 
 
 def build_authorization_request(
@@ -379,8 +388,7 @@ def build_authorization_request(
     organization_slug: str | None = None,
 ) -> tuple[str, str, OAuthState]:
     config = provider_config(provider)
-    expected_redirect = redirect_uri(provider)
-    if redirect != expected_redirect:
+    if redirect not in allowed_redirect_uris(provider):
         raise OAuthStateError("OAuth redirect URI is not configured for this application")
     if mode == "link" and (user_id is None or tenant_id is None):
         raise OAuthStateError("Authenticated account linking is required")
@@ -424,7 +432,10 @@ async def exchange_code(
     oauth_state: OAuthState,
 ) -> OAuthProfile:
     config = provider_config(provider)
-    if oauth_state.provider != provider or oauth_state.redirect_uri != redirect_uri(provider):
+    if (
+        oauth_state.provider != provider
+        or oauth_state.redirect_uri not in allowed_redirect_uris(provider)
+    ):
         raise OAuthStateError("OAuth state does not match the callback")
     if not code or len(code) > 4096:
         raise OAuthExchangeError("The provider returned an invalid authorization code")

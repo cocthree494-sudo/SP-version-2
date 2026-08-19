@@ -32,6 +32,7 @@ uploads, AI-local settings, and test artifacts from every image context.
 2. Decide public HTTPS names for dashboard, API, and widget host. Set
    `PUBLIC_API_URL` and `PUBLIC_WIDGET_LOADER_URL` before building the web image.
    If social sign-in is enabled, set `OAUTH_WEB_BASE_URL` to the dashboard origin
+   and `OAUTH_ADMIN_WEB_BASE_URL` when admin uses a separate origin,
    and register the exact callback paths
    `/api/auth/oauth/google/callback`, `/api/auth/oauth/microsoft/callback`, and
    `/api/auth/oauth/github/callback` with the corresponding providers. Leave a

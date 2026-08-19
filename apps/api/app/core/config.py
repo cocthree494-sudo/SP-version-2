@@ -158,6 +158,7 @@ class Settings(BaseSettings):
     # Social authentication. Providers are disabled until all required
     # credentials are supplied through the deployment secret manager.
     OAUTH_WEB_BASE_URL: str = "http://127.0.0.1:3000"
+    OAUTH_ADMIN_WEB_BASE_URL: str | None = None
     OAUTH_STATE_TTL_SECONDS: int = Field(default=600, ge=60, le=900)
     OAUTH_HTTP_TIMEOUT_SECONDS: float = Field(default=10.0, ge=2.0, le=60.0)
     OAUTH_GOOGLE_CLIENT_ID: str | None = None

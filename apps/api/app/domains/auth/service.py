@@ -322,6 +322,7 @@ class AuthService:
         *,
         user_id: str | None = None,
         tenant_id: str | None = None,
+        admin_flow: bool = False,
     ) -> str:
         """Create a one-time PKCE state and return the provider URL."""
 
@@ -331,7 +332,7 @@ class AuthService:
         authorization_url, state, oauth_state = build_authorization_request(
             social_provider,
             mode=request.mode,
-            redirect=redirect_uri(social_provider),
+            redirect=redirect_uri(social_provider, admin=admin_flow),
             user_id=user_id,
             tenant_id=tenant_id,
             organization_slug=request.organization_slug,

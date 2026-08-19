@@ -265,6 +265,7 @@ def test_generated_otp_codes_are_eight_character_mixed_alphanumeric(
 @pytest.mark.asyncio
 async def test_admin_flow_is_google_only_and_uses_fixed_otp_mailbox(
     auth_client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from app.core.config import settings
 
@@ -281,6 +282,20 @@ async def test_admin_flow_is_google_only_and_uses_fixed_otp_mailbox(
     )
     assert password_login.status_code == 404
     assert microsoft.status_code == 404
+
+    monkeypatch.setattr(settings, "OAUTH_GOOGLE_CLIENT_ID", "google-client")
+    monkeypatch.setattr(settings, "OAUTH_GOOGLE_CLIENT_SECRET", SecretStr("google-secret"))
+    monkeypatch.setattr(settings, "OAUTH_ADMIN_WEB_BASE_URL", "https://admin.example.com")
+    google = await auth_client.post(
+        "/v1/auth/oauth/google/start",
+        headers=headers,
+        json={"mode": "login"},
+    )
+    assert google.status_code == 200
+    assert (
+        "redirect_uri=https%3A%2F%2Fadmin.example.com%2Fapi%2Fauth%2Foauth%2Fgoogle%2Fcallback"
+        in google.json()["authorization_url"]
+    )
 
     pending = PendingAuth(
         kind="social_login",

@@ -120,6 +120,9 @@ callback URLs with each provider:
 - `https://<dashboard>/api/auth/oauth/microsoft/callback`
 - `https://<dashboard>/api/auth/oauth/github/callback`
 
+When the platform admin uses a separate hostname, set `OAUTH_ADMIN_WEB_BASE_URL`
+and register the same callback paths on that hostname.
+
 Set the matching `OAUTH_*_CLIENT_ID` and `OAUTH_*_CLIENT_SECRET` values only in
 the server environment or secret manager. A provider stays disabled until both
 values exist. The Microsoft tenant setting defaults to `common`; use a tenant ID
