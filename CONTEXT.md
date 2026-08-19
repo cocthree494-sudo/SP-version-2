@@ -421,6 +421,22 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
   outside the narrowed T-082. Local work remains lightweight; deployment, integration,
   and browser acceptance run on the VPS.
 
+### Session 28 - Codex
+
+- Reviewed the T-082 Gemini credential-verification change and found that its 128-token
+  allowance was applied to every predefined provider and custom endpoint. Scoped the
+  allowance to Gemini only; other predefined providers and custom verification use a
+  two-token maximum. Added focused regression tests for Gemini, OpenAI, and custom paths.
+- Committed and pushed the fix as `3da0332` (`[T-082] scope provider verification budgets`).
+- Updated the fresh VPS checkout at `/opt/sp-version-2` to `3da0332`. VPS checks pass:
+  Ruff, strict mypy across 136 files, and the full API suite with `104 passed, 19 skipped`.
+- The project deployment remains stopped and empty on the VPS. No `.env.production`,
+  project containers, project volumes, Relay vhost, or Relay certificate exists yet;
+  the unrelated `ctm-wingo-relay.service` and its Nginx configuration remain intact.
+- Production deployment is currently blocked by the required SMTP secret: no Gmail App
+  Password is present in a secure VPS secret source. The production stack must not use
+  `AUTH_OTP_TEST_CODE` or the in-memory mail sender, so no live OTP acceptance was claimed.
+
 ## 7. Open items
 
 | ID | Item | Handling now |
@@ -435,12 +451,16 @@ The Phase 1 schema and interfaces should leave clean extension points for them w
 **Last completed:** T-075 dashboard-shell and shared form-control refinements after T-080 acceptance.
 **Current task:** T-082 — focused two-account bot, Manual Q&A, and Gemini acceptance.
 **Next task:** Complete T-082 on the VPS; T-081 and T-083 remain queued outside this narrowed scope.
-**Blocked on:** No implementation blocker. Production traffic remains blocked on hosting/budget selection and named release-owner/security approval of the prerequisites in `docs/mvp-acceptance.md`.
+**Blocked on:** The fresh VPS has no secure SMTP/Gmail App Password source, so production OTP
+delivery cannot be enabled without violating the authentication contract. Hosting/budget selection
+and named release-owner/security approval from `docs/mvp-acceptance.md` also remain open.
 
-**Pushed state:** `origin/main` is at `3ef3bc7` with the Gemini adapter. The VPS still runs
-image tag `sp-version-2-529ec17` behind `relay.npcautomators.com` and must be updated.
-**Uncommitted work:** The T-082 scope and handoff documentation are being updated before VPS execution.
-**Verification:** Existing local/VPS auth acceptance remains valid. For the dashboard refinement,
+**Pushed state:** `origin/main` is at `3da0332` with the scoped verification-budget fix. The VPS
+checkout at `/opt/sp-version-2` is also at `3da0332`; the production stack is intentionally stopped
+until the secret boundary and Relay edge are configured.
+**Uncommitted work:** None.
+**Verification:** Existing local/VPS auth acceptance remains valid. T-082 focused verification,
+VPS Ruff, strict mypy, and the full API suite pass. For the dashboard refinement,
 web ESLint/TypeScript, production builds, Compose health, and VPS desktop/mobile Playwright pass;
 sidebar collapse/expand, static organization, account actions, outside click, Escape focus return,
 mobile bounds, POST sign-out redirect, Voice/Channels/Providers controls, empty states, screenshots,
