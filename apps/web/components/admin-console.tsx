@@ -170,6 +170,11 @@ export function AdminConsole({ section }: { section: Section }) {
       if (statusFilter && (section === "tenants" || section === "users")) params.set("status", statusFilter);
       setRows(await dashboardRequest<Page<TenantRow | UserRow | UsageRow | IngestionRow | AuditRow>>(`/admin/${endpoint}?${params.toString()}`));
     } catch (caught) {
+      if (caught instanceof DashboardApiError && caught.status === 401) {
+        const nextPath = `/admin${section === "overview" ? "" : `/${section}`}`;
+        window.location.replace(`/login?next=${encodeURIComponent(nextPath)}`);
+        return;
+      }
       setError(caught instanceof DashboardApiError && caught.status === 403 ? "This account is not approved for platform administration." : caught instanceof Error ? caught.message : "The admin service is unavailable.");
     } finally { setLoading(false); }
   }, [appliedQuery, page, rangeDays, section, statusFilter]);
