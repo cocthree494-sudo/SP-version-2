@@ -118,7 +118,8 @@ def upgrade() -> None:
     op.create_index("ix_platform_admin_audit_logs_action", "platform_admin_audit_logs", ["action"])
     op.create_index("ix_platform_admin_audit_logs_target_id", "platform_admin_audit_logs", ["target_id"])
     op.create_index("ix_platform_admin_audit_logs_request_id", "platform_admin_audit_logs", ["request_id"])
-    op.execute(sa.text(f"GRANT SELECT, INSERT ON platform_admins, platform_admin_audit_logs TO {_APP_ROLE}"))
+    op.execute(sa.text(f"GRANT SELECT, INSERT, UPDATE ON platform_admins TO {_APP_ROLE}"))
+    op.execute(sa.text(f"GRANT SELECT, INSERT ON platform_admin_audit_logs TO {_APP_ROLE}"))
 
     op.execute(
         sa.text(
@@ -268,7 +269,8 @@ def downgrade() -> None:
     op.execute(sa.text(f"REVOKE SELECT ON ALL TABLES IN SCHEMA public FROM {_REPORTING_ROLE}"))
     op.execute(sa.text("DROP TRIGGER IF EXISTS platform_admin_audit_immutable ON platform_admin_audit_logs"))
     op.execute(sa.text("DROP FUNCTION IF EXISTS prevent_platform_admin_audit_mutation()"))
-    op.execute(sa.text(f"REVOKE SELECT, INSERT ON platform_admins, platform_admin_audit_logs FROM {_APP_ROLE}"))
+    op.execute(sa.text(f"REVOKE SELECT, INSERT, UPDATE ON platform_admins FROM {_APP_ROLE}"))
+    op.execute(sa.text(f"REVOKE SELECT, INSERT ON platform_admin_audit_logs FROM {_APP_ROLE}"))
     op.drop_index("ix_platform_admin_audit_logs_request_id", table_name="platform_admin_audit_logs")
     op.drop_index("ix_platform_admin_audit_logs_target_id", table_name="platform_admin_audit_logs")
     op.drop_index("ix_platform_admin_audit_logs_action", table_name="platform_admin_audit_logs")
