@@ -11,7 +11,12 @@ import pytest_asyncio
 from fastapi import HTTPException
 from pydantic import ValidationError
 from sqlalchemy import Table
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.pool import StaticPool
 from starlette.requests import Request
 
