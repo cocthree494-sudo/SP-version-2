@@ -33,6 +33,7 @@ from app.domains.auth.otp import (
     AuthOtpService,
     AuthOtpUnavailableError,
     InMemoryAuthOtpStore,
+    PendingAuth,
 )
 from app.domains.auth.schemas import (
     AccountDeletionRequest,
