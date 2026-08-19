@@ -38,11 +38,39 @@ async def _run_verification(monkeypatch):
     )
 
 
-def test_live_verifier_allows_reasoning_before_text(monkeypatch):
-    import asyncio
-
-    asyncio.run(_run_verification(monkeypatch))
+async def test_live_verifier_allows_reasoning_before_text(monkeypatch):
+    await _run_verification(monkeypatch)
 
     assert _FakeVerifierAdapter.request is not None
     assert _FakeVerifierAdapter.request.max_output_tokens == 128
     assert _FakeVerifierAdapter.request.temperature == 0
+
+
+async def test_live_verifier_keeps_non_gemini_budget_short(monkeypatch):
+    def fake_provider(**_kwargs):
+        return _FakeVerifierAdapter()
+
+    monkeypatch.setattr(tenant_factory, "_provider", fake_provider)
+    await tenant_factory.LiveCredentialVerifier().verify(
+        provider=GenerationProvider.OPENAI,
+        model_id="gpt-4o-mini",
+        secret=SecretStr("test-secret"),
+    )
+
+    assert _FakeVerifierAdapter.request is not None
+    assert _FakeVerifierAdapter.request.max_output_tokens == 2
+
+
+async def test_custom_verifier_keeps_budget_short(monkeypatch):
+    def fake_provider(*_args, **_kwargs):
+        return _FakeVerifierAdapter()
+
+    monkeypatch.setattr(tenant_factory, "custom_provider", fake_provider)
+    await tenant_factory.LiveCredentialVerifier().verify_custom(
+        base_url="https://example.com/v1",
+        model_id="custom-model",
+        secret=SecretStr("test-secret"),
+    )
+
+    assert _FakeVerifierAdapter.request is not None
+    assert _FakeVerifierAdapter.request.max_output_tokens == 2

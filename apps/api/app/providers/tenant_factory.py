@@ -27,11 +27,20 @@ from app.providers.router import ModelTarget, ModelTier
 from app.providers.types import ChatMessage, GenerationRequest, MessageRole
 
 _APPROVED_BASE_URLS = {item.provider: item.base_url for item in adapter_specs()}
-_VERIFICATION_MAX_OUTPUT_TOKENS = 128
+_DEFAULT_VERIFICATION_MAX_OUTPUT_TOKENS = 2
+_GEMINI_VERIFICATION_MAX_OUTPUT_TOKENS = 128
 
 
 class TenantProviderUnavailableError(RuntimeError):
     """Safe failure when an explicit tenant-only policy has no usable target."""
+
+
+def _verification_max_output_tokens(provider: GenerationProvider) -> int:
+    """Allow Gemini reasoning without increasing verification cost elsewhere."""
+
+    if provider is GenerationProvider.GEMINI:
+        return _GEMINI_VERIFICATION_MAX_OUTPUT_TOKENS
+    return _DEFAULT_VERIFICATION_MAX_OUTPUT_TOKENS
 
 
 def _provider(
@@ -79,9 +88,7 @@ class LiveCredentialVerifier:
                             content="Reply with OK to verify this provider credential.",
                         )
                     ],
-                    # Gemini 2.5 may spend a small reasoning budget before emitting
-                    # content; two tokens can produce a valid 200 with no text.
-                    max_output_tokens=_VERIFICATION_MAX_OUTPUT_TOKENS,
+                    max_output_tokens=_verification_max_output_tokens(provider),
                     temperature=0,
                 )
             )
@@ -99,7 +106,7 @@ class LiveCredentialVerifier:
                             content="Reply with OK to verify this provider credential.",
                         )
                     ],
-                    max_output_tokens=_VERIFICATION_MAX_OUTPUT_TOKENS,
+                    max_output_tokens=_DEFAULT_VERIFICATION_MAX_OUTPUT_TOKENS,
                     temperature=0,
                 )
             )
