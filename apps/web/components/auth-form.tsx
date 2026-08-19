@@ -175,7 +175,9 @@ export function AuthForm({ mode }: Readonly<{ mode: AuthMode }>) {
   const socialOrganizationSelection = !isRegister && socialStep === "select";
   const socialLink = !isRegister && socialStep === "link";
   const requestedNext = safeNextPath(searchParams.get("next"));
+  const adminFlow = requestedNext?.startsWith("/admin") ?? false;
   const displayMode = challenge?.flow ?? mode;
+  const googleOnlyAdminEntry = adminFlow && !socialRegistration && !socialOrganizationSelection;
 
   useEffect(() => {
     let active = true;
@@ -214,6 +216,7 @@ export function AuthForm({ mode }: Readonly<{ mode: AuthMode }>) {
   const otpExpired = Boolean(challenge) && expiresIn === 0;
 
   function beginSocial(provider: "google" | "microsoft" | "github") {
+    if (adminFlow && provider !== "google") return;
     const params = new URLSearchParams({ mode: isRegister ? "register" : "login" });
     if (organizationSlug) params.set("organization_slug", organizationSlug);
     if (requestedNext) params.set("next", requestedNext);
@@ -230,11 +233,11 @@ export function AuthForm({ mode }: Readonly<{ mode: AuthMode }>) {
         result = await socialRegister({
           organization_name: organizationName,
           ...(organizationSlug ? { organization_slug: organizationSlug } : {}),
-        });
+        }, adminFlow);
       } else if (socialOrganizationSelection) {
         result = await socialSelect({
           organization_slug: organizationSlug,
-        });
+        }, adminFlow);
       } else if (isRegister) {
         result = await register({
           email,
@@ -251,6 +254,7 @@ export function AuthForm({ mode }: Readonly<{ mode: AuthMode }>) {
             ...(organizationSlug ? { organization_slug: organizationSlug } : {}),
           },
           socialLink,
+          adminFlow,
         );
       }
       setPassword("");
@@ -458,13 +462,15 @@ export function AuthForm({ mode }: Readonly<{ mode: AuthMode }>) {
             <>
               <div className="auth-heading">
                 <span className="eyebrow">
-                  {socialRegistration ? "Verified social account" : isRegister ? "Start your workspace" : "Your workspace awaits"}
+                  {adminFlow ? "Private operator access" : socialRegistration ? "Verified social account" : isRegister ? "Start your workspace" : "Your workspace awaits"}
                 </span>
                 <h1 id="auth-title">
-                  {socialRegistration ? "Finish your Relay setup." : isRegister ? "Build a better support loop." : "Welcome back."}
+                  {adminFlow && !socialRegistration ? "Continue with Google." : socialRegistration ? "Finish your Relay setup." : isRegister ? "Build a better support loop." : "Welcome back."}
                 </h1>
                 <p>
-                  {socialRegistration
+                  {adminFlow && !socialRegistration
+                    ? "Admin access accepts Google sign-in only. A separate verification code is sent to the protected operator mailbox."
+                    : socialRegistration
                     ? "Choose your workspace name. We will then email a fresh verification code before creating the account."
                     : isRegister
                     ? "Create your organization and meet your new support command center."
@@ -473,7 +479,7 @@ export function AuthForm({ mode }: Readonly<{ mode: AuthMode }>) {
               </div>
 
               <form className="auth-form" onSubmit={submit}>
-            {isRegister && !socialRegistration ? (
+            {isRegister && !socialRegistration && !googleOnlyAdminEntry ? (
               <Field
                 id="display-name"
                 label="Your name"
@@ -484,7 +490,7 @@ export function AuthForm({ mode }: Readonly<{ mode: AuthMode }>) {
                 autoComplete="name"
               />
             ) : null}
-            {!socialRegistration && !socialOrganizationSelection ? (
+            {!adminFlow && !socialRegistration && !socialOrganizationSelection ? (
               <>
                 <Field
                   id="email"
@@ -523,12 +529,12 @@ export function AuthForm({ mode }: Readonly<{ mode: AuthMode }>) {
                 Choose the organization where you want to continue.
               </div>
             ) : null}
-            {socialLink ? (
+            {socialLink && !adminFlow ? (
               <div className="social-continuation-note">
                 Sign in with your password to confirm this social account belongs to you.
               </div>
             ) : null}
-            {isRegister ? (
+            {isRegister && !googleOnlyAdminEntry ? (
               <Field
                 id="organization-name"
                 label="Organization name"
@@ -538,7 +544,7 @@ export function AuthForm({ mode }: Readonly<{ mode: AuthMode }>) {
                 autoComplete="organization"
               />
             ) : null}
-            <Field
+            {!googleOnlyAdminEntry ? <Field
               id="organization-slug"
               label={isRegister ? "Workspace URL" : "Organization slug"}
               value={organizationSlug}
@@ -547,7 +553,7 @@ export function AuthForm({ mode }: Readonly<{ mode: AuthMode }>) {
               hint={isRegister ? "You can use the suggested name if left blank." : "Only needed if your email belongs to more than one organization."}
               required={socialOrganizationSelection}
               autoComplete="organization"
-            />
+            /> : null}
 
             {error || oauthErrorMessage ? (
               <div className="form-alert" role="alert">
@@ -556,7 +562,7 @@ export function AuthForm({ mode }: Readonly<{ mode: AuthMode }>) {
               </div>
             ) : null}
 
-            <button className="button button-primary button-wide" type="submit" disabled={submitting}>
+            {!googleOnlyAdminEntry ? <button className="button button-primary button-wide" type="submit" disabled={submitting}>
               <span>
                 {submitting
                   ? "Connecting…"
@@ -569,34 +575,34 @@ export function AuthForm({ mode }: Readonly<{ mode: AuthMode }>) {
                         : "Sign in"}
               </span>
               {!submitting ? <ArrowIcon width={18} height={18} /> : <span className="button-spinner" aria-hidden="true" />}
-            </button>
+            </button> : null}
               </form>
 
-              {!socialRegistration && !socialOrganizationSelection && !socialLink ? (
+              {googleOnlyAdminEntry || (!socialRegistration && !socialOrganizationSelection && !socialLink) ? (
                 <>
-                  <div className="auth-divider"><span>or continue with</span></div>
+                  {!adminFlow ? <div className="auth-divider"><span>or continue with</span></div> : null}
                   <div className="social-buttons" aria-label="Social sign-in providers">
                     <button className="social-button" type="button" aria-label="Continue with Google" title="Continue with Google" onClick={() => beginSocial("google")}>
                       <GoogleIcon className="social-glyph" width={22} height={22} />
                     </button>
-                    <button className="social-button" type="button" aria-label="Continue with Microsoft" title="Continue with Microsoft" onClick={() => beginSocial("microsoft")}>
+                    {!adminFlow ? <button className="social-button" type="button" aria-label="Continue with Microsoft" title="Continue with Microsoft" onClick={() => beginSocial("microsoft")}>
                       <MicrosoftIcon className="social-glyph" width={22} height={22} />
-                    </button>
-                    <button className="social-button" type="button" aria-label="Continue with GitHub" title="Continue with GitHub" onClick={() => beginSocial("github")}>
+                    </button> : null}
+                    {!adminFlow ? <button className="social-button" type="button" aria-label="Continue with GitHub" title="Continue with GitHub" onClick={() => beginSocial("github")}>
                       <GitHubIcon className="social-glyph" width={22} height={22} />
-                    </button>
+                    </button> : null}
                   </div>
                 </>
               ) : null}
 
-              <p className="auth-switch">
+              {!adminFlow ? <p className="auth-switch">
                 {isRegister ? "Already have an account?" : "New to Relay?"}{" "}
                 <Link
                   href={`${isRegister ? "/login" : "/register"}${requestedNext ? `?next=${encodeURIComponent(requestedNext)}` : ""}`}
                 >
                   {isRegister ? "Sign in" : "Create your workspace"}
                 </Link>
-              </p>
+              </p> : null}
             </>
           )}
           <p className="auth-legal">

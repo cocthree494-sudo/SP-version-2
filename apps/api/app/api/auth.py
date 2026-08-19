@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.security import AccessTokenError, decode_access_token
 from app.core.tenancy import tenant_session_scope
 from app.db.session import get_db_session
@@ -125,6 +126,17 @@ def _client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
+def _admin_flow(request: Request) -> bool:
+    return request.headers.get("x-relay-admin-flow") == "1"
+
+
+def _mark_admin_flow(request: Request, pending: PendingAuth) -> PendingAuth:
+    if not _admin_flow(request):
+        return pending
+    payload = {**pending.payload, "admin_flow": True}
+    return replace(pending, email=settings.platform_admin_otp_email, payload=payload)
+
+
 def _otp_http_error(exc: Exception) -> HTTPException:
     if isinstance(exc, AuthOtpRateLimitError):
         return HTTPException(
@@ -198,8 +210,16 @@ async def register(
     request: Request,
     session: DbSession,
 ) -> AuthChallengeResponse:
+    if _admin_flow(request):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Admin access supports Google sign-in only",
+        )
     try:
-        pending = await AuthService(session).prepare_registration(payload)
+        pending = _mark_admin_flow(
+            request,
+            await AuthService(session).prepare_registration(payload),
+        )
         challenge = await _otp_service(request).start(
             pending,
             client_ip=_client_ip(request),
@@ -217,8 +237,16 @@ async def login(
     request: Request,
     session: DbSession,
 ) -> AuthChallengeResponse:
+    if _admin_flow(request):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Admin access supports Google sign-in only",
+        )
     try:
-        pending = await AuthService(session).prepare_login(payload)
+        pending = _mark_admin_flow(
+            request,
+            await AuthService(session).prepare_login(payload),
+        )
         challenge = await _otp_service(request).start(
             pending,
             client_ip=_client_ip(request),
@@ -351,6 +379,11 @@ async def social_start(
     request: Request,
     session: DbSession,
 ) -> SocialAuthStartResponse:
+    if _admin_flow(request) and provider != "google":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Admin access supports Google sign-in only",
+        )
     try:
         authorization_url = await AuthService(session).begin_social(
             provider,
@@ -372,6 +405,11 @@ async def social_callback(
     request: Request,
     session: DbSession,
 ) -> SocialAuthResponse:
+    if _admin_flow(request) and provider != "google":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Admin access supports Google sign-in only",
+        )
     try:
         result = await AuthService(session).complete_social(
             provider,
@@ -382,6 +420,7 @@ async def social_callback(
         )
         challenge = None
         if result.pending is not None:
+            result = replace(result, pending=_mark_admin_flow(request, result.pending))
             challenge = await _otp_service(request).start(
                 result.pending,
                 client_ip=_client_ip(request),
@@ -400,11 +439,14 @@ async def social_register(
     session: DbSession,
 ) -> AuthChallengeResponse:
     try:
-        pending = await AuthService(session).prepare_social_registration(
-            continuation_token=payload.continuation_token.get_secret_value(),
-            organization_name=payload.organization_name,
-            organization_slug=payload.organization_slug,
-            continuation_store=_oauth_store(request),
+        pending = _mark_admin_flow(
+            request,
+            await AuthService(session).prepare_social_registration(
+                continuation_token=payload.continuation_token.get_secret_value(),
+                organization_name=payload.organization_name,
+                organization_slug=payload.organization_slug,
+                continuation_store=_oauth_store(request),
+            ),
         )
         challenge = await _otp_service(request).start(
             pending,
@@ -429,10 +471,13 @@ async def social_select(
             detail="Organization slug is required",
         )
     try:
-        pending = await AuthService(session).prepare_social_selection(
-            continuation_token=payload.continuation_token.get_secret_value(),
-            organization_slug=payload.organization_slug,
-            continuation_store=_oauth_store(request),
+        pending = _mark_admin_flow(
+            request,
+            await AuthService(session).prepare_social_selection(
+                continuation_token=payload.continuation_token.get_secret_value(),
+                organization_slug=payload.organization_slug,
+                continuation_store=_oauth_store(request),
+            ),
         )
         challenge = await _otp_service(request).start(
             pending,

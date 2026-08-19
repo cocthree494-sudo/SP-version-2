@@ -263,6 +263,41 @@ def test_generated_otp_codes_are_eight_character_mixed_alphanumeric(
 
 
 @pytest.mark.asyncio
+async def test_admin_flow_is_google_only_and_uses_fixed_otp_mailbox(
+    auth_client: AsyncClient,
+) -> None:
+    from app.core.config import settings
+
+    headers = {"X-Relay-Admin-Flow": "1"}
+    password_login = await auth_client.post(
+        "/v1/auth/login",
+        headers=headers,
+        json={"email": "owner@example.com", "password": "not-used"},
+    )
+    microsoft = await auth_client.post(
+        "/v1/auth/oauth/microsoft/start",
+        headers=headers,
+        json={"mode": "login"},
+    )
+    assert password_login.status_code == 404
+    assert microsoft.status_code == 404
+
+    pending = PendingAuth(
+        kind="social_login",
+        email="signed-in-google-account@example.com",
+        payload={
+            "admin_flow": True,
+            "user_id": "00000000-0000-0000-0000-000000000001",
+            "tenant_id": "00000000-0000-0000-0000-000000000002",
+        },
+    )
+    service = AuthOtpService(app.state.auth_otp_store, app.state.auth_email_sender)
+    challenge = await service.start(pending, client_ip="127.0.0.1")
+    assert app.state.auth_email_sender.deliveries[-1].email == settings.platform_admin_otp_email
+    assert challenge.email_hint.endswith("@gmail.com")
+
+
+@pytest.mark.asyncio
 async def test_otp_attempt_exhaustion_locks_the_challenge(
     auth_client: AsyncClient,
 ) -> None:

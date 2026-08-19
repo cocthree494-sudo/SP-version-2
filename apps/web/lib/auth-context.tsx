@@ -21,13 +21,13 @@ type AuthStatus = "loading" | "authenticated" | "anonymous";
 interface AuthContextValue {
   status: AuthStatus;
   user: MeResponse | null;
-  login: (payload: LoginInput, completeSocialLink?: boolean) => Promise<PendingAuthResponse>;
+  login: (payload: LoginInput, completeSocialLink?: boolean, adminFlow?: boolean) => Promise<PendingAuthResponse>;
   register: (payload: RegisterInput) => Promise<PendingAuthResponse>;
   socialRegister: (payload: {
     organization_name: string;
     organization_slug?: string;
-  }) => Promise<PendingAuthResponse>;
-  socialSelect: (payload: { organization_slug: string }) => Promise<PendingAuthResponse>;
+  }, adminFlow?: boolean) => Promise<PendingAuthResponse>;
+  socialSelect: (payload: { organization_slug: string }, adminFlow?: boolean) => Promise<PendingAuthResponse>;
   otpStatus: () => Promise<PendingAuthResponse | null>;
   resendOtp: () => Promise<PendingAuthResponse>;
   verifyOtp: (code: string) => Promise<void>;
@@ -97,11 +97,15 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
       endpoint: "login" | "register",
       payload: LoginInput | RegisterInput,
       completeSocialLink = false,
+      adminFlow = false,
     ): Promise<PendingAuthResponse> => {
       const response = await fetch(`/api/auth/${endpoint}`, {
         method: "POST",
         credentials: "same-origin",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(adminFlow ? { "X-Relay-Admin-Flow": "1" } : {}),
+        },
         body: JSON.stringify(
           endpoint === "login" ? { ...payload, complete_social_link: completeSocialLink } : payload,
         ),
@@ -115,8 +119,8 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
   );
 
   const login = useCallback(
-    (payload: LoginInput, completeSocialLink = false) =>
-      authenticate("login", payload, completeSocialLink),
+    (payload: LoginInput, completeSocialLink = false, adminFlow = false) =>
+      authenticate("login", payload, completeSocialLink, adminFlow),
     [authenticate],
   );
   const register = useCallback(
@@ -127,11 +131,15 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
     async (
       endpoint: "register" | "select",
       payload: Record<string, string>,
+      adminFlow = false,
     ): Promise<PendingAuthResponse> => {
       const response = await fetch(`/api/auth/social/${endpoint}`, {
         method: "POST",
         credentials: "same-origin",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(adminFlow ? { "X-Relay-Admin-Flow": "1" } : {}),
+        },
         body: JSON.stringify(payload),
       });
       if (!response.ok) throw await browserAuthError(response);
@@ -140,13 +148,13 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
     [],
   );
   const socialRegister = useCallback(
-    (payload: { organization_name: string; organization_slug?: string }) =>
-      socialComplete("register", payload),
+    (payload: { organization_name: string; organization_slug?: string }, adminFlow = false) =>
+      socialComplete("register", payload, adminFlow),
     [socialComplete],
   );
   const socialSelect = useCallback(
-    (payload: { organization_slug: string }) =>
-      socialComplete("select", payload),
+    (payload: { organization_slug: string }, adminFlow = false) =>
+      socialComplete("select", payload, adminFlow),
     [socialComplete],
   );
 

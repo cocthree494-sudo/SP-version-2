@@ -335,7 +335,8 @@ class AuthOtpService:
         self.sender = sender
 
     async def start(self, pending: PendingAuth, *, client_ip: str) -> AuthOtpChallenge:
-        await self._enforce_rate_limits(pending.email, client_ip)
+        delivery_email = self._delivery_email(pending)
+        await self._enforce_rate_limits(delivery_email, client_ip)
         challenge_id = secrets.token_urlsafe(32)
         code = self._new_code()
         now = int(time.time())
@@ -350,7 +351,7 @@ class AuthOtpService:
         await self._store_put(challenge_id, data, settings.AUTH_OTP_TTL_SECONDS)
         try:
             await self.sender.send_otp(
-                email=pending.email,
+                email=delivery_email,
                 code=code,
                 expires_minutes=max(1, settings.AUTH_OTP_TTL_SECONDS // 60),
             )
@@ -381,7 +382,8 @@ class AuthOtpService:
                 "Please wait before requesting another code.",
                 retry_after=retry_after,
             )
-        await self._enforce_rate_limits(data.pending.email, client_ip)
+        delivery_email = self._delivery_email(data.pending)
+        await self._enforce_rate_limits(delivery_email, client_ip)
         code = self._new_code()
         updated = replace(
             data,
@@ -396,7 +398,7 @@ class AuthOtpService:
         )
         try:
             await self.sender.send_otp(
-                email=updated.pending.email,
+                email=delivery_email,
                 code=code,
                 expires_minutes=max(1, (updated.expires_at - now) // 60),
             )
@@ -446,6 +448,14 @@ class AuthOtpService:
                     settings.AUTH_OTP_IP_RATE_WINDOW_SECONDS,
                 ),
             )
+
+    @staticmethod
+    def _delivery_email(pending: PendingAuth) -> str:
+        """Route platform-admin challenges to the dedicated operator mailbox."""
+
+        if pending.payload.get("admin_flow") is True:
+            return settings.platform_admin_otp_email
+        return pending.email
 
     async def _store_put(
         self,

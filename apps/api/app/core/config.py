@@ -139,6 +139,7 @@ class Settings(BaseSettings):
     # Platform administration. The bootstrap list is intentionally an
     # environment-only control; later grants are persisted in PostgreSQL.
     PLATFORM_ADMIN_EMAILS: str = ""
+    PLATFORM_ADMIN_OTP_EMAIL: str = "namikazeminato11318@gmail.com"
     ADMIN_REPORTING_DATABASE_URL: str | None = None
     ADMIN_SESSION_MAX_AGE_SECONDS: int = Field(default=900, ge=60, le=3600)
 
@@ -256,6 +257,12 @@ class Settings(BaseSettings):
             for value in self.PLATFORM_ADMIN_EMAILS.split(",")
             if value.strip()
         )
+
+    @property
+    def platform_admin_otp_email(self) -> str:
+        """Fixed mailbox for OTP challenges initiated from the admin surface."""
+
+        return self.PLATFORM_ADMIN_OTP_EMAIL.strip().casefold()
 
     @property
     def admin_reporting_database_url(self) -> str:

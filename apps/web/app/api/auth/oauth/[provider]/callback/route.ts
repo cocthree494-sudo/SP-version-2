@@ -6,6 +6,7 @@ import {
   authClientHeaders,
   clearOAuthFlowCookies,
   clearPendingAuthCookies,
+  OAUTH_ADMIN_COOKIE,
   OAUTH_MODE_COOKIE,
   OAUTH_NEXT_COOKIE,
   publicRequestUrl,
@@ -35,6 +36,9 @@ export async function GET(
     ? "register"
     : "login";
   const nextPath = safeNextPath(request.cookies.get(OAUTH_NEXT_COOKIE)?.value);
+  if (request.cookies.get(OAUTH_ADMIN_COOKIE)?.value === "1" && provider !== "google") {
+    return NextResponse.json({ detail: "Admin access supports Google sign-in only." }, { status: 404 });
+  }
   const code = request.nextUrl.searchParams.get("code");
   const state = request.nextUrl.searchParams.get("state");
   if (!code || !state) {

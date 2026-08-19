@@ -460,10 +460,11 @@ export class SupportAgentApiClient {
   socialStart(
     provider: SocialProvider,
     payload: SocialAuthStartInput,
+    headers?: HeadersInit,
   ): Promise<SocialAuthStartResponse> {
     return this.request<SocialAuthStartResponse>(
       `/auth/oauth/${encodeURIComponent(provider)}/start`,
-      { method: "POST", body: JSON.stringify(payload) },
+      { method: "POST", body: JSON.stringify(payload), headers },
     );
   }
 

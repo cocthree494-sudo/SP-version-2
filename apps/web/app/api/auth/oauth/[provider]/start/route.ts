@@ -22,12 +22,15 @@ export async function GET(
   }
   const mode = request.nextUrl.searchParams.get("mode") === "register" ? "register" : "login";
   const nextPath = safeNextPath(request.nextUrl.searchParams.get("next"));
+  if (nextPath?.startsWith("/admin") && provider !== "google") {
+    return NextResponse.json({ detail: "Admin access supports Google sign-in only." }, { status: 404 });
+  }
   const organizationSlug = request.nextUrl.searchParams.get("organization_slug") ?? undefined;
   try {
     const result = await serverApi.socialStart(provider as SocialProvider, {
       mode,
       ...(organizationSlug ? { organization_slug: organizationSlug } : {}),
-    });
+    }, nextPath?.startsWith("/admin") ? { "X-Relay-Admin-Flow": "1" } : undefined);
     const response = NextResponse.redirect(result.authorization_url);
     clearPendingAuthCookies(response);
     setOAuthFlowCookies(response, mode, nextPath);

@@ -15,6 +15,7 @@ export const SOCIAL_CONTINUATION_COOKIE = "sa_social_continuation";
 export const SOCIAL_LINK_COOKIE = "sa_social_link";
 export const OAUTH_MODE_COOKIE = "sa_oauth_mode";
 export const OAUTH_NEXT_COOKIE = "sa_oauth_next";
+export const OAUTH_ADMIN_COOKIE = "sa_oauth_admin";
 
 export const apiBaseUrl =
   process.env.API_INTERNAL_URL ??
@@ -93,10 +94,14 @@ export function setOAuthFlowCookies(
       maxAge: 0,
     });
   }
+  response.cookies.set(OAUTH_ADMIN_COOKIE, nextPath?.startsWith("/admin") ? "1" : "", {
+    ...privateCookieOptions,
+    maxAge: nextPath?.startsWith("/admin") ? 10 * 60 : 0,
+  });
 }
 
 export function clearOAuthFlowCookies(response: NextResponse): void {
-  for (const name of [OAUTH_MODE_COOKIE, OAUTH_NEXT_COOKIE]) {
+  for (const name of [OAUTH_MODE_COOKIE, OAUTH_NEXT_COOKIE, OAUTH_ADMIN_COOKIE]) {
     response.cookies.set(name, "", {
       ...privateCookieOptions,
       maxAge: 0,
@@ -164,6 +169,13 @@ export function clearAuthCookies(response: NextResponse): void {
 }
 
 export function authClientHeaders(request: NextRequest): HeadersInit {
+  const headers: Record<string, string> = {};
+  if (
+    request.headers.get("x-relay-admin-flow") === "1" ||
+    request.cookies.get(OAUTH_ADMIN_COOKIE)?.value === "1"
+  ) {
+    headers["X-Relay-Admin-Flow"] = "1";
+  }
   const candidates = [
     request.headers.get("cf-connecting-ip"),
     request.headers.get("x-real-ip"),
@@ -171,10 +183,11 @@ export function authClientHeaders(request: NextRequest): HeadersInit {
   ];
   for (const candidate of candidates) {
     if (candidate && isIP(candidate) !== 0) {
-      return { "X-Relay-Client-IP": candidate };
+      headers["X-Relay-Client-IP"] = candidate;
+      return headers;
     }
   }
-  return {};
+  return headers;
 }
 
 export function sameOriginError(request: NextRequest): NextResponse | null {
