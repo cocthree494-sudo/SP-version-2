@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
-import { ArrowIcon, GridIcon, MessageIcon, ShieldIcon, UserIcon } from "@/components/icons";
+import { ArrowIcon, GridIcon, MessageIcon, UserIcon } from "@/components/icons";
 import { DashboardApiError, dashboardRequest } from "@/lib/dashboard-api";
 
 type Section = "overview" | "tenants" | "users" | "usage" | "operations" | "audit";
@@ -101,7 +101,7 @@ function Metric({ label, value, detail, tone = "default" }: { label: string; val
 }
 
 function ErrorState({ message }: { message: string }) {
-  return <div className="admin-empty admin-error"><ShieldIcon width={18} height={18} /><strong>{message}</strong><span>Refresh the page or check the platform health panel.</span></div>;
+  return <div className="admin-empty admin-error"><UserIcon width={18} height={18} /><strong>{message}</strong><span>Refresh the page or check the platform health panel.</span></div>;
 }
 
 function LoadingRows() {
@@ -182,7 +182,7 @@ export function AdminConsole({ section }: { section: Section }) {
   };
 
   return <div className="admin-app">
-    <aside className="admin-sidebar"><div className="admin-brand"><span className="admin-brand-mark">R</span><div><strong>Relay</strong><small>Control plane</small></div></div><div className="admin-sidebar-label">Operate</div><nav aria-label="Platform administration">{navigation.map((item) => <Link key={item.key} href={`/admin${item.key === "overview" ? "" : `/${item.key}`}`} className={section === item.key ? "admin-nav-link admin-nav-link-active" : "admin-nav-link"}><span className="admin-nav-icon">{item.key === "overview" ? <GridIcon width={16} height={16} /> : item.key === "users" ? <UserIcon width={16} height={16} /> : item.key === "audit" ? <ShieldIcon width={16} height={16} /> : <MessageIcon width={16} height={16} />}</span><span><strong>{item.label}</strong><small>{item.note}</small></span></Link>)}</nav><div className="admin-sidebar-footer"><span className="admin-live-dot" />Private operator access<Link href="/dashboard">Back to workspace <ArrowIcon width={13} height={13} /></Link></div></aside>
+    <aside className="admin-sidebar"><div className="admin-brand"><span className="admin-brand-mark">R</span><div><strong>Relay</strong><small>Control plane</small></div></div><div className="admin-sidebar-label">Operate</div><nav aria-label="Platform administration">{navigation.map((item) => <Link key={item.key} href={`/admin${item.key === "overview" ? "" : `/${item.key}`}`} className={section === item.key ? "admin-nav-link admin-nav-link-active" : "admin-nav-link"}><span className="admin-nav-icon">{item.key === "overview" ? <GridIcon width={16} height={16} /> : item.key === "users" ? <UserIcon width={16} height={16} /> : item.key === "audit" ? <UserIcon width={16} height={16} /> : <MessageIcon width={16} height={16} />}</span><span><strong>{item.label}</strong><small>{item.note}</small></span></Link>)}</nav><div className="admin-sidebar-footer"><span className="admin-live-dot" />Private operator access<Link href="/dashboard">Back to workspace <ArrowIcon width={13} height={13} /></Link></div></aside>
     <main className="admin-main"><header className="admin-topbar"><div><span className="admin-topbar-kicker">Relay / Platform administration</span><strong>{sectionMeta.label}</strong></div><div className="admin-topbar-right"><span className="admin-secure-pill"><i />OTP session verified</span><span className="admin-avatar">A</span></div></header><div className="admin-content">{loading && section !== "overview" ? <LoadingRows /> : error ? <ErrorState message={error} /> : section === "overview" && summary ? <Overview summary={summary} onRefresh={() => void load()} /> : section === "operations" && health ? <Operations health={health} /> : rows ? <DataSection section={section} data={rows} query={query} setQuery={setQuery} statusFilter={statusFilter} setStatusFilter={setStatusFilter} onSearch={() => { setPage(1); void load(); }} onAction={setAction} /> : null}<Pagination page={section === "operations" ? health?.page : rows?.page} onPage={setPage} /></div></main>{action ? <ActionDialog title={action.kind === "sessions" ? "Revoke all user sessions" : `${action.desired === "active" ? "Reactivate" : "Suspend"} ${action.kind}`} description={action.kind === "sessions" ? "Every active browser session and refresh token for this identity will be invalidated." : "This changes the account lifecycle state across the platform and is recorded in the immutable audit log."} onClose={() => setAction(null)} onSubmit={submitAction} loading={actionLoading} /> : null}</div>;
 }
 
@@ -206,4 +206,3 @@ function Pagination({ page, onPage }: { page: { page: number; pages: number } | 
   if (!page || page.pages <= 1) return null;
   return <div className="admin-pagination"><button className="admin-button admin-button-quiet" type="button" disabled={page.page <= 1} onClick={() => onPage(page.page - 1)}>Previous</button><span>Page {page.page} of {page.pages}</span><button className="admin-button admin-button-quiet" type="button" disabled={page.page >= page.pages} onClick={() => onPage(page.page + 1)}>Next</button></div>;
 }
-
