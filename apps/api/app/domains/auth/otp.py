@@ -523,7 +523,7 @@ class AuthOtpService:
     ) -> AuthOtpChallenge:
         return AuthOtpChallenge(
             challenge_id=challenge_id,
-            email_hint=AuthOtpService._email_hint(data.pending.email),
+            email_hint=AuthOtpService._email_hint(AuthOtpService._delivery_email(data.pending)),
             flow=("register" if data.pending.kind.endswith("register") else "login"),
             expires_in=max(0, data.expires_at - now),
             resend_after=max(0, data.resend_available_at - now),
