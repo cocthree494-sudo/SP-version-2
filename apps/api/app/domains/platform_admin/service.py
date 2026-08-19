@@ -19,8 +19,8 @@ from app.domains.platform_admin.models import (
     PlatformAdminAuditLog,
     PlatformAdminStatus,
 )
-from app.domains.tenancy.enums import TenantStatus, UserStatus
-from app.domains.tenancy.models import Tenant, TenantMembership, User
+from app.domains.tenancy.enums import UserStatus
+from app.domains.tenancy.models import User
 
 
 class PlatformAdminContext:
@@ -107,14 +107,32 @@ async def report_rows(
     page: int = 1,
     page_size: int = 25,
 ) -> tuple[list[dict[str, Any]], int]:
+    """Query only caller-owned constant view/column fragments. Values stay bound."""
+
+    allowed_views = {
+        "platform_admin_audit_log",
+        "platform_admin_channel_health",
+        "platform_admin_ingestion_jobs",
+        "platform_admin_provider_health",
+        "platform_admin_tenant_directory",
+        "platform_admin_usage_events",
+        "platform_admin_user_directory",
+        "platform_admin_voice_health",
+    }
+    if view not in allowed_views:
+        raise ValueError("Unknown reporting view")
+    if any(not value.replace("_", "").isalnum() for value in columns):
+        raise ValueError("Invalid reporting column")
     page, page_size = _safe_page(page, page_size)
     values = dict(params or {})
-    total = int(await session.scalar(text(f"SELECT COUNT(*) FROM {view} WHERE {where}"), values) or 0)
+    count_query = f"SELECT COUNT(*) FROM {view} WHERE {where}"  # noqa: S608
+    total = int(await session.scalar(text(count_query), values) or 0)
+    page_query = (  # noqa: S608
+        f"SELECT {', '.join(columns)} FROM {view} WHERE {where} "
+        f"ORDER BY {order_by} LIMIT :limit OFFSET :offset"
+    )
     result = await session.execute(
-        text(
-            f"SELECT {', '.join(columns)} FROM {view} WHERE {where} "
-            f"ORDER BY {order_by} LIMIT :limit OFFSET :offset"
-        ),
+        text(page_query),
         {**values, "limit": page_size, "offset": (page - 1) * page_size},
     )
     return [dict(row) for row in result.mappings().all()], total

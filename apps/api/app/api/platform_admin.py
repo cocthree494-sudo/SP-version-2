@@ -7,12 +7,11 @@ from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from sqlalchemy import select, text, update
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.reporting import get_reporting_session
 from app.db.session import get_db_session
-from app.domains.auth.models import RefreshToken
 from app.domains.platform_admin.models import PlatformAdmin, PlatformAdminStatus
 from app.domains.platform_admin.schemas import (
     AdminActionRequest,
@@ -87,8 +86,8 @@ async def summary(
     session: DbSession,
     reporting: ReportSession,
     context: CurrentAdmin,
-    start: datetime | None = Query(default=None),
-    end: datetime | None = Query(default=None),
+    start: Annotated[datetime | None, Query()] = None,
+    end: Annotated[datetime | None, Query()] = None,
 ) -> AdminSummaryResponse:
     if start and start.tzinfo is None:
         start = start.replace(tzinfo=UTC)
