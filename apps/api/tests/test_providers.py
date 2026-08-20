@@ -380,6 +380,44 @@ def test_embedding_configuration_falls_back_to_generation_settings(
     assert isinstance(build_embedding_provider(), OpenAICompatibleEmbeddingProvider)
 
 
+@pytest.mark.asyncio
+async def test_embedding_tolerates_providers_that_omit_index_and_usage() -> None:
+    """Gemini's OpenAI-compatible endpoint returns neither `index` nor `usage`."""
+
+    async def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "object": "list",
+                "model": "gemini-embedding-001",
+                "data": [
+                    {"object": "embedding", "embedding": [1.0, 0.0]},
+                    {"object": "embedding", "embedding": [0.0, 1.0]},
+                ],
+            },
+        )
+
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(handler),
+        base_url="https://provider.example/v1/",
+    ) as client:
+        provider = OpenAICompatibleEmbeddingProvider(
+            provider_id="gemini",
+            model_id="gemini-embedding-001",
+            dimensions=2,
+            base_url="https://unused.example/v1",
+            api_key=SecretStr("test-secret-value"),
+            timeout_seconds=5,
+            client=client,
+        )
+        embedded = await provider.embed(["first question", "second question"])
+
+    # Response order is the input order when the provider omits `index`.
+    assert embedded.embeddings == [[1.0, 0.0], [0.0, 1.0]]
+    # Usage is estimated rather than reported as zero, so cost stays meaningful.
+    assert embedded.usage.input_tokens > 0
+
+
 def test_deterministic_embeddings_stay_available_without_credentials(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

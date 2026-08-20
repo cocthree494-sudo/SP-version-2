@@ -9,7 +9,12 @@ from typing import Any
 import httpx
 from pydantic import SecretStr
 
-from app.providers.embeddings import EmbeddingBatch, EmbeddingProviderError, EmbeddingUsage
+from app.providers.embeddings import (
+    EmbeddingBatch,
+    EmbeddingProviderError,
+    EmbeddingUsage,
+    estimate_tokens,
+)
 from app.providers.types import (
     ChatMessage,
     GenerationRequest,
@@ -248,8 +253,15 @@ class OpenAICompatibleEmbeddingProvider(_OpenAICompatibleBase):
             ) from exc
         try:
             payload_json = response.json()
-            items = sorted(payload_json["data"], key=lambda item: int(item["index"]))
-            embeddings = [item["embedding"] for item in items]
+            data = payload_json["data"]
+            if not isinstance(data, list):
+                raise TypeError
+            # Some OpenAI-compatible providers, including Gemini, omit `index`.
+            # The response order matches the input order, so fall back to it
+            # rather than failing the whole batch.
+            if all(isinstance(item, dict) and "index" in item for item in data):
+                data = sorted(data, key=lambda item: int(item["index"]))
+            embeddings = [item["embedding"] for item in data]
             if not all(
                 isinstance(embedding, list)
                 and all(isinstance(value, (float, int)) for value in embedding)
@@ -269,7 +281,12 @@ class OpenAICompatibleEmbeddingProvider(_OpenAICompatibleBase):
                 provider_id=self.provider_id,
             )
         usage = payload_json.get("usage")
-        input_tokens = int(usage.get("prompt_tokens", 0)) if isinstance(usage, dict) else 0
+        if isinstance(usage, dict):
+            input_tokens = int(usage.get("prompt_tokens", 0))
+        else:
+            # Providers that omit usage would otherwise report zero embedding
+            # cost forever. Estimate instead so cost tracking stays meaningful.
+            input_tokens = sum(estimate_tokens(text) for text in texts)
         return EmbeddingBatch(
             embeddings=[[float(value) for value in embedding] for embedding in embeddings],
             usage=EmbeddingUsage(input_tokens=input_tokens),
