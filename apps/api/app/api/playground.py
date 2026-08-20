@@ -60,6 +60,7 @@ def _event_payload(event: AgentStreamEvent) -> object:
         "provider_id": event.answer.provider_id,
         "model_id": event.answer.model_id,
         "routing_reason": event.answer.routing_reason,
+        "response_kind": event.answer.response_kind,
     }
 
 

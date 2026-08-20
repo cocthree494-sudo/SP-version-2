@@ -25,6 +25,7 @@ from app.domains.chat.conversation_service import (
 )
 from app.domains.chat.models import Conversation, ConversationMessage
 from app.domains.chat.orchestrator import (
+    AgentResponseKind,
     AgentStreamEvent,
     AgentStreamEventType,
     GroundedAnswerOrchestrator,
@@ -235,6 +236,45 @@ async def test_weak_retrieval_uses_localized_fallback_without_model_cost(
     assert answer.fallback is True
     assert "উপলভ্য তথ্যের ভিত্তিতে" in answer.text
     assert answer.citations == []
+    assert answer.response_kind is AgentResponseKind.FALLBACK
+    assert provider.requests == []
+    assert await agent_session.scalar(select(func.count(UsageEvent.id))) == 0
+
+
+@pytest.mark.asyncio
+async def test_greeting_stream_is_local_and_uses_no_model_or_retrieval(
+    agent_session: AsyncSession,
+) -> None:
+    tenant, _bot, conversation = await seed_conversation(agent_session, "local-greeting")
+    provider = CapturingProvider("unused", "should not run")
+    retriever = StaticRetriever([retrieval_result("This should not be retrieved.")])
+    agent = GroundedAnswerOrchestrator(
+        agent_session,
+        tenant.id,
+        retriever=retriever,
+        router=ModelRouter(
+            [ModelTarget(provider, ModelTier.LOW_COST)],
+            InMemoryCircuitStore(),
+        ),
+    )
+
+    events = [
+        event
+        async for event in agent.stream_answer(
+            conversation_id=conversation.id,
+            question="hi",
+        )
+    ]
+
+    assert [event.type for event in events] == [
+        AgentStreamEventType.TEXT_DELTA,
+        AgentStreamEventType.COMPLETED,
+    ]
+    assert "How can I help?" in events[0].text
+    assert events[-1].answer is not None
+    assert events[-1].answer.response_kind is AgentResponseKind.LOCAL_GREETING
+    assert events[-1].answer.fallback is False
+    assert retriever.calls == 0
     assert provider.requests == []
     assert await agent_session.scalar(select(func.count(UsageEvent.id))) == 0
 

@@ -79,6 +79,12 @@ class AnswerCitation:
     end_char: int
 
 
+class AgentResponseKind(StrEnum):
+    GROUNDED = "grounded"
+    FALLBACK = "fallback"
+    LOCAL_GREETING = "local_greeting"
+
+
 @dataclass(frozen=True, slots=True)
 class GroundedAnswer:
     conversation_id: UUID
@@ -90,6 +96,7 @@ class GroundedAnswer:
     model_id: str | None
     routing_reason: str | None
     fallback: bool
+    response_kind: AgentResponseKind
 
 
 class AgentStreamEventType(StrEnum):
@@ -139,6 +146,49 @@ def uncertainty_fallback(bot: Bot, question: str) -> str:
         "bn": "দুঃখিত, উপলভ্য তথ্যের ভিত্তিতে আমি উত্তরটি জানি না।",
         "en": "I'm sorry, but I don't know based on the available information.",
         "ja": "申し訳ありませんが、利用可能な情報だけでは回答できません。",
+    }
+    return messages.get(language, messages["en"])
+
+
+_GREETING_PHRASES = frozenset(
+    {
+        "good afternoon",
+        "good evening",
+        "good morning",
+        "hello",
+        "hello there",
+        "hey",
+        "hey there",
+        "hi",
+        "hi there",
+        "হাই",
+        "হ্যালো",
+        "সালাম",
+        "こんにちは",
+        "مرحبا",
+        "السلام عليكم",
+    }
+)
+
+
+def _is_greeting(question: str) -> bool:
+    normalized = " ".join(re.findall(r"\w+", question.casefold(), flags=re.UNICODE))
+    return normalized in _GREETING_PHRASES
+
+
+def local_greeting(bot: Bot, question: str) -> str:
+    language = _fallback_language(bot, question)
+    messages = {
+        "ar": "مرحبًا! كيف يمكنني مساعدتك؟ اسألني عن المعلومات المضافة إلى قاعدة معرفة هذا الروبوت.",
+        "bn": "হ্যালো! আমি কীভাবে সাহায্য করতে পারি? এই বটের নলেজে যোগ করা তথ্য সম্পর্কে প্রশ্ন করুন।",
+        "en": (
+            "Hi! How can I help? Ask me about the business, services, products, "
+            "or policies added to this bot's knowledge."
+        ),
+        "ja": (
+            "こんにちは。この事業やサービス、製品、方針について"
+            "お気軽にご質問ください。"
+        ),
     }
     return messages.get(language, messages["en"])
 
@@ -303,6 +353,47 @@ class GroundedAnswerOrchestrator:
         self.router = router
         self.conversations = ConversationService(session, tenant_id)
 
+    async def _persist_local_answer(
+        self,
+        *,
+        conversation_id: UUID,
+        question: str,
+        answer_text: str,
+        response_kind: AgentResponseKind,
+    ) -> GroundedAnswer:
+        try:
+            user_message = await self.conversations.append_message(
+                conversation_id,
+                role=ConversationMessageRole.USER,
+                content=question,
+            )
+            assistant_message = await self.conversations.append_message(
+                conversation_id,
+                role=ConversationMessageRole.ASSISTANT,
+                content=answer_text,
+                metadata={
+                    "fallback": False,
+                    "local": True,
+                    "response_kind": response_kind.value,
+                },
+            )
+            await self.session.commit()
+        except Exception:
+            await self.session.rollback()
+            raise
+        return GroundedAnswer(
+            conversation_id=conversation_id,
+            user_message_id=user_message.id,
+            assistant_message_id=assistant_message.id,
+            text=answer_text,
+            citations=[],
+            provider_id=None,
+            model_id=None,
+            routing_reason=None,
+            fallback=False,
+            response_kind=response_kind,
+        )
+
     async def answer(self, *, conversation_id: UUID, question: str) -> GroundedAnswer:
         normalized_question = question.strip()
         if not normalized_question:
@@ -314,6 +405,14 @@ class GroundedAnswerOrchestrator:
         bot = await BotRepository(self.session, self.tenant_id).get(context.conversation.bot_id)
         if bot is None or bot.status is not BotStatus.ACTIVE:
             raise AgentBotUnavailableError("Support bot is unavailable")
+
+        if _is_greeting(normalized_question):
+            return await self._persist_local_answer(
+                conversation_id=conversation_id,
+                question=normalized_question,
+                answer_text=local_greeting(bot, normalized_question),
+                response_kind=AgentResponseKind.LOCAL_GREETING,
+            )
 
         retrieval = await self.retriever.retrieve(
             bot_id=bot.id,
@@ -387,7 +486,11 @@ class GroundedAnswerOrchestrator:
             }
             for item in citations
         ]
-        metadata: dict[str, object] = {"fallback": fallback}
+        response_kind = AgentResponseKind.FALLBACK if fallback else AgentResponseKind.GROUNDED
+        metadata: dict[str, object] = {
+            "fallback": fallback,
+            "response_kind": response_kind.value,
+        }
         if routed is not None:
             metadata.update(
                 {
@@ -456,6 +559,7 @@ class GroundedAnswerOrchestrator:
             model_id=routed.response.model_id if routed is not None else None,
             routing_reason=routed.routing_reason.value if routed is not None else None,
             fallback=fallback,
+            response_kind=response_kind,
         )
 
     async def stream_answer(
@@ -481,6 +585,16 @@ class GroundedAnswerOrchestrator:
         bot = await BotRepository(self.session, self.tenant_id).get(context.conversation.bot_id)
         if bot is None or bot.status is not BotStatus.ACTIVE:
             raise AgentBotUnavailableError("Support bot is unavailable")
+        if _is_greeting(normalized_question):
+            answer = await self._persist_local_answer(
+                conversation_id=conversation_id,
+                question=normalized_question,
+                answer_text=local_greeting(bot, normalized_question),
+                response_kind=AgentResponseKind.LOCAL_GREETING,
+            )
+            yield AgentStreamEvent(type=AgentStreamEventType.TEXT_DELTA, text=answer.text)
+            yield AgentStreamEvent(type=AgentStreamEventType.COMPLETED, answer=answer)
+            return
         retrieval = await self.retriever.retrieve(
             bot_id=bot.id,
             query=normalized_question,
@@ -553,8 +667,10 @@ class GroundedAnswerOrchestrator:
             }
             for item in citations
         ]
+        response_kind = AgentResponseKind.FALLBACK if fallback else AgentResponseKind.GROUNDED
         metadata: dict[str, object] = {
             "fallback": fallback,
+            "response_kind": response_kind.value,
             "streamed": True,
         }
         if selected_target is not None:
@@ -618,6 +734,7 @@ class GroundedAnswerOrchestrator:
             ),
             routing_reason=selected_routing_reason,
             fallback=fallback,
+            response_kind=response_kind,
         )
         if citations:
             yield AgentStreamEvent(
@@ -630,6 +747,7 @@ class GroundedAnswerOrchestrator:
 __all__ = [
     "AgentBotUnavailableError",
     "AgentDomainError",
+    "AgentResponseKind",
     "AgentStreamEvent",
     "AgentStreamEventType",
     "AnswerCitation",
@@ -638,5 +756,6 @@ __all__ = [
     "InvalidCustomerQuestionError",
     "KnowledgeRetriever",
     "assemble_grounded_prompt",
+    "local_greeting",
     "uncertainty_fallback",
 ]

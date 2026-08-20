@@ -25,6 +25,7 @@ interface ChatMessage {
   citations?: Citation[];
   pending?: boolean;
   fallback?: boolean;
+  responseKind?: "grounded" | "fallback" | "local_greeting";
 }
 
 interface SseFrame {
@@ -206,9 +207,16 @@ export function Playground() {
             });
           } else if (frame?.event === "completed") {
             const fallback = Boolean(frame.data.fallback);
-            updateAssistant(assistantId, { pending: false, fallback });
+            const responseKind = String(
+              frame.data.response_kind ?? (fallback ? "fallback" : "grounded"),
+            ) as ChatMessage["responseKind"];
+            updateAssistant(assistantId, { pending: false, fallback, responseKind });
             setRetrievalState(
-              fallback ? "No strong source match — safe fallback used" : "Grounded answer complete",
+              responseKind === "local_greeting"
+                ? "Local greeting — no AI credits used"
+                : fallback
+                  ? "No strong source match — safe fallback used"
+                  : "Grounded answer complete",
             );
           } else if (frame?.event === "error") {
             throw new Error(String(frame.data.message ?? "The response failed."));
@@ -305,6 +313,7 @@ export function Playground() {
                     </div>
                   ) : null}
                   {message.fallback ? <small>Safe fallback — no sufficiently strong source match.</small> : null}
+                  {message.responseKind === "local_greeting" ? <small>Local reply — no AI credits used.</small> : null}
                 </article>
               ))}
               <div ref={messageEndRef} />
