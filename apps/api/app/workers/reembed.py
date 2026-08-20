@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 import structlog
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import ColumnElement, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -48,7 +48,7 @@ class ReembedReport:
     input_tokens: int = 0
 
 
-def _stale_predicate(provider: EmbeddingProvider) -> object:
+def _stale_predicate(provider: EmbeddingProvider) -> ColumnElement[bool]:
     """Chunks whose stored vector does not match the configured provider."""
 
     return or_(
