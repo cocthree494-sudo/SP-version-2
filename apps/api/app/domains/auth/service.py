@@ -348,6 +348,7 @@ class AuthService:
         state: str,
         state_store: OAuthStateStore,
         continuation_store: SocialContinuationStore,
+        admin_flow: bool = False,
     ) -> SocialAuthResult:
         """Validate a provider callback and either sign in or issue one next step."""
 
@@ -391,6 +392,30 @@ class AuthService:
                 continuation_store,
                 SocialContinuation(kind="register", profile=profile),
             )
+            if admin_flow:
+                # Platform-admin sign-in is not tenant onboarding. Keep the
+                # required OTP gate, but provision a private placeholder
+                # tenant so the verified admin lands directly in the control
+                # plane instead of seeing the workspace setup form.
+                organization_name = "Platform Admin"
+                organization_slug = create_organization_slug(organization_name)
+                if await self.tenants.get_by_slug(organization_slug) is not None:
+                    organization_slug = f"{organization_slug[:50].rstrip('-')}-{uuid4().hex[:8]}"
+                return SocialAuthResult(
+                    status="otp_required",
+                    profile=profile,
+                    pending=PendingAuth(
+                        kind="social_register",
+                        email=profile.email,
+                        payload={
+                            "continuation": SocialContinuation(
+                                kind="register", profile=profile
+                            ).as_dict(),
+                            "organization_name": organization_name,
+                            "organization_slug": organization_slug,
+                        },
+                    ),
+                )
             return SocialAuthResult(
                 status="organization_required",
                 continuation_token=token,

@@ -419,6 +419,7 @@ async def social_callback(
             state=payload.state,
             state_store=_oauth_store(request),
             continuation_store=_oauth_store(request),
+            admin_flow=_admin_flow(request),
         )
         challenge = None
         if result.pending is not None:

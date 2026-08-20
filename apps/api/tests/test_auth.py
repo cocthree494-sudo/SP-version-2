@@ -267,6 +267,7 @@ async def test_admin_flow_is_google_only_and_uses_fixed_otp_mailbox(
     auth_client: AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    import app.domains.auth.service as auth_service
     from app.core.config import settings
 
     headers = {"X-Relay-Admin-Flow": "1"}
@@ -297,19 +298,33 @@ async def test_admin_flow_is_google_only_and_uses_fixed_otp_mailbox(
         in google.json()["authorization_url"]
     )
 
-    pending = PendingAuth(
-        kind="social_login",
-        email="signed-in-google-account@example.com",
-        payload={
-            "admin_flow": True,
-            "user_id": "00000000-0000-0000-0000-000000000001",
-            "tenant_id": "00000000-0000-0000-0000-000000000002",
-        },
+    async def fake_exchange(provider: str, *, code: str, oauth_state: object) -> OAuthProfile:
+        assert provider == "google"
+        assert code == "admin-provider-code"
+        return OAuthProfile(
+            provider="google",
+            issuer="https://accounts.google.com",
+            subject="new-admin-google-subject",
+            email="signed-in-google-account@example.com",
+            email_verified=True,
+            display_name="Platform Operator",
+        )
+
+    monkeypatch.setattr(auth_service, "exchange_code", fake_exchange)
+    from urllib.parse import parse_qs, urlparse
+
+    state = parse_qs(urlparse(google.json()["authorization_url"]).query)["state"][0]
+    callback = await auth_client.post(
+        "/v1/auth/oauth/google/callback",
+        headers=headers,
+        json={"code": "admin-provider-code", "state": state},
     )
-    service = AuthOtpService(app.state.auth_otp_store, app.state.auth_email_sender)
-    challenge = await service.start(pending, client_ip="127.0.0.1")
+    assert callback.status_code == 200
+    assert callback.json()["status"] == "otp_required"
+    assert callback.json()["flow"] == "register"
+    assert callback.json()["continuation_token"] is None
     assert app.state.auth_email_sender.deliveries[-1].email == settings.platform_admin_otp_email
-    assert challenge.email_hint.endswith("@gmail.com")
+    assert callback.json()["email_hint"].endswith("@gmail.com")
 
 
 @pytest.mark.asyncio
