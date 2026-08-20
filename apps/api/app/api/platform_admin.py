@@ -36,6 +36,12 @@ from app.domains.platform_admin.schemas import (
     AdminUsageRow,
     AdminUserListResponse,
     AdminUserRow,
+    AdminUserDetailResponse,
+    AdminUserTenantRow,
+    AdminUserBotRow,
+    AdminUserSourceRow,
+    AdminUserProviderRow,
+    AdminUserConversationRow,
 )
 from app.domains.platform_admin.service import (
     PlatformAdminContext,
@@ -217,6 +223,103 @@ async def users(
     rows, total = await report_rows(reporting, view="platform_admin_user_directory", columns=("user_id", "email", "display_name", "status", "email_verified_at", "created_at", "tenant_count", "last_session_at", "active_session_count"), where=where, params=params, page=page, page_size=page_size)
     await _read_audit(session, context, request, "admin.users.read", "user")
     return AdminUserListResponse(items=[AdminUserRow(**row) for row in rows], page=_page_model(page, page_size, total))
+
+
+@router.get("/users/{user_id}/detail", response_model=AdminUserDetailResponse)
+async def user_detail(
+    user_id: UUID,
+    request: Request,
+    session: DbSession,
+    reporting: ReportSession,
+    context: CurrentAdmin,
+    include_content: bool = Query(default=False),
+) -> AdminUserDetailResponse:
+    """Return a redacted, cross-tenant operating map for one identity.
+
+    The reporting role exposes only configuration metadata and bounded manual-Q&A
+    previews. Provider secrets, auth material, widget publishable keys, and
+    conversation message bodies are deliberately not part of this contract.
+    """
+    user_rows, total = await report_rows(
+        reporting,
+        view="platform_admin_user_directory",
+        columns=("user_id", "email", "display_name", "status", "email_verified_at", "created_at", "tenant_count", "last_session_at", "active_session_count"),
+        where="user_id = :user_id",
+        params={"user_id": user_id},
+        page=1,
+        page_size=1,
+    )
+    if total == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    user = AdminUserRow(**user_rows[0])
+    tenant_where = "tenant_id IN (SELECT tenant_id FROM platform_admin_user_tenants WHERE user_id = :user_id)"
+    params = {"user_id": user_id}
+    tenants_rows, _ = await report_rows(
+        reporting,
+        view="platform_admin_user_tenants",
+        columns=("tenant_id", "name", "slug", "status", "role", "joined_at", "member_count", "bot_count", "source_count", "conversation_count", "token_count", "estimated_cost_microusd", "last_activity_at"),
+        where="user_id = :user_id",
+        params=params,
+        order_by="joined_at DESC",
+        page=1,
+        page_size=100,
+    )
+    bots_rows, _ = await report_rows(
+        reporting,
+        view="platform_admin_user_bots",
+        columns=("bot_id", "tenant_id", "tenant_name", "name", "status", "default_language", "widget_welcome_text", "widget_accent_color", "widget_position", "has_system_policy", "system_policy_preview", "key_count", "active_key_count", "source_count", "conversation_count", "last_activity_at"),
+        where=tenant_where,
+        params=params,
+        order_by="last_activity_at DESC",
+        page=1,
+        page_size=100,
+    )
+    sources_rows, _ = await report_rows(
+        reporting,
+        view="platform_admin_user_sources",
+        columns=("source_id", "tenant_id", "tenant_name", "bot_id", "bot_name", "source_type", "name", "status", "details", "error_code", "error_message", "document_count", "active_document_count", "chunk_count", "content_preview", "updated_at"),
+        where=tenant_where,
+        params=params,
+        order_by="updated_at DESC",
+        page=1,
+        page_size=250,
+    )
+    providers_rows, _ = await report_rows(
+        reporting,
+        view="platform_admin_provider_health",
+        columns=("credential_id", "tenant_id", "tenant_name", "provider", "label", "low_cost_model_id", "strong_model_id", "status", "routing_mode", "verified_at", "rotated_at", "revoked_at", "created_at"),
+        where=tenant_where,
+        params=params,
+        order_by="created_at DESC",
+        page=1,
+        page_size=100,
+    )
+    conversations_rows, _ = await report_rows(
+        reporting,
+        view="platform_admin_user_conversations",
+        columns=("tenant_id", "tenant_name", "bot_id", "bot_name", "channel", "conversation_count", "message_count", "last_activity_at", "active_count"),
+        where=tenant_where,
+        params=params,
+        order_by="last_activity_at DESC",
+        page=1,
+        page_size=250,
+    )
+    for row in sources_rows:
+        if not include_content:
+            row["content_preview"] = None
+    for row in bots_rows:
+        if not include_content:
+            row["system_policy_preview"] = None
+    await _read_audit(session, context, request, "admin.user.detail.read", "user", user_id)
+    return AdminUserDetailResponse(
+        user=user,
+        tenants=[AdminUserTenantRow(**row) for row in tenants_rows],
+        bots=[AdminUserBotRow(**row) for row in bots_rows],
+        sources=[AdminUserSourceRow(**row) for row in sources_rows],
+        providers=[AdminUserProviderRow(**row) for row in providers_rows],
+        conversations=[AdminUserConversationRow(**row) for row in conversations_rows],
+        content_included=include_content,
+    )
 
 
 @router.get("/usage", response_model=AdminUsageListResponse)

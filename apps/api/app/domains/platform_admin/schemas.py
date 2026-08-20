@@ -70,6 +70,97 @@ class AdminUserListResponse(BaseModel):
     page: AdminPage
 
 
+class AdminUserTenantRow(BaseModel):
+    tenant_id: UUID
+    name: str
+    slug: str
+    status: str
+    role: str
+    joined_at: datetime
+    member_count: int
+    bot_count: int
+    source_count: int
+    conversation_count: int
+    token_count: int
+    estimated_cost_microusd: int
+    last_activity_at: datetime | None
+
+
+class AdminUserBotRow(BaseModel):
+    bot_id: UUID
+    tenant_id: UUID
+    tenant_name: str
+    name: str
+    status: str
+    default_language: str
+    widget_welcome_text: str
+    widget_accent_color: str
+    widget_position: str
+    has_system_policy: bool
+    system_policy_preview: str | None
+    key_count: int
+    active_key_count: int
+    source_count: int
+    conversation_count: int
+    last_activity_at: datetime | None
+
+
+class AdminUserSourceRow(BaseModel):
+    source_id: UUID
+    tenant_id: UUID
+    tenant_name: str
+    bot_id: UUID
+    bot_name: str
+    source_type: str
+    name: str
+    status: str
+    details: dict[str, Any] = Field(default_factory=dict)
+    error_code: str | None
+    error_message: str | None
+    document_count: int
+    active_document_count: int
+    chunk_count: int
+    content_preview: str | None = None
+    updated_at: datetime
+
+
+class AdminUserProviderRow(BaseModel):
+    credential_id: UUID
+    tenant_id: UUID
+    tenant_name: str
+    provider: str
+    label: str
+    low_cost_model_id: str
+    strong_model_id: str | None
+    status: str
+    routing_mode: str | None
+    verified_at: datetime | None
+    rotated_at: datetime | None
+    revoked_at: datetime | None
+
+
+class AdminUserConversationRow(BaseModel):
+    tenant_id: UUID
+    tenant_name: str
+    bot_id: UUID
+    bot_name: str
+    channel: str
+    conversation_count: int
+    message_count: int
+    last_activity_at: datetime | None
+    active_count: int
+
+
+class AdminUserDetailResponse(BaseModel):
+    user: AdminUserRow
+    tenants: list[AdminUserTenantRow]
+    bots: list[AdminUserBotRow]
+    sources: list[AdminUserSourceRow]
+    providers: list[AdminUserProviderRow]
+    conversations: list[AdminUserConversationRow]
+    content_included: bool = False
+
+
 class AdminUsageRow(BaseModel):
     usage_event_id: UUID
     tenant_id: UUID

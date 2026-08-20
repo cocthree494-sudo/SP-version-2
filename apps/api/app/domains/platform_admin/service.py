@@ -185,7 +185,11 @@ async def report_rows(
         "platform_admin_provider_health",
         "platform_admin_tenant_directory",
         "platform_admin_usage_events",
+        "platform_admin_user_bots",
+        "platform_admin_user_conversations",
         "platform_admin_user_directory",
+        "platform_admin_user_sources",
+        "platform_admin_user_tenants",
         "platform_admin_voice_health",
     }
     if view not in allowed_views:

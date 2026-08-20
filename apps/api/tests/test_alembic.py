@@ -33,7 +33,7 @@ def test_alembic_has_conversation_revision_after_knowledge() -> None:
     config = Config(str(api_root / "alembic.ini"))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_current_head() == "0020_platform_admin"
+    assert scripts.get_current_head() == "0021_admin_user_drilldown"
     platform_admin_revision = scripts.get_revision("0020_platform_admin")
     assert platform_admin_revision is not None
     assert platform_admin_revision.down_revision == "0019_user_email_verification"
