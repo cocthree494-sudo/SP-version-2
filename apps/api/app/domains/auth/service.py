@@ -388,10 +388,6 @@ class AuthService:
                     continuation_token=token,
                     profile=profile,
                 )
-            token = await self._store_social_continuation(
-                continuation_store,
-                SocialContinuation(kind="register", profile=profile),
-            )
             if admin_flow:
                 # Platform-admin sign-in is not tenant onboarding. Keep the
                 # required OTP gate, but provision a private placeholder
@@ -416,6 +412,10 @@ class AuthService:
                         },
                     ),
                 )
+            token = await self._store_social_continuation(
+                continuation_store,
+                SocialContinuation(kind="register", profile=profile),
+            )
             return SocialAuthResult(
                 status="organization_required",
                 continuation_token=token,
