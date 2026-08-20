@@ -144,6 +144,53 @@ async def test_crawler_honors_bounds_canonicalizes_and_deduplicates() -> None:
 
 
 @pytest.mark.asyncio
+async def test_crawler_skips_rejected_child_page_without_hiding_start_failure() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/robots.txt":
+            return httpx.Response(200, text="User-agent: *\nAllow: /\n")
+        if request.url.path == "/":
+            return httpx.Response(
+                200,
+                headers={"content-type": "text/html"},
+                text=(
+                    "<main>Useful home content.</main>"
+                    '<a href="/missing">Broken link</a>'
+                    '<a href="/help">Help</a>'
+                ),
+            )
+        if request.url.path == "/help":
+            return httpx.Response(
+                200,
+                headers={"content-type": "text/html"},
+                text="<main>Useful help content.</main>",
+            )
+        return httpx.Response(404)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        pages = await WebsiteCrawler(client, resolver=PublicResolver()).crawl(
+            "https://example.com/",
+            max_pages=3,
+            max_depth=1,
+            request_delay_seconds=0,
+        )
+    assert [page.url for page in pages] == [
+        "https://example.com/",
+        "https://example.com/help",
+    ]
+
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(lambda _request: httpx.Response(404))
+    ) as client:
+        with pytest.raises(CrawlError, match="HTTP 404"):
+            await WebsiteCrawler(client, resolver=PublicResolver()).crawl(
+                "https://example.com/",
+                max_pages=1,
+                max_depth=0,
+                request_delay_seconds=0,
+            )
+
+
+@pytest.mark.asyncio
 async def test_crawler_blocks_redirect_to_private_network() -> None:
     async def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path == "/robots.txt":

@@ -312,7 +312,16 @@ class WebsiteCrawler:
                 continue
             if pages and delay:
                 await asyncio.sleep(delay)
-            response = await self._request(canonical, root_hostname=root_hostname)
+            try:
+                response = await self._request(canonical, root_hostname=root_hostname)
+            except CrawlError as exc:
+                # A stale internal link should not discard useful pages already
+                # found on an otherwise healthy website. The configured start
+                # URL still fails closed so a mistyped or inaccessible source
+                # cannot be reported as successfully ingested.
+                if canonical != canonical_start and exc.code == "website_request_rejected":
+                    continue
+                raise
             media_type = response.headers.get("content-type", "").partition(";")[0].casefold()
             if media_type not in {"text/html", "application/xhtml+xml", ""}:
                 continue
