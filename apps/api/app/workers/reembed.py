@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import sys
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -194,17 +195,17 @@ def _print_reports(reports: list[ReembedReport], *, dry_run: bool) -> None:
     total_stale = sum(report.stale_chunks for report in reports)
     total_done = sum(report.reembedded_chunks for report in reports)
     total_tokens = sum(report.input_tokens for report in reports)
-    for report in reports:
-        if report.stale_chunks == 0:
-            continue
-        print(
-            f"tenant {report.tenant_id}: {verb} {report.stale_chunks} chunks "
-            f"({report.input_tokens} input tokens)"
-        )
-    print(
+    lines = [
+        f"tenant {report.tenant_id}: {verb} {report.stale_chunks} chunks "
+        f"({report.input_tokens} input tokens)"
+        for report in reports
+        if report.stale_chunks
+    ]
+    lines.append(
         f"total: {total_stale} stale chunks, {total_done} {verb}, "
         f"{total_tokens} input tokens across {len(reports)} tenants"
     )
+    sys.stdout.write("\n".join(lines) + "\n")
 
 
 def main() -> int:
@@ -225,15 +226,15 @@ def main() -> int:
     args = parser.parse_args()
     tenant_id = UUID(args.tenant) if args.tenant else None
 
-    print(
+    sys.stdout.write(
         f"embedding provider: mode={settings.embedding_provider_mode} "
         f"provider={settings.EMBEDDING_PROVIDER_ID} model={settings.EMBEDDING_MODEL_ID} "
-        f"dimensions={settings.EMBEDDING_DIMENSIONS}"
+        f"dimensions={settings.EMBEDDING_DIMENSIONS}\n"
     )
     try:
         reports = asyncio.run(run(tenant_id=tenant_id, force=args.force, dry_run=args.dry_run))
     except ReembedError as exc:
-        print(f"failed: {exc}")
+        sys.stderr.write(f"failed: {exc}\n")
         return 1
     _print_reports(reports, dry_run=args.dry_run)
     return 0
