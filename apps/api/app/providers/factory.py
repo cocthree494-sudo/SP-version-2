@@ -22,6 +22,14 @@ def _configured_credentials() -> tuple[str, SecretStr]:
     return settings.AI_BASE_URL, settings.AI_API_KEY
 
 
+def _configured_embedding_credentials() -> tuple[str, SecretStr]:
+    base_url = settings.embedding_base_url
+    api_key = settings.embedding_api_key
+    if base_url is None or api_key is None:
+        raise RuntimeError("Configured embedding provider credentials are unavailable")
+    return base_url, api_key
+
+
 def _build_llm_provider(model_id: str) -> LLMProvider:
     if settings.AI_PROVIDER_MODE == "deterministic":
         return DeterministicLLMProvider(model_id=model_id)
@@ -72,9 +80,9 @@ def build_llm_targets() -> list[ModelTarget]:
 
 
 def build_embedding_provider() -> EmbeddingProvider:
-    if settings.AI_PROVIDER_MODE == "deterministic":
+    if settings.embedding_provider_mode == "deterministic":
         return DeterministicEmbeddingProvider()
-    base_url, api_key = _configured_credentials()
+    base_url, api_key = _configured_embedding_credentials()
     return cast(
         EmbeddingProvider,
         OpenAICompatibleEmbeddingProvider(

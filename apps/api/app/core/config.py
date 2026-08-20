@@ -50,6 +50,13 @@ class Settings(BaseSettings):
     EMBEDDING_PROVIDER_ID: str = "deterministic"
     EMBEDDING_MODEL_ID: str = "deterministic-embedding-v1"
     EMBEDDING_DIMENSIONS: int = Field(default=32, ge=8, le=4096)
+    # Retrieval embeddings are configured independently of answer generation so
+    # a deployment can run real semantic retrieval without also replacing the
+    # platform generation provider. Each unset value falls back to its AI_*
+    # equivalent, which preserves existing single-provider configurations.
+    EMBEDDING_PROVIDER_MODE: Literal["deterministic", "openai_compatible"] | None = None
+    EMBEDDING_BASE_URL: str | None = None
+    EMBEDDING_API_KEY: SecretStr | None = None
     WEBSITE_CRAWL_MAX_PAGES: int = Field(default=50, ge=1, le=500)
     WEBSITE_CRAWL_MAX_DEPTH: int = Field(default=3, ge=0, le=10)
     WEBSITE_CRAWL_REQUEST_DELAY_SECONDS: float = Field(default=0.25, ge=0.0, le=10.0)
@@ -222,6 +229,16 @@ class Settings(BaseSettings):
                 )
             if not self.is_local and not self.AI_BASE_URL.startswith("https://"):
                 raise ValueError("AI_BASE_URL must use HTTPS outside development and test")
+        if self.embedding_provider_mode == "openai_compatible":
+            if not self.embedding_base_url or self.embedding_api_key is None:
+                raise ValueError(
+                    "EMBEDDING_BASE_URL and EMBEDDING_API_KEY are required for "
+                    "openai_compatible embeddings when the AI_* fallbacks are unset"
+                )
+            if not self.is_local and not self.embedding_base_url.startswith("https://"):
+                raise ValueError(
+                    "EMBEDDING_BASE_URL must use HTTPS outside development and test"
+                )
         if self.BYOK_MASTER_KEY is not None:
             import base64
 
@@ -238,6 +255,20 @@ class Settings(BaseSettings):
     @property
     def is_local(self) -> bool:
         return self.APP_ENV in ("development", "test")
+
+    @property
+    def embedding_provider_mode(self) -> Literal["deterministic", "openai_compatible"]:
+        """Embedding mode, falling back to the generation provider mode."""
+
+        return self.EMBEDDING_PROVIDER_MODE or self.AI_PROVIDER_MODE
+
+    @property
+    def embedding_base_url(self) -> str | None:
+        return self.EMBEDDING_BASE_URL or self.AI_BASE_URL
+
+    @property
+    def embedding_api_key(self) -> SecretStr | None:
+        return self.EMBEDDING_API_KEY or self.AI_API_KEY
 
     @property
     def auth_jwt_secret(self) -> str:

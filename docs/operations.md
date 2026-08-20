@@ -44,6 +44,27 @@ uploads, AI-local settings, and test artifacts from every image context.
 4. Replace deterministic provider settings with approved production generation
    and embedding provider configuration. Model IDs and secrets remain env/secret
    configuration; never bake them into images.
+
+   Generation and embeddings are configured independently. `AI_PROVIDER_MODE`
+   selects the platform generation provider; `EMBEDDING_PROVIDER_MODE` selects
+   the retrieval embedding provider and falls back to `AI_PROVIDER_MODE` when
+   unset. Tenant BYOK covers generation only, so a deployment whose tenants all
+   bring their own generation keys still needs a platform embedding provider.
+
+   Leaving embeddings deterministic is a silent retrieval failure, not a
+   degraded mode: `DeterministicEmbeddingProvider` returns stable SHA-256 hash
+   vectors with no semantic content, so only the `tsvector` lexical leg
+   retrieves anything. Questions that paraphrase the source, or ask in another
+   language, return no citations and fall back to "I don't know". Verify after
+   deployment that `document_chunks.embedding_provider` is the configured
+   provider and not `deterministic`.
+
+   `EMBEDDING_DIMENSIONS` is sent to the provider and the returned width is
+   validated, so a mismatch fails closed instead of storing unusable vectors.
+   Keep it at or below 2000: pgvector's HNSW and ivfflat indexes cannot index
+   wider columns, so a 3072-dimension model must be reduced to an indexable
+   width. Changing provider, model, or dimensions makes existing chunks stale;
+   re-embed them before serving traffic.
 5. Build from a clean commit and immutable tag:
 
    ```text
@@ -72,6 +93,33 @@ reporting role can read only redacted platform views; it cannot read provider
 secret envelopes, customer messages, OTP data, or arbitrary application tables.
 The live console is served at the separate `admin` host and every read/mutation
 is written to the immutable platform-admin audit log.
+
+## Re-embedding after an embedding change
+
+Chunk text is authoritative and retained in `document_chunks.content`, so
+changing the embedding provider, model, or dimensions never requires
+re-uploading a file, re-entering a Q&A, or re-crawling a website. Run the
+standalone command from the API image; embedding never runs in API request
+workers.
+
+```text
+docker compose --env-file .env.production -f infra/compose.production.yaml \
+  run --rm api python -m app.workers.reembed --dry-run
+docker compose --env-file .env.production -f infra/compose.production.yaml \
+  run --rm api python -m app.workers.reembed
+```
+
+The dry run reports how many chunks are stale per tenant without calling the
+provider. The real run re-embeds in place, batch by batch, committing as it goes
+so a long run is resumable and a provider failure never leaves a half-written
+vector. It selects only chunks whose stored provider, model, or dimension
+differs from the configured provider; `--force` re-embeds everything and
+`--tenant <uuid>` limits the run to one tenant. Each batch is tenant-scoped
+under the same row-level-security context as ingestion.
+
+Re-embed before adding a dimension-pinned pgvector index. Mixed dimensions in a
+single column cannot be indexed and a query that compares vectors of different
+widths fails.
 
 ## Secrets and credential rotation
 

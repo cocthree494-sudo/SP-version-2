@@ -217,18 +217,28 @@ class OpenAICompatibleLLMProvider(_OpenAICompatibleBase):
 
 
 class OpenAICompatibleEmbeddingProvider(_OpenAICompatibleBase):
-    def __init__(self, *, dimensions: int, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        *,
+        dimensions: int,
+        request_dimensions: bool = True,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(**kwargs)
         self.dimensions = dimensions
+        # Providers that support Matryoshka truncation need the requested width
+        # in the request body; without it EMBEDDING_DIMENSIONS is silently
+        # ignored and the stored vectors do not match the configured column.
+        self.request_dimensions = request_dimensions
 
     async def embed(self, texts: list[str]) -> EmbeddingBatch:
         if not texts:
             return EmbeddingBatch(embeddings=[], usage=EmbeddingUsage(input_tokens=0))
+        payload: dict[str, Any] = {"model": self.model_id, "input": texts}
+        if self.request_dimensions:
+            payload["dimensions"] = self.dimensions
         try:
-            response = await self._post(
-                "embeddings",
-                {"model": self.model_id, "input": texts},
-            )
+            response = await self._post("embeddings", payload)
         except ProviderError as exc:
             raise EmbeddingProviderError(
                 exc.category,
@@ -237,8 +247,8 @@ class OpenAICompatibleEmbeddingProvider(_OpenAICompatibleBase):
                 status_code=exc.status_code,
             ) from exc
         try:
-            payload = response.json()
-            items = sorted(payload["data"], key=lambda item: int(item["index"]))
+            payload_json = response.json()
+            items = sorted(payload_json["data"], key=lambda item: int(item["index"]))
             embeddings = [item["embedding"] for item in items]
             if not all(
                 isinstance(embedding, list)
@@ -252,7 +262,13 @@ class OpenAICompatibleEmbeddingProvider(_OpenAICompatibleBase):
                 _public_error_message(ProviderErrorCategory.INVALID_RESPONSE),
                 provider_id=self.provider_id,
             ) from exc
-        usage = payload.get("usage")
+        if any(len(embedding) != self.dimensions for embedding in embeddings):
+            raise EmbeddingProviderError(
+                ProviderErrorCategory.INVALID_RESPONSE,
+                "AI provider returned embeddings with an unexpected dimension",
+                provider_id=self.provider_id,
+            )
+        usage = payload_json.get("usage")
         input_tokens = int(usage.get("prompt_tokens", 0)) if isinstance(usage, dict) else 0
         return EmbeddingBatch(
             embeddings=[[float(value) for value in embedding] for embedding in embeddings],

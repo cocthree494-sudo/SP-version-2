@@ -8,6 +8,12 @@ import httpx
 import pytest
 from pydantic import SecretStr
 
+from app.core.config import settings
+from app.providers.embeddings import (
+    DeterministicEmbeddingProvider,
+    EmbeddingProviderError,
+)
+from app.providers.factory import build_embedding_provider, build_llm_provider
 from app.providers.llm import DeterministicLLMProvider
 from app.providers.openai_compatible import (
     OpenAICompatibleEmbeddingProvider,
@@ -262,3 +268,124 @@ async def test_provider_errors_are_retry_classified_and_secret_safe() -> None:
     assert error.retryable is True
     assert "test-secret-value" not in str(error)
     assert "test-secret-value" not in repr(error)
+
+
+@pytest.mark.asyncio
+async def test_embedding_request_sends_configured_dimensions() -> None:
+    """EMBEDDING_DIMENSIONS must reach the provider, not only the local mock."""
+
+    seen: list[int] = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        seen.append(payload["dimensions"])
+        return httpx.Response(
+            200,
+            json={
+                "data": [{"index": 0, "embedding": [0.0, 1.0, 0.0, 0.0]}],
+                "usage": {"prompt_tokens": 3},
+            },
+        )
+
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(handler),
+        base_url="https://provider.example/v1/",
+    ) as client:
+        provider = OpenAICompatibleEmbeddingProvider(
+            provider_id="configured",
+            model_id="embed-config",
+            dimensions=4,
+            base_url="https://unused.example/v1",
+            api_key=SecretStr("test-secret-value"),
+            timeout_seconds=5,
+            client=client,
+        )
+        embedded = await provider.embed(["first"])
+
+    assert seen == [4]
+    assert embedded.embeddings == [[0.0, 1.0, 0.0, 0.0]]
+
+
+@pytest.mark.asyncio
+async def test_embedding_rejects_unexpected_dimensions() -> None:
+    """A silently truncated or widened vector must fail instead of being stored."""
+
+    async def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "data": [{"index": 0, "embedding": [0.0, 1.0]}],
+                "usage": {"prompt_tokens": 3},
+            },
+        )
+
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(handler),
+        base_url="https://provider.example/v1/",
+    ) as client:
+        provider = OpenAICompatibleEmbeddingProvider(
+            provider_id="configured",
+            model_id="embed-config",
+            dimensions=1536,
+            base_url="https://unused.example/v1",
+            api_key=SecretStr("test-secret-value"),
+            timeout_seconds=5,
+            client=client,
+        )
+        with pytest.raises(EmbeddingProviderError) as captured:
+            await provider.embed(["first"])
+
+    assert captured.value.category is ProviderErrorCategory.INVALID_RESPONSE
+    assert "test-secret-value" not in str(captured.value)
+
+
+def test_embedding_configuration_is_independent_of_generation_mode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Real retrieval embeddings must not require replacing the platform LLM."""
+
+    monkeypatch.setattr(settings, "AI_PROVIDER_MODE", "deterministic")
+    monkeypatch.setattr(settings, "AI_BASE_URL", None)
+    monkeypatch.setattr(settings, "AI_API_KEY", None)
+    monkeypatch.setattr(settings, "EMBEDDING_PROVIDER_MODE", "openai_compatible")
+    monkeypatch.setattr(settings, "EMBEDDING_BASE_URL", "https://embed.example/v1")
+    monkeypatch.setattr(settings, "EMBEDDING_API_KEY", SecretStr("embed-secret-value"))
+    monkeypatch.setattr(settings, "EMBEDDING_PROVIDER_ID", "gemini")
+    monkeypatch.setattr(settings, "EMBEDDING_MODEL_ID", "gemini-embedding-001")
+    monkeypatch.setattr(settings, "EMBEDDING_DIMENSIONS", 1536)
+
+    embedding_provider = build_embedding_provider()
+    llm_provider = build_llm_provider()
+
+    assert isinstance(embedding_provider, OpenAICompatibleEmbeddingProvider)
+    assert embedding_provider.dimensions == 1536
+    assert embedding_provider.model_id == "gemini-embedding-001"
+    assert isinstance(llm_provider, DeterministicLLMProvider)
+
+
+def test_embedding_configuration_falls_back_to_generation_settings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Existing single-provider deployments keep working with no new variables."""
+
+    monkeypatch.setattr(settings, "AI_PROVIDER_MODE", "openai_compatible")
+    monkeypatch.setattr(settings, "AI_BASE_URL", "https://shared.example/v1")
+    monkeypatch.setattr(settings, "AI_API_KEY", SecretStr("shared-secret-value"))
+    monkeypatch.setattr(settings, "EMBEDDING_PROVIDER_MODE", None)
+    monkeypatch.setattr(settings, "EMBEDDING_BASE_URL", None)
+    monkeypatch.setattr(settings, "EMBEDDING_API_KEY", None)
+
+    assert settings.embedding_provider_mode == "openai_compatible"
+    assert settings.embedding_base_url == "https://shared.example/v1"
+    assert isinstance(build_embedding_provider(), OpenAICompatibleEmbeddingProvider)
+
+
+def test_deterministic_embeddings_stay_available_without_credentials(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "AI_PROVIDER_MODE", "openai_compatible")
+    monkeypatch.setattr(settings, "AI_BASE_URL", "https://shared.example/v1")
+    monkeypatch.setattr(settings, "AI_API_KEY", SecretStr("shared-secret-value"))
+    monkeypatch.setattr(settings, "EMBEDDING_PROVIDER_MODE", "deterministic")
+
+    assert isinstance(build_embedding_provider(), DeterministicEmbeddingProvider)
