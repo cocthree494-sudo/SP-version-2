@@ -422,10 +422,12 @@ async def social_callback(
             admin_flow=_admin_flow(request),
         )
         challenge = None
-        if result.pending is not None:
-            result = replace(result, pending=_mark_admin_flow(request, result.pending))
+        pending = result.pending
+        if pending is not None:
+            pending = _mark_admin_flow(request, pending)
+            result = replace(result, pending=pending)
             challenge = await _otp_service(request).start(
-                result.pending,
+                pending,
                 client_ip=_client_ip(request),
             )
     except (OAuthError, AuthenticationError, ValueError) as exc:
