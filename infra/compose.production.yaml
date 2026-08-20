@@ -55,6 +55,16 @@ x-app-environment: &app-environment
   DETERMINISTIC_LLM_RESPONSE: ${DETERMINISTIC_LLM_RESPONSE:-Deterministic support response.}
   EMBEDDING_PROVIDER_ID: ${EMBEDDING_PROVIDER_ID:-deterministic}
   EMBEDDING_MODEL_ID: ${EMBEDDING_MODEL_ID:-deterministic-embedding-v1}
+  # Embeddings are configured separately from generation. Leaving
+  # EMBEDDING_PROVIDER_MODE unset follows AI_PROVIDER_MODE. These must stay in
+  # sync with EMBEDDING_PROVIDER_ID/EMBEDDING_MODEL_ID: a provider label without
+  # its matching mode would store deterministic hash vectors under a real
+  # provider name, which retrieval and re-embedding would then trust.
+  EMBEDDING_PROVIDER_MODE: ${EMBEDDING_PROVIDER_MODE:-}
+  EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-32}
+  EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-}
+  EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
+  VOICE_AGENTS_ENABLED: ${VOICE_AGENTS_ENABLED:-false}
   LOCAL_STORAGE_ROOT: /srv/api/.data/uploads
 
 services:

@@ -244,6 +244,20 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "EMBEDDING_BASE_URL must use HTTPS outside development and test"
                 )
+        if (
+            self.embedding_provider_mode == "deterministic"
+            and self.EMBEDDING_PROVIDER_ID != "deterministic"
+        ):
+            # Chunks record the provider that embedded them. Naming a real
+            # provider while the deterministic mock is active would store hash
+            # vectors under that provider's name, giving retrieval, audits, and
+            # the re-embed staleness check false provenance to trust.
+            raise ValueError(
+                "EMBEDDING_PROVIDER_ID names a real provider while embeddings run in "
+                "deterministic mode, so stored vectors would carry false provenance. "
+                "Set EMBEDDING_PROVIDER_MODE=openai_compatible with its base URL and "
+                "key, or reset EMBEDDING_PROVIDER_ID to deterministic"
+            )
         if self.BYOK_MASTER_KEY is not None:
             import base64
 
