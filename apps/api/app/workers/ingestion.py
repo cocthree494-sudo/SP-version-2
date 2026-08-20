@@ -80,16 +80,18 @@ async def _record_retry_or_failure(
     session: AsyncSession,
     *,
     tenant_id: UUID,
-    job: IngestionJob,
+    job_id: UUID,
+    source_id: UUID,
+    attempts: int,
     code: str,
     public_message: str,
 ) -> bool:
-    delay = retry_delay_seconds(job.attempts)
+    delay = retry_delay_seconds(attempts)
     scheduled_at = utc_now() + timedelta(seconds=delay)
     jobs = IngestionJobRepository(session, tenant_id)
     sources = KnowledgeSourceRepository(session, tenant_id)
     updated = await jobs.mark_retry(
-        job.id,
+        job_id,
         error_code=code,
         error_message=public_message,
         scheduled_at=scheduled_at,
@@ -99,7 +101,7 @@ async def _record_retry_or_failure(
         return False
     if updated.state is IngestionJobState.RETRY_SCHEDULED:
         await sources.set_status(
-            job.source_id,
+            source_id,
             KnowledgeSourceStatus.PENDING,
             error_code=code,
             error_message=public_message,
@@ -107,7 +109,7 @@ async def _record_retry_or_failure(
         await session.commit()
         return True
     await sources.set_status(
-        job.source_id,
+        source_id,
         KnowledgeSourceStatus.FAILED,
         error_code=code,
         error_message=public_message,
@@ -135,7 +137,10 @@ async def process_ingestion_job(ctx: dict[str, Any], tenant_id: str, job_id: str
         if job is None:
             await session.commit()
             return
-        await sources.set_status(job.source_id, KnowledgeSourceStatus.PROCESSING)
+        claimed_job_id = job.id
+        source_id = job.source_id
+        attempts = job.attempts
+        await sources.set_status(source_id, KnowledgeSourceStatus.PROCESSING)
         await session.commit()
 
         try:
@@ -143,12 +148,12 @@ async def process_ingestion_job(ctx: dict[str, Any], tenant_id: str, job_id: str
         except PermanentIngestionError as exc:
             await session.rollback()
             await jobs.mark_failed(
-                job.id,
+                claimed_job_id,
                 error_code=exc.code,
                 error_message=exc.public_message,
             )
             await sources.set_status(
-                job.source_id,
+                source_id,
                 KnowledgeSourceStatus.FAILED,
                 error_code=exc.code,
                 error_message=exc.public_message,
@@ -159,12 +164,14 @@ async def process_ingestion_job(ctx: dict[str, Any], tenant_id: str, job_id: str
             should_retry = await _record_retry_or_failure(
                 session,
                 tenant_id=parsed_tenant_id,
-                job=job,
+                job_id=claimed_job_id,
+                source_id=source_id,
+                attempts=attempts,
                 code=exc.code,
                 public_message=exc.public_message,
             )
             if should_retry:
-                raise Retry(defer=retry_delay_seconds(job.attempts)) from None
+                raise Retry(defer=retry_delay_seconds(attempts)) from None
         except Exception:
             logger.exception(
                 "ingestion_job_unexpected_error",
@@ -175,15 +182,17 @@ async def process_ingestion_job(ctx: dict[str, Any], tenant_id: str, job_id: str
             should_retry = await _record_retry_or_failure(
                 session,
                 tenant_id=parsed_tenant_id,
-                job=job,
+                job_id=claimed_job_id,
+                source_id=source_id,
+                attempts=attempts,
                 code="unexpected_error",
                 public_message="Ingestion failed unexpectedly",
             )
             if should_retry:
-                raise Retry(defer=retry_delay_seconds(job.attempts)) from None
+                raise Retry(defer=retry_delay_seconds(attempts)) from None
         else:
-            await jobs.mark_succeeded(job.id)
-            await sources.set_status(job.source_id, KnowledgeSourceStatus.READY)
+            await jobs.mark_succeeded(claimed_job_id)
+            await sources.set_status(source_id, KnowledgeSourceStatus.READY)
             await session.commit()
 
 

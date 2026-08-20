@@ -279,6 +279,8 @@ async def test_worker_marks_success_and_schedules_bounded_retry(
         return None
 
     async def retry(_session: AsyncSession, _job: IngestionJob) -> None:
+        _job.progress_percent = 12
+        await _session.flush()
         raise RetryableIngestionError("storage_unavailable", "Storage is temporarily unavailable")
 
     dispatcher.register(IngestionJobType.INGEST_SOURCE, succeed)

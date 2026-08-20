@@ -133,7 +133,7 @@ services:
     depends_on:
       migrate: { condition: service_completed_successfully }
       redis: { condition: service_healthy }
-    networks: [backend]
+    networks: [backend, edge]
 
   web:
     image: support-agent-web:${SUPPORT_AGENT_IMAGE_TAG:-local}
