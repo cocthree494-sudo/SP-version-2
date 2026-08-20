@@ -394,17 +394,19 @@ def test_deterministic_embeddings_stay_available_without_credentials(
 def test_real_provider_id_in_deterministic_mode_is_rejected() -> None:
     """A provider label without its mode would give stored vectors false provenance."""
 
-    base = {
-        "DATABASE_URL": "postgresql+asyncpg://u:p@localhost:5432/db",
-        "REDIS_URL": "redis://localhost:6379/0",
-        "EMBEDDING_PROVIDER_ID": "gemini",
-        "EMBEDDING_MODEL_ID": "gemini-embedding-001",
-    }
     with pytest.raises(ValidationError, match="false provenance"):
-        Settings(**base)  # type: ignore[arg-type]
+        Settings(
+            DATABASE_URL="postgresql+asyncpg://u:p@localhost:5432/db",
+            REDIS_URL="redis://localhost:6379/0",
+            EMBEDDING_PROVIDER_ID="gemini",
+            EMBEDDING_MODEL_ID="gemini-embedding-001",
+        )
 
-    accepted = Settings(  # type: ignore[arg-type]
-        **base,
+    accepted = Settings(
+        DATABASE_URL="postgresql+asyncpg://u:p@localhost:5432/db",
+        REDIS_URL="redis://localhost:6379/0",
+        EMBEDDING_PROVIDER_ID="gemini",
+        EMBEDDING_MODEL_ID="gemini-embedding-001",
         EMBEDDING_PROVIDER_MODE="openai_compatible",
         EMBEDDING_BASE_URL="https://embed.example/v1",
         EMBEDDING_API_KEY=SecretStr("embed-secret-value"),
