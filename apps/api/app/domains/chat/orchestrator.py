@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import re
 import time
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Protocol
@@ -228,6 +228,34 @@ def _complexity_score(question: str) -> float:
     return min(1.0, (word_count / 100) + (multi_step_terms * 0.2))
 
 
+def is_grounded(retrieval: Sequence[RetrievalResult]) -> bool:
+    """Decide whether retrieval is strong enough to answer from.
+
+    The fused reciprocal-rank score alone is not a usable gate. RRF caps a
+    single leg at ``1 / (RRF_K + 1)``, so a chunk found only by meaning cannot
+    reach ``CHAT_MIN_GROUNDED_SCORE`` however relevant it is, while one
+    incidental shared word adds a second leg and lifts unrelated content over
+    the same threshold. Judge each leg on its own interpretable scale instead.
+
+    Cosine similarity is only meaningful with a real embedding provider, so the
+    deterministic mock keeps using the fused score by itself.
+    """
+
+    if not retrieval:
+        return False
+    if settings.embedding_provider_mode == "deterministic":
+        strongest = max(result.score for result in retrieval)
+        return strongest >= settings.CHAT_MIN_GROUNDED_SCORE
+    for result in retrieval:
+        semantic = result.vector_score
+        lexical = result.lexical_score
+        if semantic is not None and semantic >= settings.CHAT_MIN_SEMANTIC_SCORE:
+            return True
+        if lexical is not None and lexical >= settings.CHAT_MIN_LEXICAL_SCORE:
+            return True
+    return False
+
+
 def _provider_role(role: ConversationMessageRole) -> MessageRole:
     if role is ConversationMessageRole.USER:
         return MessageRole.USER
@@ -423,7 +451,7 @@ class GroundedAnswerOrchestrator:
         generated: list[_GenerationUsage] = []
         routed: RoutedGeneration | None = None
         citations: list[AnswerCitation] = []
-        fallback = not retrieval or strongest_score < settings.CHAT_MIN_GROUNDED_SCORE
+        fallback = not is_grounded(retrieval)
         answer_text = uncertainty_fallback(bot, normalized_question) if fallback else ""
 
         if not fallback:
@@ -601,7 +629,7 @@ class GroundedAnswerOrchestrator:
             top_k=settings.CHAT_RETRIEVAL_TOP_K,
         )
         strongest_score = max((result.score for result in retrieval), default=0.0)
-        fallback = not retrieval or strongest_score < settings.CHAT_MIN_GROUNDED_SCORE
+        fallback = not is_grounded(retrieval)
         answer_text = uncertainty_fallback(bot, normalized_question) if fallback else ""
         citations: list[AnswerCitation] = []
         selected_target: ModelTarget | None = None
@@ -756,6 +784,7 @@ __all__ = [
     "InvalidCustomerQuestionError",
     "KnowledgeRetriever",
     "assemble_grounded_prompt",
+    "is_grounded",
     "local_greeting",
     "uncertainty_fallback",
 ]

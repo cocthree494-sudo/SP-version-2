@@ -107,6 +107,14 @@ class Settings(BaseSettings):
     CONVERSATION_RETENTION_DAYS: int = Field(default=30, ge=1, le=3650)
     CHAT_RETRIEVAL_TOP_K: int = Field(default=6, ge=1, le=20)
     CHAT_MIN_GROUNDED_SCORE: float = Field(default=0.02, ge=0.0, le=1.0)
+    # Reciprocal-rank fusion caps a single leg at 1/(RRF_K+1), so a chunk found
+    # only by meaning can never reach CHAT_MIN_GROUNDED_SCORE. These thresholds
+    # judge each leg on its own interpretable scale instead: cosine similarity
+    # for semantic matches and ts_rank_cd for lexical ones. Cosine is only
+    # meaningful with a real embedding provider, so the deterministic mock keeps
+    # using the fused score alone.
+    CHAT_MIN_SEMANTIC_SCORE: float = Field(default=0.5, ge=0.0, le=1.0)
+    CHAT_MIN_LEXICAL_SCORE: float = Field(default=0.2, ge=0.0, le=1.0)
     CHAT_MAX_OUTPUT_TOKENS: int = Field(default=800, ge=64, le=8000)
     WIDGET_SESSION_AUDIENCE: str = "support-agent-widget"
     WIDGET_SESSION_TTL_SECONDS: int = Field(default=900, ge=60, le=3600)

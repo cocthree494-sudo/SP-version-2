@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator, AsyncIterator
+from dataclasses import replace
 from typing import cast
 from uuid import UUID, uuid4
 
@@ -17,6 +18,7 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.pool import StaticPool
 
+from app.core.config import settings
 from app.db.base import Base
 from app.domains.bots.models import Bot
 from app.domains.chat.conversation_service import (
@@ -29,6 +31,7 @@ from app.domains.chat.orchestrator import (
     AgentStreamEvent,
     AgentStreamEventType,
     GroundedAnswerOrchestrator,
+    is_grounded,
 )
 from app.domains.knowledge.retrieval import Citation, RetrievalResult
 from app.domains.tenancy.models import Tenant
@@ -153,6 +156,65 @@ def retrieval_result(content: str, *, score: float = 0.04) -> RetrievalResult:
         ),
         metadata={"language": "en"},
     )
+
+
+def scored_result(
+    *, fused: float, vector: float | None, lexical: float | None
+) -> RetrievalResult:
+    result = retrieval_result("Any content")
+    return replace(result, score=fused, vector_score=vector, lexical_score=lexical)
+
+
+def test_semantic_only_match_grounds_with_a_real_embedding_provider(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """RRF caps one leg at 1/(K+1), so a cross-language match cannot use it.
+
+    Measured live against Gemini: the Spanish and Bengali forms of a question
+    that works in English scored cosine 0.526 and 0.550 with no lexical hit,
+    fusing to 0.01639 against a 0.02 threshold. Relevant answers were discarded.
+    """
+
+    monkeypatch.setattr(settings, "EMBEDDING_PROVIDER_MODE", "openai_compatible")
+    spanish = scored_result(fused=0.01639, vector=0.526, lexical=None)
+    bengali = scored_result(fused=0.01639, vector=0.550, lexical=None)
+
+    assert spanish.score < settings.CHAT_MIN_GROUNDED_SCORE
+    assert is_grounded([spanish]) is True
+    assert is_grounded([bengali]) is True
+
+
+def test_incidental_lexical_overlap_does_not_ground(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """One shared word added a second RRF leg and lifted unrelated content over.
+
+    Measured live: "What is the boiling point of water on Mars?" and "Who won
+    the 1998 FIFA World Cup final?" both fused to about 0.032 on a minimum
+    lexical rank of 0.1, and were answered as grounded against a support
+    knowledge base that says nothing about either.
+    """
+
+    monkeypatch.setattr(settings, "EMBEDDING_PROVIDER_MODE", "openai_compatible")
+    mars = scored_result(fused=0.03227, vector=0.4437, lexical=0.1)
+    football = scored_result(fused=0.03200, vector=0.3839, lexical=0.1)
+
+    assert mars.score >= settings.CHAT_MIN_GROUNDED_SCORE
+    assert is_grounded([mars]) is False
+    assert is_grounded([football]) is False
+
+
+def test_deterministic_embeddings_keep_using_the_fused_score(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Hash vectors carry no meaning, so their cosine must not gate grounding."""
+
+    monkeypatch.setattr(settings, "EMBEDDING_PROVIDER_MODE", "deterministic")
+    monkeypatch.setattr(settings, "AI_PROVIDER_MODE", "deterministic")
+
+    assert is_grounded([scored_result(fused=0.04, vector=0.1, lexical=None)]) is True
+    assert is_grounded([scored_result(fused=0.001, vector=0.99, lexical=None)]) is False
+    assert is_grounded([]) is False
 
 
 @pytest.mark.asyncio
