@@ -164,3 +164,97 @@ async def test_retrieval_filters_unknown_source_and_blank_query(
         query="shipping",
         source_ids={UUID(int=999)},
     ) == []
+
+
+@pytest.mark.asyncio
+async def test_lexical_source_match_excludes_unrelated_semantic_source(
+    retrieval_session: AsyncSession,
+) -> None:
+    provider = DeterministicEmbeddingProvider(dimensions=16)
+    tenant = await TenantRepository(retrieval_session).create(
+        name="Mixed sources",
+        slug="mixed-sources",
+    )
+    bot = await BotRepository(retrieval_session, tenant.id).create(
+        name="Support",
+        system_policy=None,
+        default_language="auto",
+        status=BotStatus.ACTIVE,
+        widget_welcome_text="How can we help?",
+        widget_accent_color="#194f46",
+        widget_position="right",
+    )
+    website = await KnowledgeSourceRepository(retrieval_session, tenant.id).create(
+        bot_id=bot.id,
+        source_type=KnowledgeSourceType.WEBSITE,
+        name="Website",
+    )
+    website.status = KnowledgeSourceStatus.READY
+    website_text = "NPC Automators builds custom automation and AI integrations."
+    website_doc = await DocumentRepository(retrieval_session, tenant.id).create_next_version(
+        source_id=website.id,
+        checksum_sha256=hashlib.sha256(website_text.encode()).hexdigest(),
+        title="NPC Automators",
+        canonical_url="https://www.npcautomators.com/",
+    )
+    website_embedding = await provider.embed([website_text])
+    await DocumentChunkRepository(retrieval_session, tenant.id).create_batch(
+        document=website_doc,
+        chunks=[
+            {
+                "ordinal": 0,
+                "content": website_text,
+                "content_checksum_sha256": hashlib.sha256(website_text.encode()).hexdigest(),
+                "token_count": estimate_tokens(website_text),
+                "start_char": 0,
+                "end_char": len(website_text),
+                "embedding": website_embedding.embeddings[0],
+                "embedding_provider": provider.provider_id,
+                "embedding_model": provider.model_id,
+                "chunk_metadata": {},
+            }
+        ],
+    )
+    await DocumentRepository(retrieval_session, tenant.id).activate(website_doc)
+
+    unrelated = await KnowledgeSourceRepository(retrieval_session, tenant.id).create(
+        bot_id=bot.id,
+        source_type=KnowledgeSourceType.FILE,
+        name="Unrelated file",
+    )
+    unrelated.status = KnowledgeSourceStatus.READY
+    unrelated_text = "Our support work handles desk orders and shipping returns."
+    unrelated_doc = await DocumentRepository(retrieval_session, tenant.id).create_next_version(
+        source_id=unrelated.id,
+        checksum_sha256=hashlib.sha256(unrelated_text.encode()).hexdigest(),
+        title="Unrelated file",
+    )
+    unrelated_embedding = await provider.embed([unrelated_text])
+    await DocumentChunkRepository(retrieval_session, tenant.id).create_batch(
+        document=unrelated_doc,
+        chunks=[
+            {
+                "ordinal": 0,
+                "content": unrelated_text,
+                "content_checksum_sha256": hashlib.sha256(unrelated_text.encode()).hexdigest(),
+                "token_count": estimate_tokens(unrelated_text),
+                "start_char": 0,
+                "end_char": len(unrelated_text),
+                "embedding": unrelated_embedding.embeddings[0],
+                "embedding_provider": provider.provider_id,
+                "embedding_model": provider.model_id,
+                "chunk_metadata": {},
+            }
+        ],
+    )
+    await DocumentRepository(retrieval_session, tenant.id).activate(unrelated_doc)
+    await retrieval_session.commit()
+
+    results = await HybridRetrievalService(
+        retrieval_session,
+        tenant.id,
+        provider,
+    ).retrieve(bot_id=bot.id, query="What does NPC Automators do?")
+
+    assert results
+    assert all(item.citation.source_id == website.id for item in results)

@@ -60,8 +60,57 @@ def _terms(value: str) -> set[str]:
     return set(re.findall(r"\w+", value.casefold(), flags=re.UNICODE))
 
 
+_LEXICAL_STOPWORDS = frozenset(
+    {
+        "a",
+        "an",
+        "and",
+        "are",
+        "as",
+        "at",
+        "be",
+        "by",
+        "can",
+        "does",
+        "do",
+        "for",
+        "from",
+        "how",
+        "i",
+        "in",
+        "is",
+        "it",
+        "me",
+        "of",
+        "on",
+        "or",
+        "the",
+        "their",
+        "they",
+        "this",
+        "to",
+        "we",
+        "what",
+        "when",
+        "where",
+        "which",
+        "who",
+        "why",
+        "with",
+        "you",
+        "your",
+    }
+)
+
+
+def _lexical_terms(value: str) -> set[str]:
+    """Remove conversational glue so lexical evidence identifies the subject."""
+
+    return {term for term in _terms(value) if term not in _LEXICAL_STOPWORDS}
+
+
 def _lexical_score(query: str, content: str) -> float:
-    query_terms = _terms(query)
+    query_terms = _lexical_terms(query)
     if not query_terms:
         return 0.0
     content_terms = _terms(content)
@@ -199,7 +248,7 @@ class HybridRetrievalService:
                 .limit(settings.RETRIEVAL_CANDIDATE_LIMIT)
             )
         ).all()
-        query_terms = sorted(_terms(query))
+        query_terms = sorted(_lexical_terms(query))
         lexical_rows: Sequence[Any] = ()
         if query_terms:
             ts_query: Any = func.plainto_tsquery("simple", query_terms[0])
@@ -263,6 +312,18 @@ class HybridRetrievalService:
         *,
         top_k: int,
     ) -> list[RetrievalResult]:
+        # When lexical evidence identifies one or more sources, do not let
+        # unrelated semantic neighbours from another source pollute the
+        # grounded prompt. If lexical search finds nothing, retain the full
+        # semantic candidate set for natural-language queries.
+        lexical_source_ids = {candidate.source.id for candidate in lexical_candidates}
+        if lexical_source_ids:
+            vector_candidates = [
+                candidate
+                for candidate in vector_candidates
+                if candidate.source.id in lexical_source_ids
+            ]
+
         candidates: dict[UUID, _Candidate] = {}
         fused: dict[UUID, float] = {}
         vector_scores: dict[UUID, float] = {}
