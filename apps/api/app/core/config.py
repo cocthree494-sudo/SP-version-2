@@ -115,6 +115,11 @@ class Settings(BaseSettings):
     WIDGET_MESSAGE_RATE_LIMIT: int = Field(default=30, ge=1, le=1000)
     WIDGET_MESSAGE_RATE_WINDOW_SECONDS: int = Field(default=60, ge=1, le=3600)
 
+    # Feature gates for surfaces whose provider adapters are not implemented.
+    # A gated surface stays readable so existing rows remain visible, but it
+    # must not accept configuration that implies a working connection.
+    VOICE_AGENTS_ENABLED: bool = False
+
     # Ingestion queue. Work is always executed outside API request workers.
     INGESTION_QUEUE_NAME: str = "support-agent:ingestion"
     INGESTION_MAX_ATTEMPTS: int = Field(default=5, ge=1, le=20)

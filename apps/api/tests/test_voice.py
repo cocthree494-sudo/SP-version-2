@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.pool import StaticPool
 
+from app.core.config import settings
 from app.db.base import Base
 from app.db.session import get_db_session
 from app.domains.auth.models import RefreshToken
@@ -80,9 +81,46 @@ async def register(client: AsyncClient, email: str, slug: str) -> dict[str, Any]
 
 
 @pytest.mark.asyncio
-async def test_voice_defaults_are_private_and_consent_is_explicit(
+async def test_voice_setup_is_gated_until_an_adapter_exists(
     voice_client: AsyncClient,
 ) -> None:
+    """No telephony adapter exists, so nothing may be presented as connected."""
+
+    tokens = await register(voice_client, "gated@example.com", "gated-co")
+    headers = bearer(tokens)
+    assert settings.VOICE_AGENTS_ENABLED is False
+
+    blocked = await voice_client.post(
+        "/v1/voice",
+        headers=headers,
+        json={"phone_number": "+15550199", "consent_acknowledged": True},
+    )
+    assert blocked.status_code == 503
+    assert "not available" in blocked.json()["detail"]
+
+    patched = await voice_client.patch(
+        f"/v1/voice/{uuid4()}", headers=headers, json={"status": "ready"}
+    )
+    assert patched.status_code == 503
+
+    hooked = await voice_client.post(
+        f"/v1/voice/{uuid4()}/webhooks",
+        headers={"X-Provider-Signature": "x" * 64},
+        json={"event_id": str(uuid4()), "event_type": "call.started", "payload": {}},
+    )
+    assert hooked.status_code == 503
+
+    listed = await voice_client.get("/v1/voice", headers=headers)
+    assert listed.status_code == 200
+    assert listed.json() == []
+
+
+@pytest.mark.asyncio
+async def test_voice_defaults_are_private_and_consent_is_explicit(
+    voice_client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "VOICE_AGENTS_ENABLED", True)
     tokens = await register(voice_client, "voice@example.com", "voice-co")
     headers = bearer(tokens)
     missing_consent = await voice_client.post(
@@ -119,7 +157,9 @@ async def test_voice_defaults_are_private_and_consent_is_explicit(
 @pytest.mark.asyncio
 async def test_voice_webhook_requires_signature_and_is_idempotent(
     voice_client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setattr(settings, "VOICE_AGENTS_ENABLED", True)
     tokens = await register(voice_client, "hooks@example.com", "hooks-co")
     created = await voice_client.post(
         "/v1/voice",

@@ -11,6 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import AuthContext, CurrentAuth
+from app.core.config import settings
 from app.db.session import get_db_session
 from app.domains.bots.models import Bot
 from app.domains.tenancy.enums import MembershipRole
@@ -24,6 +25,27 @@ from app.domains.voice.schemas import (
 
 router = APIRouter(prefix="/v1/voice", tags=["voice"])
 DbSession = Annotated[AsyncSession, Depends(get_db_session)]
+
+_VOICE_UNAVAILABLE = (
+    "Voice calling is not available yet. No approved telephony adapter is "
+    "implemented, so a configured number can never receive calls."
+)
+
+
+def require_voice_enabled() -> None:
+    """Fail closed while no telephony adapter exists.
+
+    Storing an installation, letting a tenant mark it verified, or accepting a
+    provider event would present an unimplemented capability as connected.
+    """
+
+    if not settings.VOICE_AGENTS_ENABLED:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=_VOICE_UNAVAILABLE
+        )
+
+
+VoiceEnabled = Annotated[None, Depends(require_voice_enabled)]
 
 
 def require_voice_manager(context: CurrentAuth) -> AuthContext:
@@ -49,7 +71,10 @@ async def list_voice_agents(session: DbSession, context: CurrentAuth) -> list[Vo
 
 @router.post("", response_model=VoiceAgentResponse, status_code=status.HTTP_201_CREATED)
 async def install_voice_agent(
-    payload: VoiceInstallRequest, session: DbSession, context: VoiceManager
+    payload: VoiceInstallRequest,
+    session: DbSession,
+    context: VoiceManager,
+    _enabled: VoiceEnabled,
 ) -> VoiceAgentResponse:
     if payload.bot_id is not None:
         bot = await session.scalar(
@@ -90,7 +115,11 @@ async def install_voice_agent(
 
 @router.patch("/{voice_id}", response_model=VoiceAgentResponse)
 async def update_voice_agent(
-    voice_id: UUID, payload: VoiceStatusUpdateRequest, session: DbSession, context: VoiceManager
+    voice_id: UUID,
+    payload: VoiceStatusUpdateRequest,
+    session: DbSession,
+    context: VoiceManager,
+    _enabled: VoiceEnabled,
 ) -> VoiceAgentResponse:
     row = await session.scalar(
         select(VoiceAgentInstallation).where(
@@ -111,8 +140,14 @@ async def receive_voice_event(
     voice_id: UUID,
     payload: VoiceWebhookRequest,
     session: DbSession,
+    _enabled: VoiceEnabled,
     _signature: Annotated[str | None, Header(alias="X-Provider-Signature")] = None,
 ) -> Response:
+    # This route is unauthenticated by design: a telephony provider calls it.
+    # The length check below is a placeholder, not verification. Before
+    # VOICE_AGENTS_ENABLED is ever set, this must verify a real per-installation
+    # provider HMAC and scope the lookup by tenant; otherwise any caller holding
+    # an installation UUID can write rows into that tenant's event table.
     if _signature is None or len(_signature) < 32:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Provider signature is required"
@@ -146,4 +181,4 @@ async def receive_voice_event(
     return Response(status_code=status.HTTP_202_ACCEPTED)
 
 
-__all__ = ["require_voice_manager", "router"]
+__all__ = ["require_voice_enabled", "require_voice_manager", "router"]
