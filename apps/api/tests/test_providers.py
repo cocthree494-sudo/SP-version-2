@@ -30,6 +30,17 @@ def request_fixture() -> GenerationRequest:
     )
 
 
+def grounded_request_fixture() -> GenerationRequest:
+    return GenerationRequest(
+        messages=[
+            ChatMessage(role=MessageRole.SYSTEM, content="Use the supplied evidence."),
+            ChatMessage(role=MessageRole.TOOL, content='{"KNOWLEDGE_DATA": []}'),
+            ChatMessage(role=MessageRole.USER, content="What is supported?"),
+        ],
+        max_output_tokens=100,
+    )
+
+
 @pytest.mark.asyncio
 async def test_deterministic_provider_generate_and_stream_are_stable() -> None:
     provider = DeterministicLLMProvider(
@@ -146,6 +157,84 @@ async def test_openai_compatible_stream_normalizes_sse_events() -> None:
     assert events[-1].type is StreamEventType.COMPLETED
     assert events[-1].usage is not None
     assert events[-1].usage.input_tokens == 2
+
+
+@pytest.mark.asyncio
+async def test_openai_compatible_retains_standalone_tool_messages() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        assert payload["messages"][1] == {
+            "role": "tool",
+            "content": '{"KNOWLEDGE_DATA": []}',
+        }
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": "Supported [1]."}}]},
+        )
+
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(handler),
+        base_url="https://provider.example/v1/",
+    ) as client:
+        provider = OpenAICompatibleLLMProvider(
+            provider_id="configured",
+            model_id="chat-config",
+            base_url="https://unused.example/v1",
+            api_key=SecretStr("test-secret-value"),
+            timeout_seconds=5,
+            client=client,
+        )
+        await provider.generate(grounded_request_fixture())
+
+
+@pytest.mark.asyncio
+async def test_compatible_provider_maps_tool_messages_for_generate_and_stream() -> None:
+    seen_payloads: list[dict] = []
+    stream_body = "\n".join(
+        [
+            'data: {"choices":[{"delta":{"content":"Supported [1]."},"finish_reason":"stop"}]}',
+            "data: [DONE]",
+            "",
+        ]
+    )
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        seen_payloads.append(payload)
+        mapped = payload["messages"][1]
+        assert mapped["role"] == "user"
+        assert mapped["content"].startswith("UNTRUSTED_TOOL_DATA:\n")
+        if payload["stream"]:
+            return httpx.Response(
+                200,
+                text=stream_body,
+                headers={"content-type": "text/event-stream"},
+            )
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": "Supported [1]."}}]},
+        )
+
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(handler),
+        base_url="https://provider.example/v1/",
+    ) as client:
+        provider = OpenAICompatibleLLMProvider(
+            provider_id="gemini-compatible",
+            model_id="gemini-2.5-flash",
+            base_url="https://unused.example/v1",
+            api_key=SecretStr("test-secret-value"),
+            timeout_seconds=5,
+            client=client,
+            supports_standalone_tool_messages=False,
+        )
+        await provider.generate(grounded_request_fixture())
+        events = [event async for event in provider.stream(grounded_request_fixture())]
+
+    assert len(seen_payloads) == 2
+    assert seen_payloads[0]["stream"] is False
+    assert seen_payloads[1]["stream"] is True
+    assert "".join(event.text for event in events) == "Supported [1]."
 
 
 @pytest.mark.asyncio

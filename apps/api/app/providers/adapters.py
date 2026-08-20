@@ -23,6 +23,7 @@ class ProviderAdapterSpec:
     kind: AdapterKind
     base_url: str
     model_discovery: Literal["live", "maintained"]
+    supports_standalone_tool_messages: bool = True
 
 
 _BASE_URLS: dict[GenerationProvider, str] = {
@@ -62,6 +63,7 @@ def adapter_specs() -> tuple[ProviderAdapterSpec, ...]:
             kind="openai_compatible",
             base_url=base_url,
             model_discovery=("live" if discovery.get(provider.value) == "live" else "maintained"),
+            supports_standalone_tool_messages=(provider is not GenerationProvider.GEMINI),
         )
         for provider, base_url in _BASE_URLS.items()
     )

@@ -39,3 +39,4 @@ def test_gemini_uses_the_approved_google_openai_compatible_endpoint() -> None:
     }
     assert spec.base_url == "https://generativelanguage.googleapis.com/v1beta/openai"
     assert spec.kind == "openai_compatible"
+    assert spec.supports_standalone_tool_messages is False

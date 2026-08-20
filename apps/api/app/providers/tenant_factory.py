@@ -62,6 +62,7 @@ def _provider(
         base_url=spec.base_url,
         api_key=secret,
         timeout_seconds=settings.AI_REQUEST_TIMEOUT_SECONDS,
+        supports_standalone_tool_messages=spec.supports_standalone_tool_messages,
     )
 
 

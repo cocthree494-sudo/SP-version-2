@@ -11,14 +11,18 @@ from pydantic import SecretStr
 
 from app.providers.embeddings import EmbeddingBatch, EmbeddingProviderError, EmbeddingUsage
 from app.providers.types import (
+    ChatMessage,
     GenerationRequest,
     GenerationResponse,
+    MessageRole,
     ProviderError,
     ProviderErrorCategory,
     ProviderUsage,
     StreamEvent,
     StreamEventType,
 )
+
+_UNTRUSTED_TOOL_DATA_PREFIX = "UNTRUSTED_TOOL_DATA:\n"
 
 
 def _category_for_status(status_code: int) -> ProviderErrorCategory:
@@ -115,6 +119,15 @@ class _OpenAICompatibleBase:
 
 
 class OpenAICompatibleLLMProvider(_OpenAICompatibleBase):
+    def __init__(
+        self,
+        *,
+        supports_standalone_tool_messages: bool = True,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.supports_standalone_tool_messages = supports_standalone_tool_messages
+
     async def generate(self, request: GenerationRequest) -> GenerationResponse:
         response = await self._post("chat/completions", self._payload(request, stream=False))
         try:
@@ -180,10 +193,7 @@ class OpenAICompatibleLLMProvider(_OpenAICompatibleBase):
     def _payload(self, request: GenerationRequest, *, stream: bool) -> dict[str, Any]:
         payload: dict[str, Any] = {
             "model": self.model_id,
-            "messages": [
-                {"role": message.role.value, "content": message.content}
-                for message in request.messages
-            ],
+            "messages": [self._message_payload(message) for message in request.messages],
             "max_tokens": request.max_output_tokens,
             "temperature": request.temperature,
             "stream": stream,
@@ -193,6 +203,17 @@ class OpenAICompatibleLLMProvider(_OpenAICompatibleBase):
         if stream:
             payload["stream_options"] = {"include_usage": True}
         return payload
+
+    def _message_payload(self, message: ChatMessage) -> dict[str, str]:
+        if (
+            message.role is MessageRole.TOOL
+            and not self.supports_standalone_tool_messages
+        ):
+            return {
+                "role": MessageRole.USER.value,
+                "content": f"{_UNTRUSTED_TOOL_DATA_PREFIX}{message.content}",
+            }
+        return {"role": message.role.value, "content": message.content}
 
 
 class OpenAICompatibleEmbeddingProvider(_OpenAICompatibleBase):
